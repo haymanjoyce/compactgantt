@@ -4,10 +4,10 @@ Why: Isolates the input UI logic. It imports generate_svg and SVGDisplayWindow t
 """
 
 
-import os
-from PyQt5.QtWidgets import QMainWindow, QTableWidget, QPushButton, QVBoxLayout, QWidget, QTabWidget
+from PyQt5.QtWidgets import QMainWindow, QTableWidget, QPushButton, QVBoxLayout, QWidget, QFileDialog, QTableWidgetItem
 from svg_display import SVGDisplayWindow
 from svg_generator import generate_svg
+import csv
 
 class DataEntryWindow(QMainWindow):
     def __init__(self):
@@ -19,46 +19,72 @@ class DataEntryWindow(QMainWindow):
         self.setCentralWidget(self.central_widget)
         self.layout = QVBoxLayout(self.central_widget)
 
-        self.tab_widget = QTabWidget()
-        self.layout.addWidget(self.tab_widget)
+        self.table = QTableWidget(5, 3)
+        self.table.setHorizontalHeaderLabels(["Column 1", "Column 2", "Column 3"])
+        self.layout.addWidget(self.table)
 
-        self.create_tab("Tab 1")
-        self.create_tab("Tab 2")
+        # Generate SVG button
+        self.generate_btn = QPushButton("Generate SVG")
+        self.generate_btn.clicked.connect(self.generate_and_show_svg)
+        self.layout.addWidget(self.generate_btn)
+
+        # Import CSV button
+        self.import_btn = QPushButton("Import CSV")
+        self.import_btn.clicked.connect(self.import_csv)
+        self.layout.addWidget(self.import_btn)
+
+        # Export CSV button
+        self.export_btn = QPushButton("Export CSV")
+        self.export_btn.clicked.connect(self.export_csv)
+        self.layout.addWidget(self.export_btn)
 
         # Initialize svg_window attribute
         self.svg_window = None
 
-    def create_tab(self, tab_name):
-        tab = QWidget()
-        tab_layout = QVBoxLayout(tab)
-
-        table = QTableWidget(5, 3)
-        table.setHorizontalHeaderLabels(["Column 1", "Column 2", "Column 3"])
-        tab_layout.addWidget(table)
-
-        generate_btn = QPushButton("Generate SVG")
-        generate_btn.clicked.connect(lambda: self.generate_and_show_svg(table))
-        tab_layout.addWidget(generate_btn)
-
-        self.tab_widget.addTab(tab, tab_name)
-
-    def generate_and_show_svg(self, table):
-        # Ensure the svg directory exists
-        svg_dir = "svg"
-        os.makedirs(svg_dir, exist_ok=True)
-
-        # Extract data from table
-        data = []
-        for row in range(table.rowCount()):
-            row_data = []
-            for col in range(table.columnCount()):
-                item = table.item(row, col)
-                row_data.append(item.text() if item else "0")
-            data.append(row_data)
-
-        # Generate SVG and display
-        svg_path = os.path.join(svg_dir, "output.svg")
-        generate_svg(data, svg_path)
+    def generate_and_show_svg(self):
+        data = self._get_table_data()
+        svg_path = generate_svg(data)
         self.svg_window = SVGDisplayWindow(svg_path)
         self.svg_window.show()
+
+    def _get_table_data(self):
+        """Helper to extract data from the table."""
+        data = []
+        for row in range(self.table.rowCount()):
+            row_data = []
+            for col in range(self.table.columnCount()):
+                item = self.table.item(row, col)
+                row_data.append(item.text() if item else "")
+            data.append(row_data)
+        return data
+
+    def import_csv(self):
+        """Import data from a CSV file into the table."""
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open CSV", "", "CSV Files (*.csv)")
+        if file_path:
+            try:
+                with open(file_path, newline='') as csvfile:
+                    reader = csv.reader(csvfile)
+                    data = list(reader)
+                    # Adjust table size if needed
+                    self.table.setRowCount(len(data))
+                    self.table.setColumnCount(len(data[0]) if data else 3)
+                    # Populate table
+                    for row_idx, row_data in enumerate(data):
+                        for col_idx, value in enumerate(row_data):
+                            self.table.setItem(row_idx, col_idx, QTableWidgetItem(value))
+            except Exception as e:
+                print(f"Error importing CSV: {e}")
+
+    def export_csv(self):
+        """Export table data to a CSV file."""
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save CSV", "", "CSV Files (*.csv)")
+        if file_path:
+            try:
+                data = self._get_table_data()
+                with open(file_path, 'w', newline='') as csvfile:
+                    writer = csv.writer(csvfile)
+                    writer.writerows(data)
+            except Exception as e:
+                print(f"Error exporting CSV: {e}")
 
