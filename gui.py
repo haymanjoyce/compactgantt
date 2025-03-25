@@ -1,3 +1,5 @@
+import os
+
 from PyQt5.QtWidgets import QMainWindow, QTableWidget, QPushButton, QVBoxLayout, QWidget, QDialog
 from PyQt5.QtSvg import QSvgWidget
 import svgwrite
@@ -39,6 +41,11 @@ class DataEntryWindow(QMainWindow):
         self.tab_widget.addTab(self.second_tab, "Second Tab")
 
     def generate_and_show_svg(self):
+
+        # Ensure the svg directory exists
+        svg_dir = "svg"
+        os.makedirs(svg_dir, exist_ok=True)
+
         # Extract data from table
         data = []
         for row in range(self.table.rowCount()):
@@ -49,13 +56,14 @@ class DataEntryWindow(QMainWindow):
             data.append(row_data)
 
         # Generate SVG (example: simple text-based SVG)
+        svg_path = os.path.join(svg_dir, "output.svg")
         dwg = svgwrite.Drawing("output.svg", size=("400px", "300px"))
         for i, row in enumerate(data):
             dwg.add(dwg.text(f"Row {i}: {row}", insert=(10, 20 + i * 20), fill="black"))
         dwg.save()
 
         # Show SVG in new window
-        self.svg_window = SVGDisplayWindow("output.svg")
+        self.svg_window = SVGDisplayWindow(svg_path)
         self.svg_window.show()
 
 
