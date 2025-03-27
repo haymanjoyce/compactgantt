@@ -3,15 +3,18 @@ Purpose: Generates an SVG Gantt chart from ProjectData.
 Why: Visualizes tasks, pipes, and curtains with a time scale for project planning.
 """
 
+
 import svgwrite
 from datetime import datetime, timedelta
 import os
 from PyQt5.QtCore import QObject, pyqtSignal  # Ensure correct import
+from config import Config
+
 
 class GanttChartGenerator(QObject):
     svg_generated = pyqtSignal(str)  # Signal to emit the SVG file path
 
-    def __init__(self, width=800, height=400, output_folder="svg", output_filename="gantt_chart.svg"):
+    def __init__(self, width=Config.SVG_WIDTH, height=Config.SVG_HEIGHT, output_folder=Config.SVG_OUTPUT_FOLDER, output_filename=Config.SVG_OUTPUT_FILENAME):
         """Initialize the Gantt chart generator with dimensions."""
         super().__init__()
         self.width = width
@@ -208,4 +211,3 @@ def generate_svg(data, output_folder="svg", output_filename="gantt_chart.svg"):
     """Legacy function for compatibility."""
     generator = GanttChartGenerator(output_folder=output_folder, output_filename=output_filename)
     return generator.generate_svg(data)
-

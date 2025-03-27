@@ -6,15 +6,17 @@ Why: Separates the output UI into its own module. It’s reusable for any SVG di
 from PyQt5.QtWidgets import QDialog, QVBoxLayout
 from PyQt5.QtSvg import QSvgWidget
 import os
+from config import Config
+
 
 class SVGDisplayWindow(QDialog):
     def __init__(self, initial_path=None):
         super().__init__()
         self.setWindowTitle("SVG Display")
-        self.setGeometry(150, 150, 800, 400)
+        self.setGeometry(150, 150, Config.SVG_DISPLAY_WIDTH, Config.SVG_DISPLAY_HEIGHT)
 
         self.svg_widget = QSvgWidget()
-        self.svg_widget.setGeometry(0, 0, 800, 400)
+        self.svg_widget.setGeometry(0, 0, Config.SVG_DISPLAY_WIDTH, Config.SVG_DISPLAY_HEIGHT)
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.svg_widget)
         self.setLayout(self.layout)
