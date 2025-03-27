@@ -1,7 +1,9 @@
 """
-Purpose: Manages Gantt chart data (tasks, pipes, curtains) and handles data structure.
+Purpose: Manages Gantt chart data (tasks, pipes, curtains) and handles data structure, independent of UI or rendering logic
 Why: Centralizes data logic, making it reusable and easier to maintain/test.
 """
+
+
 from datetime import datetime
 
 class ProjectData:

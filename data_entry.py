@@ -5,13 +5,14 @@ Why: Provides a clean interface for Gantt chart data entry, relying on ProjectDa
 
 from PyQt5.QtWidgets import QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QFileDialog, QTabWidget, QAction, QApplication, QToolBar, QMessageBox
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QDate
-from svg_display import SVGDisplayWindow
-from svg_generator import generate_svg
+from PyQt5.QtCore import QDate, pyqtSignal  # Added pyqtSignal
 from data_model import ProjectData
 import json
 
 class DataEntryWindow(QMainWindow):
+    # Define the signal to emit when data is updated
+    data_updated = pyqtSignal(dict)
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Gantt Chart Data Entry")
@@ -36,7 +37,7 @@ class DataEntryWindow(QMainWindow):
         self.remove_row_action.triggered.connect(self.remove_row)
         self.tools_menu.addAction(self.remove_row_action)
         self.generate_action = QAction("Generate Gantt Chart", self)
-        self.generate_action.triggered.connect(self.generate_and_show_svg)
+        self.generate_action.triggered.connect(self._emit_data_updated)  # Updated to emit signal
         self.tools_menu.addAction(self.generate_action)
 
         # Toolbar setup
@@ -50,7 +51,7 @@ class DataEntryWindow(QMainWindow):
         self.remove_row_tool.triggered.connect(self.remove_row)
         self.toolbar.addAction(self.remove_row_tool)
         self.generate_tool = QAction(QIcon(style.standardIcon(style.SP_ArrowRight)), "Generate Gantt Chart", self)
-        self.generate_tool.triggered.connect(self.generate_and_show_svg)
+        self.generate_tool.triggered.connect(self._emit_data_updated)  # Updated to emit signal
         self.toolbar.addAction(self.generate_tool)
 
         # Central widget and layout
@@ -77,7 +78,6 @@ class DataEntryWindow(QMainWindow):
         self.curtains_table.setHorizontalHeaderLabels(["Curtain Name", "Start Date", "End Date", "Color"])
         self.tabs.addTab(self.curtains_table, "Curtains")
 
-        self.svg_window = None
         self._load_initial_data()
 
     def _load_initial_data(self):
@@ -109,7 +109,7 @@ class DataEntryWindow(QMainWindow):
             current_table.setItem(current_rows, 0, QTableWidgetItem(f"Curtain {current_rows + 1}"))
             current_table.setItem(current_rows, 1, QTableWidgetItem(today))
             current_table.setItem(current_rows, 2, QTableWidgetItem(today))
-            current_table.setItem(current_rows, 3, QTableWidgetItem("red"))  # SVG-compatible color
+            current_table.setItem(current_rows, 3, QTableWidgetItem("red"))
         self._sync_data()
 
     def remove_row(self):
@@ -131,23 +131,18 @@ class DataEntryWindow(QMainWindow):
         return data
 
     def _sync_data(self):
-        """Sync table data with ProjectData."""
+        """Sync table data with ProjectData and emit signal."""
         try:
             self.project_data.update_from_table("tasks", self._extract_table_data(self.tasks_table))
             self.project_data.update_from_table("pipes", self._extract_table_data(self.pipes_table))
             self.project_data.update_from_table("curtains", self._extract_table_data(self.curtains_table))
+            self.data_updated.emit(self.project_data.to_json())  # Emit signal with updated data
         except ValueError as e:
             QMessageBox.critical(self, "Error", str(e))
 
-    def generate_and_show_svg(self):
-        """Generate and display the Gantt chart using ProjectData."""
-        try:
-            self._sync_data()
-            svg_path = generate_svg(self.project_data.to_json(), output_folder="svg", output_filename="gantt_chart.svg")
-            self.svg_window = SVGDisplayWindow(svg_path)
-            self.svg_window.show()
-        except ValueError as e:
-            QMessageBox.critical(self, "Error", f"Cannot generate SVG: {e}")
+    def _emit_data_updated(self):
+        """Helper to sync data and emit the signal when generating Gantt chart."""
+        self._sync_data()  # This already emits data_updated
 
     def save_to_json(self):
         """Save ProjectData to a JSON file."""
@@ -170,5 +165,6 @@ class DataEntryWindow(QMainWindow):
                     data = json.load(jsonfile)
                 self.project_data = ProjectData.from_json(data)
                 self._load_initial_data()
+                self.data_updated.emit(self.project_data.to_json())  # Emit signal after loading
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Error loading JSON: {e}")

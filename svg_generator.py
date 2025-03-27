@@ -6,23 +6,41 @@ Why: Visualizes tasks, pipes, and curtains with a time scale for project plannin
 import svgwrite
 from datetime import datetime, timedelta
 import os
+from PyQt5.QtCore import QObject, pyqtSignal  # Ensure correct import
 
-class GanttChartGenerator:
-    def __init__(self, data, width=800, height=400, output_folder="svg", output_filename="gantt_chart.svg"):
-        """Initialize the Gantt chart generator with data and dimensions."""
-        self.data = {
-            "tasks": data.get("tasks", []),
-            "pipes": data.get("pipes", []),
-            "curtains": data.get("curtains", [])
-        }
+class GanttChartGenerator(QObject):
+    svg_generated = pyqtSignal(str)  # Signal to emit the SVG file path
+
+    def __init__(self, width=800, height=400, output_folder="svg", output_filename="gantt_chart.svg"):
+        """Initialize the Gantt chart generator with dimensions."""
+        super().__init__()
         self.width = width
         self.height = height
         self.output_folder = output_folder
         self.output_filename = output_filename
-        self.dwg = svgwrite.Drawing(filename=os.path.join(output_folder, output_filename), size=(width, height))
+        self.dwg = None  # Initialized in generate_svg
         self.margin = 50
         self.row_height = 30
         self.time_scale = None
+        self.data = {"tasks": [], "pipes": [], "curtains": []}  # Default empty data
+
+    def generate_svg(self, data):
+        """Generate the SVG Gantt chart from the provided data."""
+        try:
+            self.data = {  # Update data instead of defining it
+                "tasks": data.get("tasks", []),
+                "pipes": data.get("pipes", []),
+                "curtains": data.get("curtains", [])
+            }
+            self.dwg = svgwrite.Drawing(filename=os.path.join(self.output_folder, self.output_filename), size=(self.width, self.height))
+            self.render()
+            # svg_path = os.path.join(self.output_folder, self.output_filename)
+            svg_path = os.path.abspath(os.path.join(self.output_folder, self.output_filename))  # Use absolute path
+            self.svg_generated.emit(svg_path)  # Emit signal with the SVG file path
+            return svg_path
+        except Exception as e:
+            raise ValueError(f"SVG generation failed: {e}")
+
 
     def _calculate_time_range(self):
         """Determine the date range based on tasks, pipes, and curtains."""
@@ -184,9 +202,10 @@ class GanttChartGenerator:
         self.render_pipes()
         self.render_time_scale()
         self.dwg.save()
+        print(f"SVG saved to: {os.path.join(self.output_folder, self.output_filename)}")  # Added for feedback
 
 def generate_svg(data, output_folder="svg", output_filename="gantt_chart.svg"):
     """Legacy function for compatibility."""
-    generator = GanttChartGenerator(data, output_folder=output_folder, output_filename=output_filename)
-    generator.render()
-    return os.path.join(output_folder, output_filename)
+    generator = GanttChartGenerator(output_folder=output_folder, output_filename=output_filename)
+    return generator.generate_svg(data)
+
