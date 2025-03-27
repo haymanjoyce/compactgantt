@@ -41,7 +41,6 @@ if __name__ == "__main__":
 
 
 # TODO:
-#  architecture review
 #  import and export xlsx
 #  non-tabular UI for project start/end dates
 #  error dialogues
