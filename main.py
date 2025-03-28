@@ -24,17 +24,15 @@ def main():
     # Create instances
     data_entry = DataEntryWindow()
     svg_generator = GanttChartGenerator()
-    svg_display = SVGDisplayWindow()  # No initial path
+    svg_display = SVGDisplayWindow()
 
     # Connect signals and slots
     data_entry.data_updated.connect(svg_generator.generate_svg)
-    svg_generator.svg_generated.connect(svg_display.load_svg)
-    svg_generator.svg_generated.connect(svg_display.show)
+    svg_generator.svg_generated.connect(svg_display.load_svg)  # Only connect load_svg
 
     # Show the data entry window
     data_entry.show()
     sys.exit(app.exec_())
-
 
 if __name__ == "__main__":
     main()

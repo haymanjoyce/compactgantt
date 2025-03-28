@@ -3,10 +3,12 @@ Purpose: Defines DataEntryWindow, handles user input via tabs and UI interaction
 Why: Provides a clean interface for Gantt chart data entry, relying on ProjectData for logic.
 """
 
-from PyQt5.QtWidgets import QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QFileDialog, QTabWidget, QAction, QApplication, QToolBar, QMessageBox
+from PyQt5.QtWidgets import (QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
+                             QFileDialog, QTabWidget, QAction, QApplication, QToolBar, QMessageBox,
+                             QLineEdit, QLabel, QGridLayout, QPushButton)
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QDate, pyqtSignal
-from data_model import ProjectData
+from data_model import ProjectData, FrameConfig
 from config import Config
 import json
 
@@ -25,7 +27,7 @@ class DataEntryWindow(QMainWindow):
         self.save_action = QAction("Save Project", self)
         self.save_action.triggered.connect(self.save_to_json)
         self.file_menu.addAction(self.save_action)
-        self.load_action = QAction("Load Project", self)  # Fixed typo: 'clazz' → 'QAction'
+        self.load_action = QAction("Load Project", self)
         self.load_action.triggered.connect(self.load_from_json)
         self.file_menu.addAction(self.load_action)
 
@@ -59,7 +61,7 @@ class DataEntryWindow(QMainWindow):
         self.setCentralWidget(self.central_widget)
         self.layout = QVBoxLayout(self.central_widget)
 
-        # Tab widget for multiple tables
+        # Tab widget for tables
         self.tabs = QTabWidget()
         self.layout.addWidget(self.tabs)
 
@@ -68,29 +70,73 @@ class DataEntryWindow(QMainWindow):
         self.tasks_table.setHorizontalHeaderLabels(["Task Name", "Start Date", "Duration (days)"])
         self.tabs.addTab(self.tasks_table, "Tasks")
 
-        # Pipes table
-        self.pipes_table = QTableWidget(Config.PIPES_ROWS, 2)
-        self.pipes_table.setHorizontalHeaderLabels(["Pipe Name", "Date"])
-        self.tabs.addTab(self.pipes_table, "Pipes")
-
-        # Curtains table
-        self.curtains_table = QTableWidget(Config.CURTAINS_ROWS, 4)
-        self.curtains_table.setHorizontalHeaderLabels(["Curtain Name", "Start Date", "End Date", "Color"])
-        self.tabs.addTab(self.curtains_table, "Curtains")
+        # Layout tab
+        self.layout_tab = QWidget()
+        self.setup_layout_tab()
+        self.tabs.addTab(self.layout_tab, "Layout")
 
         self._load_initial_data()
+
+    def setup_layout_tab(self):
+        """Set up the Layout tab for FrameConfig and TimeFrames."""
+        layout = QGridLayout()
+
+        # FrameConfig inputs
+        layout.addWidget(QLabel("Outer Width:"), 0, 0)
+        self.outer_width_input = QLineEdit(str(self.project_data.frame_config.outer_width))
+        layout.addWidget(self.outer_width_input, 0, 1)
+
+        layout.addWidget(QLabel("Outer Height:"), 1, 0)
+        self.outer_height_input = QLineEdit(str(self.project_data.frame_config.outer_height))
+        layout.addWidget(self.outer_height_input, 1, 1)
+
+        layout.addWidget(QLabel("Header Height:"), 2, 0)
+        self.header_height_input = QLineEdit(str(self.project_data.frame_config.header_height))
+        layout.addWidget(self.header_height_input, 2, 1)
+
+        layout.addWidget(QLabel("Footer Height:"), 3, 0)
+        self.footer_height_input = QLineEdit(str(self.project_data.frame_config.footer_height))
+        layout.addWidget(self.footer_height_input, 3, 1)
+
+        layout.addWidget(QLabel("Margins (top, right, bottom, left):"), 4, 0)
+        self.margins_input = QLineEdit(", ".join(map(str, self.project_data.frame_config.margins)))
+        layout.addWidget(self.margins_input, 4, 1)
+
+        # TimeFrames table
+        self.time_frames_table = QTableWidget(2, 4)  # Start with 2 rows
+        self.time_frames_table.setHorizontalHeaderLabels(["Start Date", "End Date", "Width Proportion", "Magnification"])
+        layout.addWidget(self.time_frames_table, 5, 0, 1, 2)
+
+        add_tf_btn = QPushButton("Add Time Frame")
+        remove_tf_btn = QPushButton("Remove Time Frame")
+        add_tf_btn.clicked.connect(lambda: self.time_frames_table.insertRow(self.time_frames_table.rowCount()))
+        remove_tf_btn.clicked.connect(lambda: self.time_frames_table.removeRow(self.time_frames_table.rowCount() - 1) if self.time_frames_table.rowCount() > 1 else None)
+        layout.addWidget(add_tf_btn, 6, 0)
+        layout.addWidget(remove_tf_btn, 6, 1)
+
+        self.layout_tab.setLayout(layout)
 
     def _load_initial_data(self):
         """Populate tables with default or loaded data."""
         for table, data, tab_name in [
-            (self.tasks_table, self.project_data.get_table_data("tasks"), "tasks"),
-            (self.pipes_table, self.project_data.get_table_data("pipes"), "pipes"),
-            (self.curtains_table, self.project_data.get_table_data("curtains"), "curtains")
+            (self.tasks_table, self.project_data.get_table_data("tasks"), "tasks")
         ]:
             table.setRowCount(len(data))
             for row_idx, row_data in enumerate(data):
                 for col_idx, value in enumerate(row_data):
                     table.setItem(row_idx, col_idx, QTableWidgetItem(value))
+        # Populate layout tab
+        self.outer_width_input.setText(str(self.project_data.frame_config.outer_width))
+        self.outer_height_input.setText(str(self.project_data.frame_config.outer_height))
+        self.header_height_input.setText(str(self.project_data.frame_config.header_height))
+        self.footer_height_input.setText(str(self.project_data.frame_config.footer_height))
+        self.margins_input.setText(", ".join(map(str, self.project_data.frame_config.margins)))
+        self.time_frames_table.setRowCount(len(self.project_data.time_frames))
+        for i, tf in enumerate(self.project_data.time_frames):
+            self.time_frames_table.setItem(i, 0, QTableWidgetItem(tf.start_date))
+            self.time_frames_table.setItem(i, 1, QTableWidgetItem(tf.end_date))
+            self.time_frames_table.setItem(i, 2, QTableWidgetItem(str(tf.width_proportion)))
+            self.time_frames_table.setItem(i, 3, QTableWidgetItem(str(tf.magnification)))
 
     def add_row(self):
         """Add a row to the current tab’s table and update ProjectData."""
@@ -102,14 +148,11 @@ class DataEntryWindow(QMainWindow):
             current_table.setItem(current_rows, 0, QTableWidgetItem(f"Task {current_rows + 1}"))
             current_table.setItem(current_rows, 1, QTableWidgetItem(today))
             current_table.setItem(current_rows, 2, QTableWidgetItem("1"))
-        elif current_table == self.pipes_table:
-            current_table.setItem(current_rows, 0, QTableWidgetItem(f"Pipe {current_rows + 1}"))
+        elif current_table == self.time_frames_table:
+            current_table.setItem(current_rows, 0, QTableWidgetItem(today))
             current_table.setItem(current_rows, 1, QTableWidgetItem(today))
-        elif current_table == self.curtains_table:
-            current_table.setItem(current_rows, 0, QTableWidgetItem(f"Curtain {current_rows + 1}"))
-            current_table.setItem(current_rows, 1, QTableWidgetItem(today))
-            current_table.setItem(current_rows, 2, QTableWidgetItem(today))
-            current_table.setItem(current_rows, 3, QTableWidgetItem(Config.DEFAULT_CURTAIN_COLOR))
+            current_table.setItem(current_rows, 2, QTableWidgetItem("0.5"))
+            current_table.setItem(current_rows, 3, QTableWidgetItem("1.0"))
         self._sync_data()
 
     def remove_row(self):
@@ -133,9 +176,41 @@ class DataEntryWindow(QMainWindow):
     def _sync_data(self):
         """Sync table data with ProjectData and emit signal."""
         try:
+            # Update tasks
             self.project_data.update_from_table("tasks", self._extract_table_data(self.tasks_table))
-            self.project_data.update_from_table("pipes", self._extract_table_data(self.pipes_table))
-            self.project_data.update_from_table("curtains", self._extract_table_data(self.curtains_table))
+
+            # Update frame_config
+            margins = [float(x.strip()) for x in self.margins_input.text().split(",")]
+            self.project_data.frame_config = FrameConfig(
+                float(self.outer_width_input.text()), float(self.outer_height_input.text()),
+                float(self.header_height_input.text()), float(self.footer_height_input.text()),
+                (margins[0], margins[1], margins[2], margins[3])
+            )
+
+            # Update time_frames
+            self.project_data.time_frames.clear()
+            for row in range(self.time_frames_table.rowCount()):
+                start = self.time_frames_table.item(row, 0).text() if self.time_frames_table.item(row, 0) else ""
+                end = self.time_frames_table.item(row, 1).text() if self.time_frames_table.item(row, 1) else ""
+                width_item = self.time_frames_table.item(row, 2)
+                width = width_item.text().strip() if width_item else "0"  # Strip whitespace
+                mag_item = self.time_frames_table.item(row, 3)
+                mag = mag_item.text().strip() if mag_item else "1.0"  # Strip whitespace
+
+                # Debug print to see what’s being passed
+                print(f"Row {row}: width='{width}', mag='{mag}'")
+
+                try:
+                    width_float = float(width)
+                except ValueError:
+                    width_float = 0.0  # Fallback to 0.0 if conversion fails
+                try:
+                    mag_float = float(mag)
+                except ValueError:
+                    mag_float = 1.0  # Fallback to 1.0 if conversion fails
+
+                self.project_data.add_time_frame(start, end, width_float, mag_float)
+
             self.data_updated.emit(self.project_data.to_json())
         except ValueError as e:
             QMessageBox.critical(self, "Error", str(e))

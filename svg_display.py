@@ -8,15 +8,14 @@ from PyQt5.QtSvg import QSvgWidget
 import os
 from config import Config
 
-
 class SVGDisplayWindow(QDialog):
     def __init__(self, initial_path=None):
         super().__init__()
         self.setWindowTitle("SVG Display")
+        # Start with default size, adjust in load_svg
         self.setGeometry(150, 150, Config.SVG_DISPLAY_WIDTH, Config.SVG_DISPLAY_HEIGHT)
 
         self.svg_widget = QSvgWidget()
-        self.svg_widget.setGeometry(0, 0, Config.SVG_DISPLAY_WIDTH, Config.SVG_DISPLAY_HEIGHT)
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.svg_widget)
         self.setLayout(self.layout)
@@ -30,9 +29,12 @@ class SVGDisplayWindow(QDialog):
         if os.path.exists(absolute_path):
             print(f"Loading SVG from: {absolute_path}")
             try:
-                self.svg_widget.load(absolute_path)  # Load the SVG file
-                self.svg_widget.update()            # Schedule a repaint of the widget
-                self.show()                         # Ensure the dialog is visible
+                self.svg_widget.load(absolute_path)
+                # Optionally resize to match SVG (uncomment if needed)
+                # svg_size = self.svg_widget.renderer().defaultSize()
+                # self.resize(svg_size.width(), svg_size.height())
+                self.svg_widget.update()
+                self.show()
             except Exception as e:
                 print(f"Failed to load SVG: {e}")
         else:
