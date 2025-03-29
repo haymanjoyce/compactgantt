@@ -11,7 +11,7 @@ The problems that I have with existing tools include, for example:
  - I can only fit one task per row
  - I cannot change magnification at points on the scale (so I cannot show tasks in distant future at a lower magnification)
  - I cannot be selective about applying (and placing) labels and logic (i.e., connectors)
- - I lack fine control over the dimensions and so it's often hard to get the chart to fit on the desired paper or slide
+ - I lack fine control over dimensions and so it's often hard to get a chart to fit on the desired paper or slide
  - I have to hand draw my charts (using PowerPoint, for example) which is time-consuming and error-prone
  - Planning tool Gantt charts are generally pretty ugly which makes them less engaging to look at
 
@@ -23,7 +23,7 @@ The problems that I have with existing tools include, for example:
  - header - sits at top of outer_frame; full width of outer_frame; only one header row available (design decision)
  - footer - sits at bottom of outer_frame; full width of outer_frame; only one footer row available (design decision)
  - inner_frame - sits between header_frame and footer_frame; full width of outer_frame
- - time_frame - sits inside inner_frame; time_frames show chart at different levels of magnification
+ - time_frame - sits inside inner_frame; time_frames able to show chart at different levels of magnification
  - upper_scale - sits inside time_frame; shows the timescale; full width of time_frame; placed at top of time_frame
  - lower_scale - sits inside time_frame; shows the timescale; full width of time_frame; placed below upper_scale
  - row_frame - sits inside a time_frame; contains rows; full width of inner_frame; placed below lower_scale
@@ -50,6 +50,8 @@ The problems that I have with existing tools include, for example:
  - The user can define the number of rows
  - The first part of a task might appear in one time_frame and the second part in a neighbouring time_frame
  - A curtain may start in one time_frame and end in another
+ - Time frames are contiguous (i.e., no gaps between them)
+ - Time frames cannot overlap
 
 ## User Interface Requirements
 
