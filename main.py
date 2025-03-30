@@ -1,13 +1,6 @@
 """
 Purpose: Launches the app, ties everything together.
 Why: Keeps the startup logic separate, making it easy to test or swap UIs later.
-
-Notes on Signals/Slots Integration:
-
-1) data_entry.py: Emits data_updated with self.project_data.to_json() whenever data is synced (e.g., after adding/removing rows, saving, or generating the chart).
-2) svg_generator.py: Receives this JSON dict via generate_svg and renders it into an SVG, emitting svg_generated.
-3) svg_display.py: Updates the display based on the SVG path from svg_generated.
-
 """
 
 

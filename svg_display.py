@@ -24,18 +24,11 @@ class SVGDisplayWindow(QDialog):
             self.load_svg(initial_path)
 
     def load_svg(self, svg_path):
-        """Load and display an SVG file from the given path."""
+        print("Received SVG path:", svg_path)  # Debug
         absolute_path = os.path.abspath(svg_path)
         if os.path.exists(absolute_path):
             print(f"Loading SVG from: {absolute_path}")
-            try:
-                self.svg_widget.load(absolute_path)
-                # Optionally resize to match SVG (uncomment if needed)
-                # svg_size = self.svg_widget.renderer().defaultSize()
-                # self.resize(svg_size.width(), svg_size.height())
-                self.svg_widget.update()
-                self.show()
-            except Exception as e:
-                print(f"Failed to load SVG: {e}")
+            self.svg_widget.load(absolute_path)
+            self.show()
         else:
             print(f"SVG file not found: {absolute_path}")

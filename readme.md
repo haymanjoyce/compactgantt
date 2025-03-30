@@ -200,6 +200,8 @@ TBD (To be determined — see Packaging & Distribution for plans).
 
 ### Packaging & Distribution
 
+ - [ ] setup.py
+ - [ ] requirements.txt
  - [ ] windows executable
  - [ ] PyPI package
  - [ ] documentation

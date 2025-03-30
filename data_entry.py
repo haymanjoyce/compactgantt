@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (QMainWindow, QTableWidget, QTableWidgetItem, QVBoxL
                              QFileDialog, QTabWidget, QAction, QApplication, QToolBar, QMessageBox,
                              QLineEdit, QLabel, QGridLayout, QPushButton, QCheckBox)
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QDate, pyqtSignal
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QDate
 from data_model import ProjectData, FrameConfig
 from config import Config
 from datetime import datetime, timedelta
@@ -518,6 +518,7 @@ class DataEntryWindow(QMainWindow):
 
     def _emit_data_updated(self):
         self._sync_data()
+        print("Emitting data:", self.project_data.to_json())  # Debug
 
     def save_to_json(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Save Project", "", "JSON Files (*.json)")
