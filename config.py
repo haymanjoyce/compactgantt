@@ -16,9 +16,16 @@ class Config:
     SVG_OUTPUT_FOLDER = "svg"
     SVG_OUTPUT_FILENAME = "gantt_chart.svg"
 
-    # Scale proportions (relative to inner_frame height)
-    UPPER_SCALE_PROPORTION = 0.1  # 10% of inner_frame height
-    LOWER_SCALE_PROPORTION = 0.05  # 5% of inner_frame height
+    # Scale proportions (relative to row_frame height within time_frame)
+    SCALE_PROPORTION_YEARS = 0.2   # e.g., 20% of row_frame height
+    SCALE_PROPORTION_MONTHS = 0.2
+    SCALE_PROPORTION_WEEKS = 0.2
+    SCALE_PROPORTION_DAYS = 0.2
+
+    # Scale label thresholds (in pixels)
+    FULL_LABEL_WIDTH = 50          # Width for full labels (e.g., "2025", "02 (12)")
+    SHORT_LABEL_WIDTH = 20         # Width for short labels (e.g., "25", "02")
+    MIN_INTERVAL_WIDTH = 5         # Minimum width for separators and blank labels
 
     # Default table row counts
     TASKS_ROWS = 5

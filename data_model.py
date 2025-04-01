@@ -20,24 +20,22 @@ class FrameConfig:
     horizontal_gridlines: bool
     vertical_gridlines: bool
     chart_start_date: str  # YYYY-MM-DD
-    intervals: str  # "years", "months", "weeks"
 
     @property
     def inner_height(self):
         from config import Config
         return (self.outer_height - self.header_height - self.footer_height -
-                self.margins[0] - self.margins[2]) * (1 - Config.UPPER_SCALE_PROPORTION - Config.LOWER_SCALE_PROPORTION)
+                self.margins[0] - self.margins[2])
 
     def validate(self):
         assert self.outer_width > 0 and self.outer_height > 0
         assert 0 <= self.header_height < self.outer_height
         assert 0 <= self.footer_height < self.outer_height
         assert self.num_rows > 0 and isinstance(self.num_rows, int)
-        assert self.inner_height > 0, "Inner height must be positive after accounting for scales and margins"
+        assert self.inner_height > 0, "Inner height must be positive"
         assert isinstance(self.header_text, str) and isinstance(self.footer_text, str)
         assert isinstance(self.horizontal_gridlines, bool) and isinstance(self.vertical_gridlines, bool)
         datetime.strptime(self.chart_start_date, "%Y-%m-%d")
-        assert self.intervals in ["years", "months", "weeks"]
 
 @dataclass
 class TimeFrame:
@@ -126,7 +124,7 @@ class TextBox:
 
 class ProjectData:
     def __init__(self):
-        self.frame_config = FrameConfig(800, 600, 50, 50, (10, 10, 10, 10), 1, "", "", False, False, "2025-01-01", "weeks")
+        self.frame_config = FrameConfig(800, 600, 50, 50, (10, 10, 10, 10), 1, "", "", False, False, "2025-01-01")
         self.time_frames = []
         self.tasks = []
         self.connectors = []
@@ -185,8 +183,7 @@ class ProjectData:
                 "footer_text": self.frame_config.footer_text,
                 "horizontal_gridlines": self.frame_config.horizontal_gridlines,
                 "vertical_gridlines": self.frame_config.vertical_gridlines,
-                "chart_start_date": self.frame_config.chart_start_date,
-                "intervals": self.frame_config.intervals
+                "chart_start_date": self.frame_config.chart_start_date
             },
             "time_frames": [
                 {"finish_date": tf.finish_date, "width_proportion": tf.width_proportion}
@@ -237,8 +234,7 @@ class ProjectData:
             data["frame_config"].get("footer_text", ""),
             data["frame_config"].get("horizontal_gridlines", False),
             data["frame_config"].get("vertical_gridlines", False),
-            data["frame_config"].get("chart_start_date", "2025-01-01"),
-            data["frame_config"].get("intervals", "weeks")
+            data["frame_config"].get("chart_start_date", "2025-01-01")
         )
         instance.time_frames = [
             TimeFrame(tf["finish_date"], tf["width_proportion"])
@@ -271,12 +267,12 @@ class ProjectData:
         return instance
 
     def get_table_data(self, table_type):
-        if table_type == "tasks":
-            return [[str(t.task_id), t.task_name, t.start_date, t.finish_date, str(t.row_number)]
-                    for t in self.tasks]
-        elif table_type == "time_frames":
+        if table_type == "time_frames":
             return [[tf.finish_date, str(tf.width_proportion * 100)]
                     for tf in self.time_frames]
+        elif table_type == "tasks":
+            return [[str(t.task_id), t.task_name, t.start_date, t.finish_date, str(t.row_number)]
+                    for t in self.tasks]
         elif table_type == "connectors":
             return [[str(c.from_task_id), str(c.to_task_id)] for c in self.connectors]
         elif table_type == "swimlanes":
@@ -295,7 +291,7 @@ class ProjectData:
         if table_type == "time_frames":
             self.time_frames.clear()
             for row in table_data:
-                width = float(row[1] or 0) / 100  # Convert percentage to proportion
+                width = float(row[1] or 0) / 100
                 self.add_time_frame(row[0] or "2025-01-01", width)
         elif table_type == "connectors":
             self.connectors.clear()

@@ -1,8 +1,3 @@
-"""
-Purpose: Generates an SVG Gantt chart from ProjectData.
-Why: Visualizes the layout structure and tasks for project planning.
-"""
-
 import svgwrite
 from datetime import datetime, timedelta
 import calendar
@@ -123,25 +118,39 @@ class GanttChartGenerator(QObject):
         pass
 
     def render_scales_and_rows(self, x, y, width, height, start_date, end_date):
-        upper_height = height * Config.UPPER_SCALE_PROPORTION
-        lower_height = height * Config.LOWER_SCALE_PROPORTION
-        row_frame_height = height - upper_height - lower_height
-        num_rows = self.data["frame_config"].get("num_rows", 1)
-        row_height = row_frame_height / num_rows if num_rows > 0 else row_frame_height
         total_days = max((end_date - start_date).days, 1)
         tf_time_scale = width / total_days if total_days > 0 else width
 
-        # Upper Scale
-        self.dwg.add(self.dwg.rect(insert=(x, y), size=(width, upper_height),
-                                   fill="none", stroke="green", stroke_width=1))
+        # Define all scales and their proportions relative to row_frame
+        scale_configs = [
+            ("years", Config.SCALE_PROPORTION_YEARS),
+            ("months", Config.SCALE_PROPORTION_MONTHS),
+            ("weeks", Config.SCALE_PROPORTION_WEEKS),
+            ("days", Config.SCALE_PROPORTION_DAYS)
+        ]
 
-        # Lower Scale
-        lower_y = y + upper_height
-        self.dwg.add(self.dwg.rect(insert=(x, lower_y), size=(width, lower_height),
-                                   fill="none", stroke="orange", stroke_width=1))
+        # Keep all scales active (no dropping)
+        active_scales = scale_configs
+
+        # Calculate heights: row_frame gets 1 unit, scales get their proportions relative to it
+        row_frame_proportion = 1.0
+        total_scale_proportion = sum(p for _, p in active_scales)
+        total_height_units = row_frame_proportion + total_scale_proportion
+        row_frame_height = height * (row_frame_proportion / total_height_units)
+        scale_heights = [(interval, height * (proportion / total_height_units)) for interval, proportion in active_scales]
+
+        # Render scales
+        current_y = y
+        for interval, scale_height in scale_heights:
+            self.dwg.add(self.dwg.rect(insert=(x, current_y), size=(width, scale_height),
+                                       fill="lightgrey", stroke="black", stroke_width=1))
+            self.render_scale_interval(x, current_y, width, scale_height, start_date, end_date, interval, tf_time_scale)
+            current_y += scale_height
 
         # Row Frame
-        row_y = lower_y + lower_height
+        row_y = current_y
+        num_rows = self.data["frame_config"].get("num_rows", 1)
+        row_height = row_frame_height / num_rows if num_rows > 0 else row_frame_height
         self.dwg.add(self.dwg.rect(insert=(x, row_y), size=(width, row_frame_height),
                                    fill="none", stroke="purple", stroke_width=1))
 
@@ -161,89 +170,100 @@ class GanttChartGenerator(QObject):
                                                insert=(x_start + 5, y_task + row_height * 0.4),
                                                font_size="10", fill="white"))
 
-        # Gridlines and Labels
-        def next_period(date, interval):
-            if interval == "days":
-                return date + timedelta(days=1)
-            elif interval == "weeks":
-                days_to_sunday = (6 - date.weekday()) % 7
-                if days_to_sunday == 0:
-                    days_to_sunday = 7
-                return date + timedelta(days=days_to_sunday)
-            elif interval == "months":
-                year, month = date.year, date.month
-                last_day = calendar.monthrange(year, month)[1]
-                month_end = datetime(year, month, last_day)
-                if month_end <= date:
-                    month += 1
-                    if month > 12:
-                        month = 1
-                        year += 1
-                    last_day = calendar.monthrange(year, month)[1]
-                    month_end = datetime(year, month, last_day)
-                return month_end
-            elif interval == "years":
-                year_end = datetime(date.year, 12, 31)
-                if year_end <= date:
-                    year_end = datetime(date.year + 1, 12, 31)
-                return year_end
-            return date
-
-        upper_interval = self.data["frame_config"].get("intervals", "weeks")
-        lower_interval = {"years": "months", "months": "weeks", "weeks": "days"}[upper_interval]
-
+        # Row frame gridlines
         if self.data["frame_config"].get("horizontal_gridlines", False):
             for i in range(num_rows + 1):
                 y_pos = row_y + i * row_height
                 self.dwg.add(self.dwg.line((x, y_pos), (x + width, y_pos), stroke="gray", stroke_width=1))
 
         if self.data["frame_config"].get("vertical_gridlines", False):
-            # Upper scale gridlines
-            current_date = start_date
-            current_date = next_period(current_date, upper_interval)
-            while current_date <= end_date:
-                x_pos = x + (current_date - start_date).days * tf_time_scale
-                if x <= x_pos <= x + width:
-                    self.dwg.add(self.dwg.line((x_pos, row_y), (x_pos, row_y + row_frame_height),
-                                               stroke="black", stroke_width=2))
-                current_date = next_period(current_date, upper_interval)
+            for interval, _ in active_scales:
+                current_date = start_date
+                current_date = self.next_period(current_date, interval)
+                while current_date <= end_date:
+                    x_pos = x + (current_date - start_date).days * tf_time_scale
+                    if x <= x_pos <= x + width:
+                        self.dwg.add(self.dwg.line((x_pos, row_y), (x_pos, row_y + row_frame_height),
+                                                   stroke="gray", stroke_width=1))
+                    current_date = self.next_period(current_date, interval)
 
-            # Upper scale labels
-            current_date = start_date
-            current_date = next_period(current_date, upper_interval)
-            last_upper_x = -50
-            while current_date <= end_date:
-                x_pos = x + (current_date - start_date).days * tf_time_scale
-                if x <= x_pos <= x + width and x_pos - last_upper_x > 50:
-                    label = (current_date.strftime("%Y") if upper_interval == "years" else
-                             current_date.strftime("%b %d" if upper_interval == "weeks" else "%b %Y"))
-                    self.dwg.add(self.dwg.text(label, insert=(x_pos, max(y - 2, 0)), text_anchor="middle",
-                                               font_size="12", font_weight="bold"))
-                    last_upper_x = x_pos
-                current_date = next_period(current_date, upper_interval)
+    def next_period(self, date, interval):
+        if interval == "days":
+            return date + timedelta(days=1)
+        elif interval == "weeks":
+            days_to_monday = (7 - date.weekday()) % 7 or 7  # Move to next Monday
+            return date + timedelta(days=days_to_monday)
+        elif interval == "months":
+            year, month = date.year, date.month + 1
+            if month > 12:
+                month = 1
+                year += 1
+            return datetime(year, month, 1)
+        elif interval == "years":
+            return datetime(date.year + 1, 1, 1)
+        return date
 
-            # Lower scale gridlines
-            current_date = start_date
-            current_date = next_period(current_date, lower_interval)
-            while current_date <= end_date:
-                x_pos = x + (current_date - start_date).days * tf_time_scale
-                if x <= x_pos <= x + width:
-                    self.dwg.add(self.dwg.line((x_pos, row_y), (x_pos, row_y + row_frame_height),
-                                               stroke="gray", stroke_width=1))
-                current_date = next_period(current_date, lower_interval)
+    def get_week_end_date(self, date):
+        """Calculate the Sunday end date for the ISO week containing the given date."""
+        year, week_num, weekday = date.isocalendar()
+        jan1 = datetime(year, 1, 1)
+        days_to_thursday = (3 - jan1.weekday()) % 7  # Thursday is weekday 3 (0=Mon)
+        first_thursday = jan1 + timedelta(days=days_to_thursday)
+        week1_start = first_thursday - timedelta(days=3)
+        week_start = week1_start + timedelta(days=(week_num - 1) * 7)
+        return week_start + timedelta(days=6)
 
-            # Lower scale labels
-            current_date = start_date
-            current_date = next_period(current_date, lower_interval)
-            last_lower_x = -50
-            while current_date <= end_date:
-                x_pos = x + (current_date - start_date).days * tf_time_scale
-                if x <= x_pos <= x + width and x_pos - last_lower_x > 50:
-                    label = current_date.strftime("%d" if lower_interval == "days" else "%b %d")
-                    self.dwg.add(self.dwg.text(label, insert=(x_pos, max(y + upper_height - 2, 0)),
-                                               text_anchor="middle", font_size="10"))
-                    last_lower_x = x_pos
-                current_date = next_period(current_date, lower_interval)
+    def render_scale_interval(self, x, y, width, height, start_date, end_date, interval, tf_time_scale):
+        current_date = start_date
+        prev_x = x
+        while current_date <= end_date:
+            next_date = self.next_period(current_date, interval)
+            x_pos = x + (next_date - start_date).days * tf_time_scale
+            interval_width = x_pos - prev_x if x_pos <= x + width else (x + width) - prev_x
+            # Draw vertical line only if interval_width >= MIN_INTERVAL_WIDTH and within time_frame
+            if x <= x_pos <= x + width and interval_width >= Config.MIN_INTERVAL_WIDTH:
+                self.dwg.add(self.dwg.line((x_pos, y), (x_pos, y + height),
+                                           stroke="black", stroke_width=1))
+            # Label if interval intersects time_frame
+            if prev_x < x + width and x_pos > x:
+                label_x = (max(x, prev_x) + min(x + width, x_pos)) / 2
+                label_y = y + height / 2
+                label = ""
+                if interval == "years":
+                    if interval_width >= Config.FULL_LABEL_WIDTH:
+                        label = current_date.strftime("%Y")
+                    elif interval_width >= Config.SHORT_LABEL_WIDTH:
+                        label = current_date.strftime("%y")
+                    elif interval_width >= Config.MIN_INTERVAL_WIDTH:
+                        label = ""
+                elif interval == "months":
+                    if interval_width >= Config.FULL_LABEL_WIDTH:
+                        label = current_date.strftime("%b")
+                    elif interval_width >= Config.SHORT_LABEL_WIDTH:
+                        label = current_date.strftime("%b")[0]
+                    elif interval_width >= Config.MIN_INTERVAL_WIDTH:
+                        label = ""
+                elif interval == "weeks":
+                    week_num = current_date.isocalendar()[1]
+                    week_end = self.get_week_end_date(current_date)
+                    if interval_width >= Config.FULL_LABEL_WIDTH:
+                        label = f"{week_num:02d} ({week_end.strftime('%d')})"
+                    elif interval_width >= Config.SHORT_LABEL_WIDTH:
+                        label = f"{week_num:02d}"
+                    elif interval_width >= Config.MIN_INTERVAL_WIDTH:
+                        label = ""
+                elif interval == "days":
+                    if interval_width >= Config.FULL_LABEL_WIDTH:
+                        label = current_date.strftime("%a")
+                    elif interval_width >= Config.SHORT_LABEL_WIDTH:
+                        label = current_date.strftime("%a")[0]
+                    elif interval_width >= Config.MIN_INTERVAL_WIDTH:
+                        label = ""
+                if label:
+                    self.dwg.add(self.dwg.text(label, insert=(label_x, label_y), text_anchor="middle",
+                                               font_size="10", dominant_baseline="middle"))
+            prev_x = x_pos
+            current_date = next_date
 
     def render(self):
         os.makedirs(self.output_folder, exist_ok=True)

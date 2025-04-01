@@ -5,7 +5,7 @@ Why: Provides a clean interface for Gantt chart data entry, relying on ProjectDa
 
 from PyQt5.QtWidgets import (QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
                              QFileDialog, QTabWidget, QAction, QApplication, QToolBar, QMessageBox,
-                             QLineEdit, QLabel, QGridLayout, QPushButton, QCheckBox, QDateEdit, QComboBox)
+                             QLineEdit, QLabel, QGridLayout, QPushButton, QCheckBox, QDateEdit)
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QDate, pyqtSignal
 from data_model import ProjectData, FrameConfig
@@ -134,13 +134,10 @@ class DataEntryWindow(QMainWindow):
         layout.addWidget(self.vertical_gridlines_input, 12, 1)
         layout.addWidget(QLabel("Chart Start Date:"), 13, 0)
         self.chart_start_date_input = QDateEdit()
+        self.chart_start_date_input.setCalendarPopup(True)
+        self.chart_start_date_input.setDisplayFormat("yyyy-MM-dd")
         self.chart_start_date_input.setDate(QDate.fromString(self.project_data.frame_config.chart_start_date, "yyyy-MM-dd"))
         layout.addWidget(self.chart_start_date_input, 13, 1)
-        layout.addWidget(QLabel("Intervals:"), 14, 0)
-        self.intervals_input = QComboBox()
-        self.intervals_input.addItems(["years", "months", "weeks"])
-        self.intervals_input.setCurrentText(self.project_data.frame_config.intervals)
-        layout.addWidget(self.intervals_input, 14, 1)
         self.layout_tab.setLayout(layout)
 
     def setup_time_frames_tab(self):
@@ -372,7 +369,6 @@ class DataEntryWindow(QMainWindow):
         self.horizontal_gridlines_input.setChecked(self.project_data.frame_config.horizontal_gridlines)
         self.vertical_gridlines_input.setChecked(self.project_data.frame_config.vertical_gridlines)
         self.chart_start_date_input.setDate(QDate.fromString(self.project_data.frame_config.chart_start_date, "yyyy-MM-dd"))
-        self.intervals_input.setCurrentText(self.project_data.frame_config.intervals)
 
         # Time Frames
         tf_data = self.project_data.get_table_data("time_frames")
@@ -451,8 +447,7 @@ class DataEntryWindow(QMainWindow):
                 self.footer_text_input.text(),
                 self.horizontal_gridlines_input.isChecked(),
                 self.vertical_gridlines_input.isChecked(),
-                self.chart_start_date_input.date().toString("yyyy-MM-dd"),
-                self.intervals_input.currentText()
+                self.chart_start_date_input.date().toString("yyyy-MM-dd")
             )
 
             # Sync and validate Time Frames
