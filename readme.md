@@ -1,216 +1,150 @@
 # Project Planning Tool
 
 ## Purpose
-This tool helps users create compact, visually rich Gantt charts, packing extensive project-planning details into a single, customizable page.
+This tool creates compact, visually rich Gantt charts, packing extensive project-planning details into a single, customizable page using PyQt5 and SVG output.
+
+## Problems Addressed
+- **Single-task rows**: Existing tools limit one task per row; this allows multiple.
+- **Fixed magnification**: Varying zoom across the timeline isn’t supported elsewhere.
+- **Label placement**: Selective label and connector placement is rigid in other tools.
+- **Sizing issues**: Hard to fit charts to paper or slides precisely.
+- **Manual charting**: Hand-drawn charts (e.g., PowerPoint) are slow and error-prone.
+- **Aesthetics**: Typical Gantt charts lack visual appeal; this aims for elegance.
 
 ## Quick Start
-1. Ensure Python 3.8+ and PyQt5 are installed: `pip install PyQt5 svgwrite`.
-2. Clone the repo: `git clone <repo-url>`.
+1. Ensure Python 3.8+ is installed with dependencies (see [Requirements](#requirements)):  
+   `pip install -r requirements.txt`
+2. Clone the repo: `git clone https://github.com/username/haymanjoyce-gantt_02.git` (replace with actual URL).
 3. Navigate to the directory: `cd haymanjoyce-gantt_02`.
 4. Run the tool: `python main.py`.
-5. Use the "Generate Gantt Chart" toolbar button to see your chart in SVG.
+5. In the GUI, enter sample data (e.g., a time frame from 2025-01-01 to 2025-02-01), then click "Generate Gantt Chart" in the toolbar to view the SVG.
 
 ## Requirements
 - Python 3.8+
 - PyQt5 (`pip install PyQt5`)
 - svgwrite (`pip install svgwrite`)
 
-## Problem
-Existing tools fall short because:
+## Data Entry Tabs & Fields
+The GUI offers tabs for input, some planned but not yet implemented:
 
-- Only one task fits per row.
-- Magnification can’t vary across the timeline.
-- Labels and connectors lack selective placement.
-- Dimensions are hard to control for paper/slide fit.
-- Hand-drawn charts (e.g., in PowerPoint) are slow and error-prone.
-- Typical Gantt charts are visually unappealing.
-
-## Chart Design
-
-### Layout Components
-
- - outer_frame - control of overall dimensions of inked area; user can apply un-inked margins (i.e. offsets)
- - header - sits at top of outer_frame; full width of outer_frame; only one header row available (design decision)
- - footer - sits at bottom of outer_frame; full width of outer_frame; only one footer row available (design decision)
- - inner_frame - sits between header_frame and footer_frame; full width of outer_frame
- - time_frame - sits inside inner_frame; time_frames able to show chart at different levels of magnification
- - upper_scale - sits inside time_frame; shows the timescale; full width of time_frame; placed at top of time_frame
- - lower_scale - sits inside time_frame; shows the timescale; full width of time_frame; placed below upper_scale
- - row_frame - sits inside a time_frame; contains rows; full width of inner_frame; placed below lower_scale
- - row - sits inside row_frame; can be multiple rows; full width of row_frame; users defines number of rows
- - swimlane - sits in inner_frame; can be used to group rows visually; full width of inner_frame
-
-### Subcomponents
-
- - gridlines - applied to time_frame [changed from row_frame]; can be horizontal, vertical, or both
- - task - multiple tasks can be assigned to a row
- - milestone - assigned to a row
- - connector - line showing flow of logic between a task and/or milestone
- - text_box - user defined text boxes; can be placed anywhere
- - curtain - user defined time interval; can be placed anywhere inside a time_frame [changed from row_frame]
- - pipe - user defined time point; can be placed anywhere inside a row_frame
-
-### Design Notes
-
- - If there is one time_frame in the inner_frame, then it is the same width as the inner_frame
- - If there are multiple time_frames in the inner_frame, then they are stacked horizontally (i.e., left to right)
- - The width of the time_frame is defined by the user as a proportion of the inner_frame width
- - The first time_frame from the left will, typically, be the most detailed (i.e., highest magnification)
- - All time_frames must have the same number of rows 
- - The user can define the number of rows in the row_frame
- - First time frame (leftmost) is typically the most detailed (highest magnification)
- - Subsequent time frames may use lower magnification for broader overviews
- - A curtain may start in one time_frame and end in another
- - Time frames are contiguous (i.e., no gaps between them)
- - Time frames cannot overlap
- - There are two scales (upper and lower) in each time_frame (design decision). 
- - The intervals for the upper scale are defined globally for all time frames via the "Intervals" setting (design decision) [changed]. 
- - The intervals available for the upper scale are: years, months, and weeks (design decision). 
- - The intervals used in the lower scale depend on the upper scale setting (design decision):
-   - If the upper scale is set to years, then the lower scale is set to months. 
-   - If the upper scale is set to months, then the lower scale is set to weeks. 
-   - If the upper scale is set to weeks, then the lower scale is set to days. 
- - Consistent intervals across all time frames improve chart readability (design decision) [new].
-
-## User Interface Requirements
-
- - Tabs and fields on data entry window:
-   - layout tab (list)
-     - top margin
-     - right margin
-     - bottom margin
-     - left margin
-     - outer width
-     - outer height
-     - header height - integer
-     - footer height - integer
-     - header text - string
-     - footer text - string
-     - number of rows - integer
-     - horizontal gridlines - yes/no
-     - vertical gridlines - yes/no
-     - start date - date
-     - intervals - years, months, or weeks (defines upper scale intervals)
-   - time frames tab (table)
-     - finish date - date
-     - width - percentage
-   - tasks tab (table)
-     - task id - integer
-     - task name - string
-     - start date - date
-     - finish date - date
-     - row number - integer
-   - connectors tab (table)
-     - from task id - integer
-     - to task id - integer
-   - swimlanes tab (table)
-     - from row number - integer
-     - to row number - integer
-     - title - string
-     - colour - string
-   - pipes tab (table)
-     - date - date
-     - colour - string
-   - curtains tab (table)
-     - from date - date
-     - to date - date
-     - colour - string
-   - text boxes tab (table)
-     - text - string
-     - x coordinate - float
-     - y coordinate - float
-     - colour - string
-
-## Signals & Slots Notes
-
- - data_entry.py: Emits data_updated with self.project_data.to_json() whenever data is synced (e.g., after adding/removing rows, saving, or generating the chart).
- - svg_generator.py: Receives this JSON dict via generate_svg and renders it into an SVG, emitting svg_generated.
- - svg_display.py: Updates the display based on the SVG path from svg_generated.
+- **Layout Tab** (list):
+  - `outer width` - Integer (e.g., 800)
+  - `outer height` - Integer (e.g., 600)
+  - `header height` - Integer (e.g., 50)
+  - `footer height` - Integer (e.g., 50)
+  - `top margin` - Integer (e.g., 10)
+  - `right margin` - Integer (e.g., 10)
+  - `bottom margin` - Integer (e.g., 10)
+  - `left margin` - Integer (e.g., 10)
+  - `header text` - String (e.g., "Project Timeline")
+  - `footer text` - String (e.g., "Generated by Tool")
+  - `number of rows` - Integer (e.g., 1)
+  - `horizontal gridlines` - Yes/No
+  - `vertical gridlines` - Yes/No
+  - `start date` - Date (e.g., 2025-01-01)
+- **Time Frames Tab** (table):
+  - `finish date` - Date (e.g., 2025-02-01)
+  - `width` - Percentage (e.g., 100%)
+- **Tasks Tab** (table):
+  - `task id` - Integer (e.g., 1)
+  - `task name` - String (e.g., "Design Phase")
+  - `start date` - Date (e.g., 2025-01-05)
+  - `finish date` - Date (e.g., 2025-01-15)
+  - `row number` - Integer (e.g., 1)
+- **Connectors Tab** (table, planned):
+  - `from task id` - Integer
+  - `to task id` - Integer
+- **Swimlanes Tab** (table, planned):
+  - `from row number` - Integer
+  - `to row number` - Integer
+  - `title` - String
+  - `colour` - String
+- **Pipes Tab** (table, planned):
+  - `date` - Date
+  - `colour` - String
+- **Curtains Tab** (table, planned):
+  - `from date` - Date
+  - `to date` - Date
+  - `colour` - String
+- **Text Boxes Tab** (table, planned):
+  - `text` - String
+  - `x coordinate` - Float
+  - `y coordinate` - Float
+  - `colour` - String
 
 ## Files
-
- - main.py: Entry point for the application.
- - data_model.py: Defines the data model for the project data.
- - data_entry.py: Handles the data entry window and user input.
- - svg_generator.py: Generates the SVG file based on user input.
- - svg_display.py: Displays the generated SVG file.
- - config.py: Configuration settings for the application.
- - .gitignore: Specifies files to ignore in version control.
- - LICENSE: License information for the project.
- - requirements.txt: Lists the required Python packages for the project.
- - README.md: Documentation for the project.
+- `main.py`: Entry point for the application.
+- `data_model.py`: Defines the data model for project data.
+- `data_entry.py`: Manages the data entry GUI.
+- `svg_generator.py`: Generates SVG files from input data.
+- `svg_display.py`: Displays the generated SVG.
+- `config.py`: Stores configuration settings.
+- `.gitignore`: Excludes unnecessary files from version control.
+- `LICENSE`: Project license (TBD).
+- `requirements.txt`: Lists Python dependencies.
+- `README.md`: This documentation.
 
 ## Folders
-
- - gantt_02/: Main project directory.
- - docs/: Directory for additional documentation.
- - tests/: Directory for unit tests.
- - assets/: Directory for assets like icons and images.
- - resources/: Directory for resources like SVG templates or stylesheets.
- - examples/: Directory for example SVG files or screenshots.
- - scripts/: Directory for utility scripts or command-line tools.
- - data/: Directory for sample data files or templates.
- - logs/: Directory for log files.
- - svg/: Directory for generated SVG files.
-
-## License
-
-TBD (To be determined — see Packaging & Distribution for plans).
+- `haymanjoyce-gantt_02/`: Main project directory.
+- `docs/`: Additional documentation (e.g., `design.md`).
+- `tests/`: Unit tests (planned).
+- `assets/`: Icons and images (planned).
+- `resources/`: SVG templates or stylesheets (planned).
+- `examples/`: Sample SVGs or screenshots (planned).
+- `scripts/`: Utility scripts (planned).
+- `data/`: Sample data files (planned).
+- `logs/`: Log files (planned).
+- `svg/`: Generated SVG output.
 
 ## To Do
 
 ### Chart Design
-
- - [ ] layout (outer_frame, header, footer, inner_frame, upper_scale, lower_scale, time_frame, row_frame, row)
- - [ ] time frames
- - [ ] scales
- - [ ] gridlines
- - [ ] tasks
- - [ ] milestones
- - [ ] connectors
- - [ ] text boxes
- - [ ] curtains
- - [ ] pipes
- - [ ] swimlanes
+- [x] Layout
+- [x] Time Frames
+- [x] Scales
+- [ ] Gridlines
+- [ ] Tasks
+- [ ] Milestones
+- [ ] Connectors
+- [ ] Text Boxes
+- [ ] Curtains
+- [ ] Pipes
+- [ ] Swimlanes
 
 ### User Interface
-
- - [x] data entry window
- - [x] data entry tabs
- - [x] data entry tables
- - [ ] data entry fields
- - [x] data entry buttons
- - [ ] table sorting
- - [ ] table filtering
- - [ ] table searching
- - [ ] table editing (add, edit, delete)
- - [ ] window resizing
- - [ ] window scrolling
- - [x] window zooming
- - [ ] shortcuts
+- [x] Data Entry Window [Toolbar may be dropped]
+- [x] Data Entry Tabs [Layout tab needs polish]
+- [x] Data Entry Tables
+- [ ] Data Entry Fields
+- [x] Data Entry Buttons
+- [ ] Table Sorting
+- [ ] Table Filtering
+- [ ] Table Searching
+- [ ] Table Editing (add, edit, delete)
+- [ ] Window Resizing
+- [ ] Window Scrolling
+- [x] Window Zooming
+- [ ] Shortcuts
 
 ### File Input & Output
-
- - [x] import and export JSON
- - [ ] import and export xlsx
- - [ ] import and export svg
- - [ ] print to pdf
- - [ ] print to raster
+- [x] Import/Export JSON
+- [ ] Import/Export XLSX
+- [ ] Import/Export SVG
+- [ ] Print to PDF
+- [ ] Print to Raster
 
 ### Production
-
- - [ ] logging
- - [ ] testing
- - [ ] error handling (including try and except)
+- [ ] Logging
+- [ ] Testing
+- [ ] Error Handling (try/except)
 
 ### Packaging & Distribution
-
- - [ ] setup.py
- - [ ] requirements.txt
- - [ ] windows executable
- - [ ] PyPI package
- - [ ] documentation
- - [ ] versioning
- - [ ] licensing
- - [ ] internationalization
- - [ ] accessibility
+- [ ] `setup.py`
+- [ ] `requirements.txt` [In progress]
+- [ ] Windows Executable
+- [ ] PyPI Package
+- [ ] Documentation
+- [ ] Versioning
+- [ ] Licensing
+- [ ] Internationalization
+- [ ] Accessibility
