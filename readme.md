@@ -8,8 +8,6 @@ This tool creates compact, visually rich Gantt charts, packing extensive project
 - **Fixed magnification**: Varying zoom across the timeline isn’t supported elsewhere.
 - **Label placement**: Selective label and connector placement is rigid in other tools.
 - **Sizing issues**: Hard to fit charts to paper or slides precisely.
-- **Manual charting**: Hand-drawn charts (e.g., PowerPoint) are slow and error-prone.
-- **Aesthetics**: Typical Gantt charts lack visual appeal; this aims for elegance.
 
 ## Quick Start
 1. Ensure Python 3.8+ is installed with dependencies (see [Requirements](#requirements)):  
@@ -51,6 +49,9 @@ The GUI offers tabs for input, some planned but not yet implemented:
   - `start date` - Date (e.g., 2025-01-05)
   - `finish date` - Date (e.g., 2025-01-15)
   - `row number` - Integer (e.g., 1)
+  - `label hide` - Yes/No (e.g., "No", default is "Yes") [new]
+  - `label x` - Float (e.g., 0.5) [new]
+  - `label y` - Float (e.g., 0.5) [new]
 - **Connectors Tab** (table, planned):
   - `from task id` - Integer
   - `to task id` - Integer

@@ -1,8 +1,3 @@
-"""
-Purpose: Defines DataEntryWindow, handles user input via tabs and UI interactions.
-Why: Provides a clean interface for Gantt chart data entry, relying on ProjectData for logic.
-"""
-
 from PyQt5.QtWidgets import (QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
                              QFileDialog, QTabWidget, QAction, QApplication, QToolBar, QMessageBox,
                              QLineEdit, QLabel, QGridLayout, QPushButton, QCheckBox, QDateEdit)
@@ -157,8 +152,8 @@ class DataEntryWindow(QMainWindow):
 
     def setup_tasks_tab(self):
         tasks_layout = QVBoxLayout()
-        self.tasks_table = QTableWidget(5, 5)
-        self.tasks_table.setHorizontalHeaderLabels(["Task ID", "Task Name", "Start Date", "Finish Date", "Row Number"])
+        self.tasks_table = QTableWidget(5, 4)  # 4 columns, no Task ID
+        self.tasks_table.setHorizontalHeaderLabels(["Task Name", "Start Date", "Finish Date", "Row Number"])
         tasks_layout.addWidget(self.tasks_table)
         btn_layout = QGridLayout()
         add_btn = QPushButton("Add Task")
@@ -169,6 +164,7 @@ class DataEntryWindow(QMainWindow):
         btn_layout.addWidget(remove_btn, 0, 1)
         tasks_layout.addLayout(btn_layout)
         self.tasks_tab.setLayout(tasks_layout)
+        self.tasks_table.itemChanged.connect(self._sync_data)
 
     def setup_connectors_tab(self):
         conn_layout = QVBoxLayout()
@@ -249,11 +245,10 @@ class DataEntryWindow(QMainWindow):
         row_count = self.tasks_table.rowCount()
         self.tasks_table.insertRow(row_count)
         today = QDate.currentDate().toString("yyyy-MM-dd")
-        self.tasks_table.setItem(row_count, 0, QTableWidgetItem(str(row_count + 1)))
-        self.tasks_table.setItem(row_count, 1, QTableWidgetItem(f"Task {row_count + 1}"))
+        self.tasks_table.setItem(row_count, 0, QTableWidgetItem(f"Task {row_count + 1}"))
+        self.tasks_table.setItem(row_count, 1, QTableWidgetItem(today))
         self.tasks_table.setItem(row_count, 2, QTableWidgetItem(today))
-        self.tasks_table.setItem(row_count, 3, QTableWidgetItem(today))
-        self.tasks_table.setItem(row_count, 4, QTableWidgetItem("1"))
+        self.tasks_table.setItem(row_count, 3, QTableWidgetItem("1"))
         self._sync_data()
 
     def _remove_task_row(self):
@@ -347,12 +342,16 @@ class DataEntryWindow(QMainWindow):
             self._sync_data()
 
     def _load_initial_data(self):
-        # Tasks
+        # Tasks (updated for 4 columns)
         tasks_data = self.project_data.get_table_data("tasks")
         self.tasks_table.setRowCount(len(tasks_data))
-        for row_idx, row_data in enumerate(tasks_data):
-            for col_idx, value in enumerate(row_data):
-                self.tasks_table.setItem(row_idx, col_idx, QTableWidgetItem(value))
+        for row_idx, task in enumerate(tasks_data):
+            # task is [task_id, task_name, start_date, finish_date, row_number]
+            # Skip task_id (index 0), use remaining fields
+            self.tasks_table.setItem(row_idx, 0, QTableWidgetItem(task[1]))  # task_name
+            self.tasks_table.setItem(row_idx, 1, QTableWidgetItem(task[2]))  # start_date
+            self.tasks_table.setItem(row_idx, 2, QTableWidgetItem(task[3]))  # finish_date
+            self.tasks_table.setItem(row_idx, 3, QTableWidgetItem(task[4]))  # row_number
 
         # Layout
         self.outer_width_input.setText(str(self.project_data.frame_config.outer_width))
@@ -429,7 +428,7 @@ class DataEntryWindow(QMainWindow):
 
     def _sync_data(self):
         try:
-            # Sync Layout
+            # Sync Layout (unchanged)
             margins = (
                 float(self.top_margin_input.text() or 0),
                 float(self.right_margin_input.text() or 0),
@@ -450,11 +449,10 @@ class DataEntryWindow(QMainWindow):
                 self.chart_start_date_input.date().toString("yyyy-MM-dd")
             )
 
-            # Sync and validate Time Frames
+            # Sync Time Frames (unchanged)
             tf_data = self._extract_table_data(self.time_frames_table)
             if not tf_data:
                 raise ValueError("At least one time frame is required")
-
             time_frames = []
             chart_start = datetime.strptime(self.project_data.frame_config.chart_start_date, "%Y-%m-%d")
             prev_end = chart_start
@@ -466,17 +464,28 @@ class DataEntryWindow(QMainWindow):
                     raise ValueError(f"Time frame {i+1} finish date '{end}' is before previous end '{prev_end.strftime('%Y-%m-%d')}'")
                 time_frames.append((prev_end, end_dt, width))
                 prev_end = end_dt + timedelta(days=1)
-
-            total_width = sum(tf[2] for tf in time_frames)
-            if total_width > 1.0:
-                raise ValueError(f"Total time frame width ({total_width*100}%) exceeds 100%")
-
             self.project_data.time_frames.clear()
             for _, end_dt, width in time_frames:
                 self.project_data.add_time_frame(end_dt.strftime("%Y-%m-%d"), width)
 
-            # Sync other tables
-            self.project_data.update_from_table("tasks", self._extract_table_data(self.tasks_table))
+            # Sync Tasks (Task ID from row index)
+            tasks_data = self._extract_table_data(self.tasks_table)
+            self.project_data.tasks.clear()
+            for i, row in enumerate(tasks_data):
+                task_id = i + 1  # Use row index + 1 as task_id
+                task_name = row[0] or "Unnamed"
+                start_date = row[1] or "2025-01-01"
+                finish_date = row[2] or "2025-01-01"
+                row_number = int(row[3] or 1)
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                finish_dt = datetime.strptime(finish_date, "%Y-%m-%d")
+                if start_dt > finish_dt:
+                    raise ValueError(f"Task {task_id}: Start date '{start_date}' is after finish date '{finish_date}'")
+                if row_number > self.project_data.frame_config.num_rows:
+                    raise ValueError(f"Task {task_id}: Row number {row_number} exceeds {self.project_data.frame_config.num_rows}")
+                self.project_data.add_task(task_id, task_name, start_date, finish_date, row_number)
+
+            # Sync other tables (unchanged)
             self.project_data.update_from_table("connectors", self._extract_table_data(self.connectors_table))
             self.project_data.update_from_table("swimlanes", self._extract_table_data(self.swimlanes_table))
             self.project_data.update_from_table("pipes", self._extract_table_data(self.pipes_table))
@@ -494,10 +503,11 @@ class DataEntryWindow(QMainWindow):
         file_path, _ = QFileDialog.getSaveFileName(self, "Save Project", "", "JSON Files (*.json)")
         if file_path:
             try:
-                self._sync_data()
+                self._sync_data()  # Ensure data is up-to-date
                 json_str = json.dumps(self.project_data.to_json(), indent=4)
                 with open(file_path, "w") as jsonfile:
                     jsonfile.write(json_str)
+                QMessageBox.information(self, "Success", "Project saved successfully!")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Error saving JSON: {e}")
 
@@ -510,5 +520,6 @@ class DataEntryWindow(QMainWindow):
                 self.project_data = ProjectData.from_json(data)
                 self._load_initial_data()
                 self.data_updated.emit(self.project_data.to_json())
+                QMessageBox.information(self, "Success", "Project loaded successfully!")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Error loading JSON: {e}")
