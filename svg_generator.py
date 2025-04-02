@@ -14,7 +14,7 @@ class GanttChartGenerator(QObject):
         self.output_folder = output_folder
         self.output_filename = output_filename
         self.dwg = None
-        self.data = {"frame_config": {}, "time_frames": [], "tasks": []}  # type: dict
+        self.data = {"frame_config": {}, "time_frames": [], "tasks": []}
         self.start_date = None
 
     @pyqtSlot(dict)
@@ -115,46 +115,66 @@ class GanttChartGenerator(QObject):
         total_days = max((end_date - start_date).days, 1)
         tf_time_scale = width / total_days if total_days > 0 else width
         row_height = height / num_rows if num_rows > 0 else height
+        task_height = row_height * 0.8
 
         for task in self.data.get("tasks", []):
             try:
                 task_start = datetime.strptime(task["start_date"], "%Y-%m-%d")
                 task_finish = datetime.strptime(task["finish_date"], "%Y-%m-%d")
                 if task_finish < start_date or task_start > end_date:
-                    continue  # Skip tasks outside time frame
-                row_num = min(max(task.get("row_number", 1) - 1, 0), num_rows - 1)  # Clamp to valid rows
+                    continue
+                row_num = min(max(task.get("row_number", 1) - 1, 0), num_rows - 1)
                 x_start = x + max((task_start - start_date).days, 0) * tf_time_scale
                 x_end = x + min((task_finish - start_date).days, total_days) * tf_time_scale
-                width_task = max(x_end - x_start, 0)
+                width_task = max(x_end - x_start, 1)  # Ensure minimum width of 1 pixel
                 y_task = y + row_num * row_height
-                if width_task > 0 and x_start < x + width:
-                    self.dwg.add(self.dwg.rect(insert=(x_start, y_task), size=(width_task, row_height * 0.8), fill="blue"))
+
+                is_milestone = task.get("is_milestone", False)
+                if is_milestone:
+                    radius = task_height / 2
+                    center_x = x_start
+                    for other_task in self.data.get("tasks", []):
+                        if other_task["row_number"] == task["row_number"] and other_task != task:
+                            other_start = datetime.strptime(other_task["start_date"], "%Y-%m-%d")
+                            other_finish = datetime.strptime(other_task["finish_date"], "%Y-%m-%d")
+                            if task_start == other_start:
+                                center_x = x_start + radius
+                                break
+                            elif task_start == other_finish:
+                                center_x = x_end - radius
+                                break
+                    self.dwg.add(self.dwg.circle(center=(center_x, y_task + row_height * 0.5),
+                                                 r=radius, fill="red", stroke="black", stroke_width=1))
                     self.dwg.add(self.dwg.text(task.get("task_name", "Unnamed"),
-                                               insert=(x_start + 5, y_task + row_height * 0.4),
-                                               font_size="10", fill="white"))
-            except (ValueError, KeyError):
-                continue  # Skip invalid tasks silently
+                                               insert=(center_x + radius + 5, y_task + row_height * 0.5),
+                                               font_size="10", fill="black"))
+                else:
+                    # Remove width_task > 0 check, always draw if in bounds
+                    if x_start < x + width:
+                        self.dwg.add(self.dwg.rect(insert=(x_start, y_task), size=(width_task, task_height),
+                                                   fill="blue"))
+                        self.dwg.add(self.dwg.text(task.get("task_name", "Unnamed"),
+                                                   insert=(x_start + 5, y_task + task_height * 0.4),
+                                                   font_size="10", fill="white"))
+            except (ValueError, KeyError) as e:
+                continue
 
     def render_scales_and_rows(self, x, y, width, height, start_date, end_date):
         total_days = max((end_date - start_date).days, 1)
         tf_time_scale = width / total_days if total_days > 0 else width
 
-        # Define all scales and their proportions relative to row_frame
         scale_configs = [
             ("years", Config.SCALE_PROPORTION_YEARS),
             ("months", Config.SCALE_PROPORTION_MONTHS),
             ("weeks", Config.SCALE_PROPORTION_WEEKS),
             ("days", Config.SCALE_PROPORTION_DAYS)
         ]
-
-        # Calculate heights: row_frame gets 1 unit, scales get their proportions relative to it
         row_frame_proportion = 1.0
         total_scale_proportion = sum(p for _, p in scale_configs)
         total_height_units = row_frame_proportion + total_scale_proportion
         row_frame_height = height * (row_frame_proportion / total_height_units)
         scale_heights = [(interval, height * (proportion / total_height_units)) for interval, proportion in scale_configs]
 
-        # Render scales
         current_y = y
         for interval, scale_height in scale_heights:
             self.dwg.add(self.dwg.rect(insert=(x, current_y), size=(width, scale_height),
@@ -162,13 +182,11 @@ class GanttChartGenerator(QObject):
             self.render_scale_interval(x, current_y, width, scale_height, start_date, end_date, interval, tf_time_scale)
             current_y += scale_height
 
-        # Row Frame
         row_y = current_y
         num_rows = self.data["frame_config"].get("num_rows", 1)
         self.dwg.add(self.dwg.rect(insert=(x, row_y), size=(width, row_frame_height),
                                    fill="none", stroke="purple", stroke_width=1))
 
-        # Row frame gridlines (render before tasks)
         if self.data["frame_config"].get("horizontal_gridlines", False):
             for i in range(num_rows + 1):
                 y_pos = row_y + i * (row_frame_height / num_rows)
@@ -184,14 +202,13 @@ class GanttChartGenerator(QObject):
                                                    stroke="gray", stroke_width=1))
                     current_date = self.next_period(current_date, interval)
 
-        # Render tasks (after gridlines to stay on top)
         self.render_tasks(x, row_y, width, row_frame_height, start_date, end_date, num_rows)
 
     def next_period(self, date, interval):
         if interval == "days":
             return date + timedelta(days=1)
         elif interval == "weeks":
-            days_to_monday = (7 - date.weekday()) % 7 or 7  # Move to next Monday
+            days_to_monday = (7 - date.weekday()) % 7 or 7
             return date + timedelta(days=days_to_monday)
         elif interval == "months":
             year, month = date.year, date.month + 1
@@ -204,10 +221,9 @@ class GanttChartGenerator(QObject):
         return date
 
     def get_week_end_date(self, date):
-        """Calculate the Sunday end date for the ISO week containing the given date."""
         year, week_num, weekday = date.isocalendar()
         jan1 = datetime(year, 1, 1)
-        days_to_thursday = (3 - jan1.weekday()) % 7  # Thursday is weekday 3 (0=Mon)
+        days_to_thursday = (3 - jan1.weekday()) % 7
         first_thursday = jan1 + timedelta(days=days_to_thursday)
         week1_start = first_thursday - timedelta(days=3)
         week_start = week1_start + timedelta(days=(week_num - 1) * 7)
@@ -232,15 +248,11 @@ class GanttChartGenerator(QObject):
                         label = current_date.strftime("%Y")
                     elif interval_width >= Config.SHORT_LABEL_WIDTH:
                         label = current_date.strftime("%y")
-                    elif interval_width >= Config.MIN_INTERVAL_WIDTH:
-                        label = ""
                 elif interval == "months":
                     if interval_width >= Config.FULL_LABEL_WIDTH:
                         label = current_date.strftime("%b")
                     elif interval_width >= Config.SHORT_LABEL_WIDTH:
                         label = current_date.strftime("%b")[0]
-                    elif interval_width >= Config.MIN_INTERVAL_WIDTH:
-                        label = ""
                 elif interval == "weeks":
                     week_num = current_date.isocalendar()[1]
                     week_end = self.get_week_end_date(current_date)
@@ -248,15 +260,11 @@ class GanttChartGenerator(QObject):
                         label = f"{week_num:02d} ({week_end.strftime('%d')})"
                     elif interval_width >= Config.SHORT_LABEL_WIDTH:
                         label = f"{week_num:02d}"
-                    elif interval_width >= Config.MIN_INTERVAL_WIDTH:
-                        label = ""
                 elif interval == "days":
                     if interval_width >= Config.FULL_LABEL_WIDTH:
                         label = current_date.strftime("%a")
                     elif interval_width >= Config.SHORT_LABEL_WIDTH:
                         label = current_date.strftime("%a")[0]
-                    elif interval_width >= Config.MIN_INTERVAL_WIDTH:
-                        label = ""
                 if label:
                     self.dwg.add(self.dwg.text(label, insert=(label_x, label_y), text_anchor="middle",
                                                font_size="10", dominant_baseline="middle"))

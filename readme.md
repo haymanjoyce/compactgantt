@@ -44,14 +44,15 @@ The GUI offers tabs for input, some planned but not yet implemented:
   - `finish date` - Date (e.g., 2025-02-01)
   - `width` - Percentage (e.g., 100%)
 - **Tasks Tab** (table):
-  - `task id` - Integer (e.g., 1) and auto-generated from row index (1-based)
+  - `task id` - Integer (e.g., 1) and auto-generated from row index (1-based) (hidden field)
   - `task name` - String (e.g., "Design Phase")
   - `start date` - Date (e.g., 2025-01-05)
   - `finish date` - Date (e.g., 2025-01-15)
   - `row number` - Integer (e.g., 1)
-  - `label hide` - Yes/No (e.g., "No", default is "Yes") [new]
+  - `label hide` - Yes/No (e.g., "No", default is "No") [new]
   - `label x` - Float (e.g., 0.5) [new]
   - `label y` - Float (e.g., 0.5) [new]
+  - `label colour` - String (e.g., "black") [new]
 - **Connectors Tab** (table, planned):
   - `from task id` - Integer
   - `to task id` - Integer
