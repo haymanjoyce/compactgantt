@@ -25,7 +25,7 @@ This tool creates compact, visually rich Gantt charts, packing extensive project
 ## Data Entry Tabs & Fields
 The GUI offers tabs for input, some planned but not yet implemented:
 
-- **Layout Tab** (list):
+- **Layout Tab**:
   - `outer width` - Integer (e.g., 800)
   - `outer height` - Integer (e.g., 600)
   - `header height` - Integer (e.g., 50)
@@ -44,7 +44,7 @@ The GUI offers tabs for input, some planned but not yet implemented:
   - `finish date` - Date (e.g., 2025-02-01)
   - `width` - Percentage (e.g., 100%)
 - **Tasks Tab** (table):
-  - `task id` - Integer (e.g., 1)
+  - `task id` - Integer (e.g., 1) and auto-generated from row index (1-based)
   - `task name` - String (e.g., "Design Phase")
   - `start date` - Date (e.g., 2025-01-05)
   - `finish date` - Date (e.g., 2025-01-15)
@@ -102,9 +102,9 @@ The GUI offers tabs for input, some planned but not yet implemented:
 ### Chart Design
 - [x] Layout
 - [x] Time Frames
-- [x] Scales
-- [ ] Gridlines
-- [ ] Tasks
+- [x] Scales [May need a different solution for when they get overly dense]
+- [x] Gridlines [May need a solution for when they get overly dense]
+- [x] Tasks [Need to work on the task label placement]
 - [ ] Milestones
 - [ ] Connectors
 - [ ] Text Boxes
@@ -114,9 +114,8 @@ The GUI offers tabs for input, some planned but not yet implemented:
 
 ### User Interface
 - [x] Data Entry Window [Toolbar may be dropped]
-- [x] Data Entry Tabs [Layout tab needs polish]
-- [x] Data Entry Tables
-- [ ] Data Entry Fields
+- [x] Data Entry Tabs [Layout tab fields need rearranging to look better]
+- [x] Data Entry Tables [May want to add more fields to the tables]
 - [x] Data Entry Buttons
 - [ ] Table Sorting
 - [ ] Table Filtering
@@ -124,7 +123,7 @@ The GUI offers tabs for input, some planned but not yet implemented:
 - [ ] Table Editing (add, edit, delete)
 - [ ] Window Resizing
 - [ ] Window Scrolling
-- [x] Window Zooming
+- [ ] Window Zooming
 - [ ] Shortcuts
 
 ### File Input & Output
