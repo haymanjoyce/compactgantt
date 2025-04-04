@@ -20,8 +20,8 @@ class Task:
     def __init__(self, task_id, task_name, start_date, finish_date, row_number, is_milestone=False):
         self.task_id = task_id
         self.task_name = task_name
-        self.start_date = start_date
-        self.finish_date = finish_date
+        self.start_date = start_date  # Can be "" if blank
+        self.finish_date = finish_date  # Can be "" if blank
         self.row_number = row_number
         self.is_milestone = is_milestone
 

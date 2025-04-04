@@ -35,17 +35,25 @@ class GanttChartGenerator(QObject):
             raise ValueError(f"SVG generation failed: {e}")
 
     def _calculate_time_range(self):
-        if not (self.data["time_frames"] or self.data["tasks"]):
-            return datetime.now(), datetime.now() + timedelta(days=7)
-        dates = [datetime.strptime(self.data["frame_config"]["chart_start_date"], "%Y-%m-%d")]
-        for tf in self.data.get("time_frames", []):
-            dates.append(datetime.strptime(tf["finish_date"], "%Y-%m-%d"))
+        dates = []
         for task in self.data.get("tasks", []):
-            dates.append(datetime.strptime(task["start_date"], "%Y-%m-%d"))
-            dates.append(datetime.strptime(task["finish_date"], "%Y-%m-%d"))
-        if len(dates) == 1:
-            return dates[0], dates[0] + timedelta(days=7)
-        return min(dates), max(dates) + timedelta(days=1)
+            start_date_str = task["start_date"]
+            finish_date_str = task["finish_date"]
+            if start_date_str:
+                try:
+                    dates.append(datetime.strptime(start_date_str, "%Y-%m-%d"))
+                except ValueError:
+                    pass  # Skip invalid dates
+            if finish_date_str:
+                try:
+                    dates.append(datetime.strptime(finish_date_str, "%Y-%m-%d"))
+                except ValueError:
+                    pass  # Skip invalid dates
+
+        if not dates:
+            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            return today, today + timedelta(days=30)
+        return min(dates), max(dates)
 
     def _set_time_scale(self):
         start_date, _ = self._calculate_time_range()
@@ -118,53 +126,64 @@ class GanttChartGenerator(QObject):
         task_height = row_height * 0.8
 
         for task in self.data.get("tasks", []):
-            try:
-                task_start = datetime.strptime(task["start_date"], "%Y-%m-%d")
-                task_finish = datetime.strptime(task["finish_date"], "%Y-%m-%d")
-                if task_finish < start_date or task_start > end_date:
-                    continue
-                row_num = min(max(task.get("row_number", 1) - 1, 0), num_rows - 1)
-                x_start = x + max((task_start - start_date).days, 0) * tf_time_scale
-                x_end = x + min((task_finish - start_date).days, total_days) * tf_time_scale
-                width_task = tf_time_scale if task_start == task_finish else max(x_end - x_start, tf_time_scale)
-                y_task = y + row_num * row_height
-
-                is_milestone = task.get("is_milestone", False)
-                if is_milestone:
-                    # Diamond size matches task_height (like circle's diameter)
-                    half_size = task_height / 2
-                    center_x = x_start
-                    center_y = y_task + row_height * 0.5
-                    for other_task in self.data.get("tasks", []):
-                        if other_task["row_number"] == task["row_number"] and other_task != task:
-                            other_start = datetime.strptime(other_task["start_date"], "%Y-%m-%d")
-                            other_finish = datetime.strptime(other_task["finish_date"], "%Y-%m-%d")
-                            if task_start == other_start:
-                                center_x = x_start + half_size
-                                break
-                            elif task_start == other_finish:
-                                center_x = x_end - half_size
-                                break
-                    # Diamond points: top, right, bottom, left
-                    points = [
-                        (center_x, center_y - half_size),  # Top
-                        (center_x + half_size, center_y),  # Right
-                        (center_x, center_y + half_size),  # Bottom
-                        (center_x - half_size, center_y)   # Left
-                    ]
-                    self.dwg.add(self.dwg.polygon(points=points, fill="red", stroke="black", stroke_width=1))
-                    self.dwg.add(self.dwg.text(task.get("task_name", "Unnamed"),
-                                               insert=(center_x + half_size + 5, center_y),
-                                               font_size="10", fill="black"))
-                else:
-                    if x_start < x + width:
-                        self.dwg.add(self.dwg.rect(insert=(x_start, y_task), size=(width_task, task_height),
-                                                   fill="blue"))
-                        self.dwg.add(self.dwg.text(task.get("task_name", "Unnamed"),
-                                                   insert=(x_start + 5, y_task + task_height * 0.4),
-                                                   font_size="10", fill="white"))
-            except (ValueError, KeyError) as e:
+            start_date_str = task["start_date"]
+            finish_date_str = task["finish_date"]
+            is_milestone = task.get("is_milestone", False)
+            if not start_date_str and not finish_date_str:
                 continue
+
+            date_to_use = start_date_str if start_date_str else finish_date_str
+            task_start = datetime.strptime(date_to_use, "%Y-%m-%d")
+            task_finish = task_start
+            if not is_milestone and start_date_str and finish_date_str:
+                task_start = datetime.strptime(start_date_str, "%Y-%m-%d")
+                task_finish = datetime.strptime(finish_date_str, "%Y-%m-%d")
+
+            if task_finish < start_date or task_start > end_date:
+                continue
+            row_num = min(max(task.get("row_number", 1) - 1, 0), num_rows - 1)
+            x_start = x + max((task_start - start_date).days, 0) * tf_time_scale
+            x_end = x + min((task_finish - start_date).days, total_days) * tf_time_scale
+            width_task = tf_time_scale if task_start == task_finish else max(x_end - x_start, tf_time_scale)
+            y_task = y + row_num * row_height
+
+            if is_milestone:
+                half_size = task_height / 2
+                center_x = x_start
+                center_y = y_task + row_height * 0.5
+                for other_task in self.data.get("tasks", []):
+                    if other_task["row_number"] == task["row_number"] and other_task != task:
+                        other_start_str = other_task["start_date"]
+                        other_finish_str = other_task["finish_date"]
+                        other_date = other_start_str if other_start_str else other_finish_str
+                        other_start = datetime.strptime(other_date, "%Y-%m-%d")
+                        other_finish = other_start
+                        if not other_task.get("is_milestone", False) and other_start_str and other_finish_str:
+                            other_start = datetime.strptime(other_start_str, "%Y-%m-%d")
+                            other_finish = datetime.strptime(other_finish_str, "%Y-%m-%d")
+                        if task_start == other_start:
+                            center_x = x_start + half_size
+                            break
+                        elif task_start == other_finish:
+                            center_x = x_end - half_size
+                            break
+                points = [
+                    (center_x, center_y - half_size),  # Top
+                    (center_x + half_size, center_y),  # Right
+                    (center_x, center_y + half_size),  # Bottom
+                    (center_x - half_size, center_y)   # Left
+                ]
+                self.dwg.add(self.dwg.polygon(points=points, fill="red", stroke="black", stroke_width=1))
+                self.dwg.add(self.dwg.text(task.get("task_name", "Unnamed"),
+                                           insert=(center_x + half_size + 5, center_y),
+                                           font_size="10", fill="black"))
+            else:
+                if x_start < x + width:
+                    self.dwg.add(self.dwg.rect(insert=(x_start, y_task), size=(width_task, task_height),
+                                               fill="blue"))
+                    self.dwg.add(self.dwg.text(task.get("task_name", "Unnamed"),
+                                               insert=(x_start + 5, y_task + task_height * 0.4),
+                                               font_size="10", fill="white"))
 
     def render_scales_and_rows(self, x, y, width, height, start_date, end_date):
         total_days = max((end_date - start_date).days, 1)

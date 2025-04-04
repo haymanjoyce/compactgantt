@@ -389,17 +389,32 @@ class DataEntryWindow(QMainWindow):
                     raise ValueError(f"Task {task_id}: Must provide at least one date")
 
                 is_milestone = bool(start_date_raw) != bool(finish_date_raw)
-                start_date = start_date_raw if start_date_raw else finish_date_raw
-                finish_date = finish_date_raw if finish_date_raw else start_date_raw
+                # For JSON, save raw dates (including blanks)
+                start_date_json = start_date_raw
+                finish_date_json = finish_date_raw
+                # For rendering, ensure non-blank dates
+                render_start = start_date_raw if start_date_raw else finish_date_raw
+                render_finish = finish_date_raw if finish_date_raw else start_date_raw
 
-                start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-                finish_dt = datetime.strptime(finish_date, "%Y-%m-%d")
-                if start_dt > finish_dt:
-                    raise ValueError(f"Task {task_id}: Start date '{start_date}' is after finish date '{finish_date}'")
+                # Validate only non-empty dates
+                if start_date_raw and finish_date_raw:
+                    start_dt = datetime.strptime(start_date_raw, "%Y-%m-%d")
+                    finish_dt = datetime.strptime(finish_date_raw, "%Y-%m-%d")
+                    if start_dt > finish_dt:
+                        raise ValueError(
+                            f"Task {task_id}: Start date '{start_date_raw}' is after finish date '{finish_date_raw}'")
+                elif start_date_raw:
+                    datetime.strptime(start_date_raw, "%Y-%m-%d")
+                elif finish_date_raw:
+                    datetime.strptime(finish_date_raw, "%Y-%m-%d")
+
                 if row_number > self.project_data.frame_config.num_rows:
                     raise ValueError(
                         f"Task {task_id}: Row number {row_number} exceeds {self.project_data.frame_config.num_rows}")
-                self.project_data.add_task(task_id, task_name, start_date, finish_date, row_number, is_milestone)
+                self.project_data.add_task(task_id, task_name, render_start, render_finish, row_number, is_milestone)
+                # Manually update the task in the list to preserve blank dates in JSON
+                self.project_data.tasks[-1].start_date = start_date_json
+                self.project_data.tasks[-1].finish_date = finish_date_json
 
             self.project_data.update_from_table("connectors", self._extract_table_data(self.connectors_table))
             self.project_data.update_from_table("swimlanes", self._extract_table_data(self.swimlanes_table))
@@ -410,10 +425,6 @@ class DataEntryWindow(QMainWindow):
             self.data_updated.emit(self.project_data.to_json())
         except ValueError as e:
             QMessageBox.critical(self, "Error", str(e))
-
-    def _sync_data_if_not_initializing(self):
-        if not self._initializing:
-            self._sync_data()
 
     def _load_initial_data(self):
         self.outer_width_input.setText(str(self.project_data.frame_config.outer_width))
@@ -429,8 +440,7 @@ class DataEntryWindow(QMainWindow):
         self.num_rows_input.setText(str(self.project_data.frame_config.num_rows))
         self.horizontal_gridlines_input.setChecked(self.project_data.frame_config.horizontal_gridlines)
         self.vertical_gridlines_input.setChecked(self.project_data.frame_config.vertical_gridlines)
-        self.chart_start_date_input.setDate(
-            QDate.fromString(self.project_data.frame_config.chart_start_date, "yyyy-MM-dd"))
+        self.chart_start_date_input.setDate(QDate.fromString(self.project_data.frame_config.chart_start_date, "yyyy-MM-dd"))
 
         tf_data = self.project_data.get_table_data("time_frames")
         self.time_frames_table.setRowCount(len(tf_data) if tf_data else 1)
@@ -446,10 +456,10 @@ class DataEntryWindow(QMainWindow):
         tasks_data = self.project_data.get_table_data("tasks")
         self.tasks_table.setRowCount(len(tasks_data))
         for row_idx, task in enumerate(tasks_data):
-            self.tasks_table.setItem(row_idx, 0, QTableWidgetItem(task[1]))
-            self.tasks_table.setItem(row_idx, 1, QTableWidgetItem(task[2]))
-            self.tasks_table.setItem(row_idx, 2, QTableWidgetItem(task[3]))
-            self.tasks_table.setItem(row_idx, 3, QTableWidgetItem(task[4]))
+            self.tasks_table.setItem(row_idx, 0, QTableWidgetItem(task[1]))  # task_name
+            self.tasks_table.setItem(row_idx, 1, QTableWidgetItem(task[2]))  # start_date (blank if milestone with only finish)
+            self.tasks_table.setItem(row_idx, 2, QTableWidgetItem(task[3]))  # finish_date (blank if milestone with only start)
+            self.tasks_table.setItem(row_idx, 3, QTableWidgetItem(task[4]))  # row_number
 
         conn_data = self.project_data.get_table_data("connectors")
         self.connectors_table.setRowCount(len(conn_data))
@@ -480,6 +490,10 @@ class DataEntryWindow(QMainWindow):
         for row_idx, row_data in enumerate(tb_data):
             for col_idx, value in enumerate(row_data):
                 self.text_boxes_table.setItem(row_idx, col_idx, QTableWidgetItem(value))
+
+    def _sync_data_if_not_initializing(self):
+        if not self._initializing:
+            self._sync_data()
 
     def save_to_json(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Save Project", "", "JSON Files (*.json)")
