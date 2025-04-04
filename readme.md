@@ -84,7 +84,7 @@ The GUI offers tabs for input, some planned but not yet implemented:
 - `.gitignore`: Excludes unnecessary files from version control.
 - `LICENSE`: Project license (TBD).
 - `requirements.txt`: Lists Python dependencies.
-- `README.md`: This documentation.
+- `README.md`: This documentation. [Check tab fields correctly listed]
 
 ## Folders
 - `haymanjoyce-gantt_02/`: Main project directory.
@@ -126,9 +126,10 @@ The GUI offers tabs for input, some planned but not yet implemented:
 - [ ] Window Scrolling
 - [ ] Window Zooming
 - [ ] Shortcuts
+- [ ] File Handling [Default to last used directory]
 
 ### File Input & Output
-- [x] Import/Export JSON
+- [x] Import/Export JSON [Fix: Importing Start and Finish into milestones]
 - [ ] Import/Export XLSX
 - [ ] Import/Export SVG
 - [ ] Print to PDF

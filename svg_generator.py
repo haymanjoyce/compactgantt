@@ -126,28 +126,35 @@ class GanttChartGenerator(QObject):
                 row_num = min(max(task.get("row_number", 1) - 1, 0), num_rows - 1)
                 x_start = x + max((task_start - start_date).days, 0) * tf_time_scale
                 x_end = x + min((task_finish - start_date).days, total_days) * tf_time_scale
-                # For single-day tasks, ensure width spans one day; otherwise, use calculated width
                 width_task = tf_time_scale if task_start == task_finish else max(x_end - x_start, tf_time_scale)
                 y_task = y + row_num * row_height
 
                 is_milestone = task.get("is_milestone", False)
                 if is_milestone:
-                    radius = task_height / 2
+                    # Diamond size matches task_height (like circle's diameter)
+                    half_size = task_height / 2
                     center_x = x_start
+                    center_y = y_task + row_height * 0.5
                     for other_task in self.data.get("tasks", []):
                         if other_task["row_number"] == task["row_number"] and other_task != task:
                             other_start = datetime.strptime(other_task["start_date"], "%Y-%m-%d")
                             other_finish = datetime.strptime(other_task["finish_date"], "%Y-%m-%d")
                             if task_start == other_start:
-                                center_x = x_start + radius
+                                center_x = x_start + half_size
                                 break
                             elif task_start == other_finish:
-                                center_x = x_end - radius
+                                center_x = x_end - half_size
                                 break
-                    self.dwg.add(self.dwg.circle(center=(center_x, y_task + row_height * 0.5),
-                                                 r=radius, fill="red", stroke="black", stroke_width=1))
+                    # Diamond points: top, right, bottom, left
+                    points = [
+                        (center_x, center_y - half_size),  # Top
+                        (center_x + half_size, center_y),  # Right
+                        (center_x, center_y + half_size),  # Bottom
+                        (center_x - half_size, center_y)   # Left
+                    ]
+                    self.dwg.add(self.dwg.polygon(points=points, fill="red", stroke="black", stroke_width=1))
                     self.dwg.add(self.dwg.text(task.get("task_name", "Unnamed"),
-                                               insert=(center_x + radius + 5, y_task + row_height * 0.5),
+                                               insert=(center_x + half_size + 5, center_y),
                                                font_size="10", fill="black"))
                 else:
                     if x_start < x + width:
