@@ -9,6 +9,11 @@ This tool creates compact, visually rich Gantt charts, packing extensive project
 - **Label placement**: Selective label and connector placement is rigid in other tools.
 - **Sizing issues**: Hard to fit charts to paper or slides precisely.
 
+## Example
+This picture was hand-drawn in PowerPoint and shows the kind of picture that I want the tool to produce.
+
+![Alt text](\examples\Sample POAP.pdf)
+
 ## Quick Start
 1. Ensure Python 3.8+ is installed with dependencies (see [Requirements](#requirements)):  
    `pip install -r requirements.txt`
