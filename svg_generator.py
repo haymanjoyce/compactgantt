@@ -43,17 +43,17 @@ class GanttChartGenerator(QObject):
                 try:
                     dates.append(datetime.strptime(start_date_str, "%Y-%m-%d"))
                 except ValueError:
-                    pass  # Skip invalid dates
+                    pass
             if finish_date_str:
                 try:
                     dates.append(datetime.strptime(finish_date_str, "%Y-%m-%d"))
                 except ValueError:
-                    pass  # Skip invalid dates
+                    pass
 
         if not dates:
             today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
             return today, today + timedelta(days=30)
-        return min(dates), max(dates)
+        return min(dates), max(dates) + timedelta(days=1)  # Include end day
 
     def _set_time_scale(self):
         start_date, _ = self._calculate_time_range()
@@ -143,13 +143,13 @@ class GanttChartGenerator(QObject):
                 continue
             row_num = min(max(task.get("row_number", 1) - 1, 0), num_rows - 1)
             x_start = x + max((task_start - start_date).days, 0) * tf_time_scale
-            x_end = x + min((task_finish - start_date).days, total_days) * tf_time_scale
+            x_end = x + min((task_finish - start_date).days + 1, total_days) * tf_time_scale
             width_task = tf_time_scale if task_start == task_finish else max(x_end - x_start, tf_time_scale)
             y_task = y + row_num * row_height
 
             if is_milestone:
                 half_size = task_height / 2
-                center_x = x_start
+                center_x = x_end if finish_date_str else x_start
                 center_y = y_task + row_height * 0.5
                 for other_task in self.data.get("tasks", []):
                     if other_task["row_number"] == task["row_number"] and other_task != task:
@@ -162,10 +162,10 @@ class GanttChartGenerator(QObject):
                             other_start = datetime.strptime(other_start_str, "%Y-%m-%d")
                             other_finish = datetime.strptime(other_finish_str, "%Y-%m-%d")
                         if task_start == other_start:
-                            center_x = x_start + half_size
+                            center_x = x_start
                             break
                         elif task_start == other_finish:
-                            center_x = x_end - half_size
+                            center_x = x_end
                             break
                 points = [
                     (center_x, center_y - half_size),  # Top
@@ -179,10 +179,14 @@ class GanttChartGenerator(QObject):
                                            font_size="10", fill="black"))
             else:
                 if x_start < x + width:
-                    self.dwg.add(self.dwg.rect(insert=(x_start, y_task), size=(width_task, task_height),
+                    # Center the rectangle vertically
+                    y_offset = (row_height - task_height) / 2
+                    rect_y = y_task + y_offset
+                    self.dwg.add(self.dwg.rect(insert=(x_start, rect_y), size=(width_task, task_height),
                                                fill="blue"))
+                    # Center the text vertically within the rectangle
                     self.dwg.add(self.dwg.text(task.get("task_name", "Unnamed"),
-                                               insert=(x_start + 5, y_task + task_height * 0.4),
+                                               insert=(x_start + 5, rect_y + task_height / 2),
                                                font_size="10", fill="white"))
 
     def render_scales_and_rows(self, x, y, width, height, start_date, end_date):
