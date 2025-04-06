@@ -12,7 +12,7 @@ This tool creates compact, visually rich Gantt charts, packing extensive project
 ## Example
 This picture was hand-drawn in PowerPoint and shows the kind of picture that I want the tool to produce.
 
-![Sample Plan on a Page (PDF).](https://github.com/haymanjoyce/gantt_02/blob/main/examples/Sample%20POAP.pdf)
+![Sample POAP (.png).](https://github.com/haymanjoyce/gantt_02/blob/main/examples/Sample%20POAP.png)
 
 ## Quick Start
 1. Ensure Python 3.8+ is installed with dependencies (see [Requirements](#requirements)):  
