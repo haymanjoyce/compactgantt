@@ -14,8 +14,6 @@ This picture was hand-drawn in PowerPoint and shows the kind of picture that I w
 
 ![Sample POAP (.png).](https://github.com/haymanjoyce/gantt_02/blob/main/examples/Sample%20POAP.png)
 
-<img src="https://github.com/haymanjoyce/gantt_02/blob/main/examples/Sample%20POAP.png" alt="Sample POAP (.png)" style="border: 2px solid black;">
-
 ## Quick Start
 1. Ensure Python 3.8+ is installed with dependencies (see [Requirements](#requirements)):  
    `pip install -r requirements.txt`
