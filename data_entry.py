@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
                              QFileDialog, QTabWidget, QAction, QApplication, QToolBar, QMessageBox,
-                             QLineEdit, QLabel, QGridLayout, QPushButton, QCheckBox, QDateEdit)
+                             QLineEdit, QLabel, QGridLayout, QPushButton, QCheckBox, QDateEdit, QComboBox)
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QDate, pyqtSignal
 from data_model import ProjectData, FrameConfig
@@ -139,8 +139,10 @@ class DataEntryWindow(QMainWindow):
 
     def setup_tasks_tab(self):
         tasks_layout = QVBoxLayout()
-        self.tasks_table = QTableWidget(5, 4)
-        self.tasks_table.setHorizontalHeaderLabels(["Task Name", "Start Date", "Finish Date", "Row Number"])
+        self.tasks_table = QTableWidget(5, 10)  # Updated from 4 to 10 columns
+        self.tasks_table.setHorizontalHeaderLabels(["Task Name", "Start Date", "Finish Date", "Row Number",
+                                                    "Label Placement", "Label Hide", "Label Alignment",
+                                                    "Horiz Offset", "Vert Offset", "Label Colour"])
         tasks_layout.addWidget(self.tasks_table)
         btn_layout = QGridLayout()
         add_btn = QPushButton("Add Task")
@@ -260,6 +262,17 @@ class DataEntryWindow(QMainWindow):
         self.tasks_table.setItem(row_count, 1, QTableWidgetItem(today))
         self.tasks_table.setItem(row_count, 2, QTableWidgetItem(today))
         self.tasks_table.setItem(row_count, 3, QTableWidgetItem("1"))
+        combo_placement = QComboBox()
+        combo_placement.addItems(["Inside", "To left", "To right", "Above", "Below"])
+        self.tasks_table.setCellWidget(row_count, 4, combo_placement)
+        combo_placement.setCurrentText("Inside")
+        self.tasks_table.setItem(row_count, 5, QTableWidgetItem("No"))
+        combo_alignment = QComboBox()
+        combo_alignment.addItems(["Left", "Centre", "Right"])
+        self.tasks_table.setCellWidget(row_count, 6, combo_alignment)
+        self.tasks_table.setItem(row_count, 7, QTableWidgetItem("1.0"))
+        self.tasks_table.setItem(row_count, 8, QTableWidgetItem("0.5"))
+        self.tasks_table.setItem(row_count, 9, QTableWidgetItem("black"))
         self.tasks_table.itemChanged.connect(self._sync_data_if_not_initializing)
         self._sync_data_if_not_initializing()
 
@@ -384,6 +397,12 @@ class DataEntryWindow(QMainWindow):
                 start_date_raw = row[1] or ""
                 finish_date_raw = row[2] or ""
                 row_number = int(row[3] or 1)
+                label_placement = row[4] or "Inside"
+                label_hide = row[5] or "No"
+                label_alignment = row[6] or "Left"
+                label_horizontal_offset = float(row[7] or 1.0)
+                label_vertical_offset = float(row[8] or 0.5)
+                label_text_colour = row[9] or "black"
 
                 if not start_date_raw and not finish_date_raw:
                     raise ValueError(f"Task {task_id}: Must provide at least one date")
@@ -411,7 +430,9 @@ class DataEntryWindow(QMainWindow):
                 if row_number > self.project_data.frame_config.num_rows:
                     raise ValueError(
                         f"Task {task_id}: Row number {row_number} exceeds {self.project_data.frame_config.num_rows}")
-                self.project_data.add_task(task_id, task_name, render_start, render_finish, row_number, is_milestone)
+                self.project_data.add_task(task_id, task_name, render_start, render_finish, row_number, is_milestone,
+                                           label_placement, label_hide, label_alignment,
+                                           label_horizontal_offset, label_vertical_offset, label_text_colour)
                 # Manually update the task in the list to preserve blank dates in JSON
                 self.project_data.tasks[-1].start_date = start_date_json
                 self.project_data.tasks[-1].finish_date = finish_date_json
@@ -457,9 +478,21 @@ class DataEntryWindow(QMainWindow):
         self.tasks_table.setRowCount(len(tasks_data))
         for row_idx, task in enumerate(tasks_data):
             self.tasks_table.setItem(row_idx, 0, QTableWidgetItem(task[1]))  # task_name
-            self.tasks_table.setItem(row_idx, 1, QTableWidgetItem(task[2]))  # start_date (blank if milestone with only finish)
-            self.tasks_table.setItem(row_idx, 2, QTableWidgetItem(task[3]))  # finish_date (blank if milestone with only start)
+            self.tasks_table.setItem(row_idx, 1, QTableWidgetItem(task[2]))  # start_date
+            self.tasks_table.setItem(row_idx, 2, QTableWidgetItem(task[3]))  # finish_date
             self.tasks_table.setItem(row_idx, 3, QTableWidgetItem(task[4]))  # row_number
+            combo_placement = QComboBox()
+            combo_placement.addItems(["Inside", "To left", "To right", "Above", "Below"])
+            combo_placement.setCurrentText(task[5])  # label_placement
+            self.tasks_table.setCellWidget(row_idx, 4, combo_placement)
+            self.tasks_table.setItem(row_idx, 5, QTableWidgetItem(task[6]))  # label_hide
+            combo_alignment = QComboBox()
+            combo_alignment.addItems(["Left", "Centre", "Right"])
+            combo_alignment.setCurrentText(task[7])  # label_alignment
+            self.tasks_table.setCellWidget(row_idx, 6, combo_alignment)
+            self.tasks_table.setItem(row_idx, 7, QTableWidgetItem(task[8]))  # label_horizontal_offset
+            self.tasks_table.setItem(row_idx, 8, QTableWidgetItem(task[9]))  # label_vertical_offset
+            self.tasks_table.setItem(row_idx, 9, QTableWidgetItem(task[10]))  # label_text_colour
 
         conn_data = self.project_data.get_table_data("connectors")
         self.connectors_table.setRowCount(len(conn_data))
@@ -530,7 +563,11 @@ class DataEntryWindow(QMainWindow):
         for row in range(table.rowCount()):
             row_data = []
             for col in range(table.columnCount()):
-                item = table.item(row, col)
-                row_data.append(item.text() if item else "")
+                widget = table.cellWidget(row, col)
+                if widget and isinstance(widget, QComboBox):
+                    row_data.append(widget.currentText())
+                else:
+                    item = table.item(row, col)
+                    row_data.append(item.text() if item else "")
             data.append(row_data)
         return data

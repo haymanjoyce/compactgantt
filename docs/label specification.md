@@ -4,6 +4,8 @@
 - The label uses the text from the `task name` field
 - If the task name is blank, then the label is "Unnamed"
 - In this iteration, there is no automatic handling over overlapping labels
+- Vertical alignment of labels may look off because text sits on text baseline
+- To compensate for this, text may need to be moved down by half its height
 
 ## Label Fields:
 
@@ -93,6 +95,7 @@
 - By default, for label placements to left or right, leader line is x1 day width (please add this default to config.py as constant)
 - Suggested constant names: 'LEADER_LINE_VERTICAL_DEFAULT' and 'LEADER_LINE_HORIZONTAL_DEFAULT'
 - In this iteration, the user cannot define leader line style; default style is a solid black line, 1px wide
+- Note, in case it is not clear, label leader lines should either be exactly vertical or horizontal in orientation
 
 ## Tasks Tab
 
