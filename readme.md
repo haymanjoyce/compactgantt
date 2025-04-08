@@ -105,10 +105,11 @@ The GUI offers tabs for input, some planned but not yet implemented:
 ### Chart Design
 - [x] Layout
 - [x] Time Frames
-- [x] Scales [May need a different solution for when they get overly dense]
+- [x] Scales [May need a solution for when they get overly dense]
 - [x] Gridlines [May need a solution for when they get overly dense]
-- [x] Tasks [Need to work on the task label placement]
-- [ ] Milestones [Change shape to diamond or triangle with rounded corners]
+- [x] Tasks [Change shape to rounded rectangle]
+- [x] Milestones [Change shape rounded corners]
+- [ ] Labels [Need to work on the task and milestone label placement]
 - [ ] Connectors
 - [ ] Text Boxes
 - [ ] Curtains
@@ -131,7 +132,7 @@ The GUI offers tabs for input, some planned but not yet implemented:
 - [ ] File Handling [Default to last used directory]
 
 ### File Input & Output
-- [x] Import/Export JSON [Fix: Importing Start and Finish into milestones]
+- [x] Import/Export JSON [Barring amendments to the data model]
 - [ ] Import/Export XLSX
 - [ ] Import/Export SVG
 - [ ] Print to PDF
@@ -144,7 +145,7 @@ The GUI offers tabs for input, some planned but not yet implemented:
 
 ### Packaging & Distribution
 - [ ] `setup.py`
-- [ ] `requirements.txt` [In progress]
+- [x] `requirements.txt`
 - [ ] Windows Executable
 - [ ] PyPI Package
 - [ ] Documentation
