@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import calendar
 import os
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
+from PyQt5.QtGui import QFont, QFontMetrics
 from config import Config
 
 class GanttChartGenerator(QObject):
@@ -16,6 +17,8 @@ class GanttChartGenerator(QObject):
         self.dwg = None
         self.data = {"frame_config": {}, "time_frames": [], "tasks": []}
         self.start_date = None
+        self.font = QFont("Arial", 10)  # Match SVG font_size=10
+        self.font_metrics = QFontMetrics(self.font)
 
     @pyqtSlot(dict)
     def generate_svg(self, data):
@@ -155,7 +158,6 @@ class GanttChartGenerator(QObject):
             y_task = y + row_num * row_height
 
             label_width = len(task_name) * font_size * Config.LABEL_HORIZONTAL_OFFSET_FACTOR  # For Left/Right
-
             if is_milestone:
                 half_size = task_height / 2
                 center_x = x_end if finish_date_str else x_start
@@ -168,21 +170,29 @@ class GanttChartGenerator(QObject):
                 ]
                 if not label_hide and label_placement != "Inside":
                     label_y_base = center_y + font_size * Config.LABEL_VERTICAL_OFFSET_FACTOR
+                    text_width = self.font_metrics.horizontalAdvance(task_name)
                     if label_placement == "To left":
-                        label_x = center_x - label_horizontal_offset * tf_time_scale - label_width
+                        milestone_left = center_x - half_size
+                        label_x = milestone_left - tf_time_scale  # Right edge of label
                         label_y = label_y_base
-                        self.dwg.add(self.dwg.text(task_name, insert=(label_x, label_y), font_size="10", fill="black",
-                                                   text_anchor="end"))
-                        self.dwg.add(self.dwg.line((label_x + label_width, center_y), (center_x - half_size, center_y),
-                                                   stroke="black", stroke_width=1))
+                        leader_start = (label_x, center_y)  # Label's right edge
+                        leader_end = (milestone_left, center_y)
+                        print(
+                            f"To left: label_x={label_x}, text_width={text_width}, leader_start={leader_start}, leader_end={leader_end}, tf_time_scale={tf_time_scale}")
+                        self.dwg.add(self.dwg.text(task_name, insert=(label_x, label_y), font_size="10",
+                                                   font_family="Arial", fill="black", text_anchor="end"))
+                        self.dwg.add(self.dwg.line(leader_start, leader_end, stroke="black", stroke_width=1))
                     elif label_placement == "To right":
-                        label_x = center_x + label_horizontal_offset * tf_time_scale
+                        milestone_right = center_x + half_size
+                        label_x = milestone_right + tf_time_scale  # Left edge of label
                         label_y = label_y_base
-                        self.dwg.add(self.dwg.text(task_name, insert=(label_x, label_y), font_size="10", fill="black",
-                                                   text_anchor="start"))
-                        self.dwg.add(
-                            self.dwg.line((label_x, center_y), (center_x + half_size, center_y), stroke="black",
-                                          stroke_width=1))
+                        leader_start = (label_x, center_y)
+                        leader_end = (milestone_right, center_y)
+                        print(
+                            f"To right: label_x={label_x}, text_width={text_width}, leader_start={leader_start}, leader_end={leader_end}, tf_time_scale={tf_time_scale}")
+                        self.dwg.add(self.dwg.text(task_name, insert=(label_x, label_y), font_size="10",
+                                                   font_family="Arial", fill="black", text_anchor="start"))
+                        self.dwg.add(self.dwg.line(leader_start, leader_end, stroke="black", stroke_width=1))
                     elif label_placement == "Above":
                         label_x = center_x if label_alignment == "Centre" else center_x - label_width if label_alignment == "Left" else center_x + label_width
                         label_y = center_y - half_size - label_vertical_offset * row_height + font_size * Config.LABEL_VERTICAL_OFFSET_FACTOR
@@ -209,25 +219,38 @@ class GanttChartGenerator(QObject):
                     if not label_hide:
                         label_y_base = rect_y + task_height / 2 + font_size * Config.LABEL_VERTICAL_OFFSET_FACTOR
                         if label_placement == "Inside":
-                            text_width = len(task_name) * font_size * Config.LABEL_TEXT_WIDTH_FACTOR
-                            print(f"Task: {task_name}, width_task: {width_task}, text_width: {text_width}")
+                            text_width = self.font_metrics.horizontalAdvance(task_name)
                             if text_width > width_task:
-                                max_chars = int((width_task / (font_size * Config.LABEL_TEXT_WIDTH_FACTOR)) - 1)
-                                print(f"Clipping: max_chars={max_chars}")
-                                if max_chars < 1:
-                                    task_name_display = ""
-                                else:
-                                    task_name_display = task_name[:max_chars] + "…"
+                                left, right = 1, len(task_name)
+                                while left <= right:
+                                    mid = (left + right) // 2
+                                    test_text = task_name[:mid] + "…"
+                                    if self.font_metrics.horizontalAdvance(test_text) <= width_task:
+                                        left = mid + 1
+                                    else:
+                                        right = mid - 1
+                                max_chars = right
+                                task_name_display = task_name[:max_chars] + "…" if max_chars > 0 else ""
+                                text_width = self.font_metrics.horizontalAdvance(task_name_display)  # Recalculate
                             else:
                                 task_name_display = task_name
 
-                            label_x = x_start if label_alignment == "Left" else x_start + (
-                                        width_task - text_width) / 2 if label_alignment == "Centre" and width_task > text_width else x_start + width_task - text_width if label_alignment == "Right" and width_task > text_width else x_start
-                            label_y = label_y_base
-                            anchor = "start" if label_alignment == "Left" else "middle" if label_alignment == "Centre" and width_task > text_width else "end" if label_alignment == "Right" and width_task > text_width else "start"
-                            print(f"Rendering: '{task_name_display}', x={label_x}, align={anchor}")
-                            self.dwg.add(self.dwg.text(task_name_display, insert=(label_x, label_y), font_size="10",
-                                                       fill="white", text_anchor=anchor))
+                            if label_alignment == "Left":
+                                label_x = x_start
+                                anchor = "start"
+                            elif label_alignment == "Centre":
+                                label_x = x_start + width_task / 2  # Move to task midpoint
+                                anchor = "middle"
+                            elif label_alignment == "Right" and text_width <= width_task:
+                                label_x = x_start + width_task
+                                anchor = "end"
+                            else:
+                                label_x = x_start
+                                anchor = "start"
+
+                            self.dwg.add(self.dwg.text(task_name_display, insert=(label_x, label_y_base),
+                                                       font_size="10", font_family="Arial", fill="white",
+                                                       text_anchor=anchor))
                         elif label_placement == "To left":
                             label_x = x_start - label_horizontal_offset * tf_time_scale - label_width
                             label_y = label_y_base
