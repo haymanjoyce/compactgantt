@@ -1,8 +1,9 @@
 from PyQt5.QtWidgets import (QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
                              QFileDialog, QTabWidget, QAction, QApplication, QToolBar, QMessageBox,
-                             QLineEdit, QLabel, QGridLayout, QPushButton, QCheckBox, QDateEdit, QComboBox)
+                             QLineEdit, QLabel, QGridLayout, QPushButton, QCheckBox, QDateEdit, QComboBox,
+                             QMenu, QGroupBox, QHeaderView, QScrollArea)
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QDate, pyqtSignal
+from PyQt5.QtCore import QDate, pyqtSignal, Qt
 from data_model import ProjectData, FrameConfig
 from config import Config
 from datetime import datetime, timedelta
@@ -15,26 +16,92 @@ class DataEntryWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Project Planning Tool")
-        self.setGeometry(100, 100, Config.DATA_ENTRY_WIDTH, Config.DATA_ENTRY_HEIGHT)
+        self.setMinimumSize(600, 400)
         self.project_data = ProjectData()
         self._initializing = True
 
+        # Table configurations for each tab
+        self.table_configs = {
+            "time_frames": {
+                "columns": ["Finish Date", "Width (%)"],
+                "defaults": lambda row: [
+                    (QDate.currentDate().addDays(7 * (row + 1))).toString("yyyy-MM-dd"),
+                    str(100 / (row + 2))
+                ],
+                "min_rows": 1
+            },
+            "tasks": {
+                "columns": ["Task ID", "Task Name", "Start Date", "Finish Date", "Row Number",
+                            "Label Placement", "Label Hide", "Label Alignment",
+                            "Horiz Offset", "Vert Offset", "Label Colour"],
+                "defaults": lambda task_id: [
+                    str(task_id),  # Task ID
+                    "New Task",    # Task Name
+                    QDate.currentDate().toString("yyyy-MM-dd"),
+                    QDate.currentDate().toString("yyyy-MM-dd"),
+                    "1",
+                    {"type": "combo", "items": ["Inside", "To left", "To right", "Above", "Below"], "default": "Inside"},
+                    "No",
+                    {"type": "combo", "items": ["Left", "Centre", "Right"], "default": "Left"},
+                    "1.0",
+                    "0.5",
+                    "black"
+                ],
+                "min_rows": 1
+            },
+            "connectors": {
+                "columns": ["From Task ID", "To Task ID"],
+                "defaults": lambda row: ["1", "2"],
+                "min_rows": 0
+            },
+            "swimlanes": {
+                "columns": ["From Row Number", "To Row Number", "Title", "Colour"],
+                "defaults": lambda row: ["1", "2", f"Swimlane {row + 1}", "lightblue"],
+                "min_rows": 0
+            },
+            "pipes": {
+                "columns": ["Date", "Colour"],
+                "defaults": lambda row: [QDate.currentDate().toString("yyyy-MM-dd"), "red"],
+                "min_rows": 0
+            },
+            "curtains": {
+                "columns": ["From Date", "To Date", "Colour"],
+                "defaults": lambda row: [
+                    QDate.currentDate().toString("yyyy-MM-dd"),
+                    QDate.currentDate().toString("yyyy-MM-dd"),
+                    "gray"
+                ],
+                "min_rows": 0
+            },
+            "text_boxes": {
+                "columns": ["Text", "X Coordinate", "Y Coordinate", "Colour"],
+                "defaults": lambda row: [f"Text {row + 1}", "100", "100", "black"],
+                "min_rows": 0
+            }
+        }
+
+        # Menu bar
         self.menu_bar = self.menuBar()
         self.file_menu = self.menu_bar.addMenu("File")
         self.save_action = QAction("Save Project", self)
+        self.save_action.setShortcut("Ctrl+S")
         self.save_action.triggered.connect(self.save_to_json)
         self.file_menu.addAction(self.save_action)
         self.load_action = QAction("Load Project", self)
+        self.load_action.setShortcut("Ctrl+O")
         self.load_action.triggered.connect(self.load_from_json)
         self.file_menu.addAction(self.load_action)
 
+        # Toolbar
         self.toolbar = QToolBar("Tools")
         self.addToolBar(self.toolbar)
         style = QApplication.style()
         self.generate_tool = QAction(QIcon(style.standardIcon(style.SP_ArrowRight)), "Generate Gantt Chart", self)
+        self.generate_tool.setShortcut("Ctrl+G")
         self.generate_tool.triggered.connect(self._emit_data_updated)
         self.toolbar.addAction(self.generate_tool)
 
+        # Central widget and tabs
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.layout = QVBoxLayout(self.central_widget)
@@ -70,67 +137,111 @@ class DataEntryWindow(QMainWindow):
         self._initializing = False
 
     def setup_layout_tab(self):
-        layout = QGridLayout()
-        layout.addWidget(QLabel("Outer Width:"), 0, 0)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        content_widget = QWidget()
+        layout = QVBoxLayout(content_widget)
+
+        # Dimensions group
+        dim_group = QGroupBox("Dimensions")
+        dim_layout = QGridLayout()
+        dim_layout.addWidget(QLabel("Outer Width:"), 0, 0)
         self.outer_width_input = QLineEdit(str(self.project_data.frame_config.outer_width))
-        layout.addWidget(self.outer_width_input, 0, 1)
-        layout.addWidget(QLabel("Outer Height:"), 1, 0)
+        dim_layout.addWidget(self.outer_width_input, 0, 1)
+        dim_layout.addWidget(QLabel("Outer Height:"), 1, 0)
         self.outer_height_input = QLineEdit(str(self.project_data.frame_config.outer_height))
-        layout.addWidget(self.outer_height_input, 1, 1)
-        layout.addWidget(QLabel("Header Height:"), 2, 0)
+        dim_layout.addWidget(self.outer_height_input, 1, 1)
+        dim_layout.addWidget(QLabel("Header Height:"), 2, 0)
         self.header_height_input = QLineEdit(str(self.project_data.frame_config.header_height))
-        layout.addWidget(self.header_height_input, 2, 1)
-        layout.addWidget(QLabel("Footer Height:"), 3, 0)
+        dim_layout.addWidget(self.header_height_input, 2, 1)
+        dim_layout.addWidget(QLabel("Footer Height:"), 3, 0)
         self.footer_height_input = QLineEdit(str(self.project_data.frame_config.footer_height))
-        layout.addWidget(self.footer_height_input, 3, 1)
-        layout.addWidget(QLabel("Top Margin:"), 4, 0)
+        dim_layout.addWidget(self.footer_height_input, 3, 1)
+        dim_group.setLayout(dim_layout)
+        layout.addWidget(dim_group)
+
+        # Margins group
+        margins_group = QGroupBox("Margins")
+        margins_layout = QGridLayout()
+        margins_layout.addWidget(QLabel("Top:"), 0, 0)
         self.top_margin_input = QLineEdit(str(self.project_data.frame_config.margins[0]))
-        layout.addWidget(self.top_margin_input, 4, 1)
-        layout.addWidget(QLabel("Right Margin:"), 5, 0)
+        margins_layout.addWidget(self.top_margin_input, 0, 1)
+        margins_layout.addWidget(QLabel("Right:"), 1, 0)
         self.right_margin_input = QLineEdit(str(self.project_data.frame_config.margins[1]))
-        layout.addWidget(self.right_margin_input, 5, 1)
-        layout.addWidget(QLabel("Bottom Margin:"), 6, 0)
+        margins_layout.addWidget(self.right_margin_input, 1, 1)
+        margins_layout.addWidget(QLabel("Bottom:"), 2, 0)
         self.bottom_margin_input = QLineEdit(str(self.project_data.frame_config.margins[2]))
-        layout.addWidget(self.bottom_margin_input, 6, 1)
-        layout.addWidget(QLabel("Left Margin:"), 7, 0)
+        margins_layout.addWidget(self.bottom_margin_input, 2, 1)
+        margins_layout.addWidget(QLabel("Left:"), 3, 0)
         self.left_margin_input = QLineEdit(str(self.project_data.frame_config.margins[3]))
-        layout.addWidget(self.left_margin_input, 7, 1)
-        layout.addWidget(QLabel("Header Text:"), 8, 0)
+        margins_layout.addWidget(self.left_margin_input, 3, 1)
+        margins_group.setLayout(margins_layout)
+        layout.addWidget(margins_group)
+
+        # Text group
+        text_group = QGroupBox("Text")
+        text_layout = QGridLayout()
+        text_layout.addWidget(QLabel("Header Text:"), 0, 0)
         self.header_text_input = QLineEdit(self.project_data.frame_config.header_text)
-        layout.addWidget(self.header_text_input, 8, 1)
-        layout.addWidget(QLabel("Footer Text:"), 9, 0)
+        text_layout.addWidget(self.header_text_input, 0, 1)
+        text_layout.addWidget(QLabel("Footer Text:"), 1, 0)
         self.footer_text_input = QLineEdit(self.project_data.frame_config.footer_text)
-        layout.addWidget(self.footer_text_input, 9, 1)
-        layout.addWidget(QLabel("Number of Rows:"), 10, 0)
-        self.num_rows_input = QLineEdit(str(self.project_data.frame_config.num_rows))
-        layout.addWidget(self.num_rows_input, 10, 1)
-        layout.addWidget(QLabel("Horizontal Gridlines:"), 11, 0)
+        text_layout.addWidget(self.footer_text_input, 1, 1)
+        text_group.setLayout(text_layout)
+        layout.addWidget(text_group)
+
+        # Gridlines group
+        grid_group = QGroupBox("Gridlines")
+        grid_layout = QGridLayout()
+        grid_layout.addWidget(QLabel("Horizontal:"), 0, 0)
         self.horizontal_gridlines_input = QCheckBox()
         self.horizontal_gridlines_input.setChecked(self.project_data.frame_config.horizontal_gridlines)
-        layout.addWidget(self.horizontal_gridlines_input, 11, 1)
-        layout.addWidget(QLabel("Vertical Gridlines:"), 12, 0)
+        grid_layout.addWidget(self.horizontal_gridlines_input, 0, 1)
+        grid_layout.addWidget(QLabel("Vertical:"), 1, 0)
         self.vertical_gridlines_input = QCheckBox()
         self.vertical_gridlines_input.setChecked(self.project_data.frame_config.vertical_gridlines)
-        layout.addWidget(self.vertical_gridlines_input, 12, 1)
-        layout.addWidget(QLabel("Chart Start Date:"), 13, 0)
+        grid_layout.addWidget(self.vertical_gridlines_input, 1, 1)
+        grid_group.setLayout(grid_layout)
+        layout.addWidget(grid_group)
+
+        # Setup group
+        setup_group = QGroupBox("Setup")
+        setup_layout = QGridLayout()
+        setup_layout.addWidget(QLabel("Chart Start Date:"), 0, 0)
         self.chart_start_date_input = QDateEdit()
         self.chart_start_date_input.setCalendarPopup(True)
         self.chart_start_date_input.setDisplayFormat("yyyy-MM-dd")
         self.chart_start_date_input.setDate(
             QDate.fromString(self.project_data.frame_config.chart_start_date, "yyyy-MM-dd"))
-        layout.addWidget(self.chart_start_date_input, 13, 1)
-        self.layout_tab.setLayout(layout)
+        setup_layout.addWidget(self.chart_start_date_input, 0, 1)
+        setup_layout.addWidget(QLabel("Number of Rows:"), 1, 0)
+        self.num_rows_input = QLineEdit(str(self.project_data.frame_config.num_rows))
+        setup_layout.addWidget(self.num_rows_input, 1, 1)
+        setup_group.setLayout(setup_layout)
+        layout.addWidget(setup_group)
+
+        layout.addStretch()
+        scroll.setWidget(content_widget)
+        scroll_layout = QVBoxLayout()
+        scroll_layout.addWidget(scroll)
+        self.layout_tab.setLayout(scroll_layout)
 
     def setup_time_frames_tab(self):
         tf_layout = QVBoxLayout()
         self.time_frames_table = QTableWidget(2, 2)
-        self.time_frames_table.setHorizontalHeaderLabels(["Finish Date", "Width (%)"])
+        self.time_frames_table.setHorizontalHeaderLabels(self.table_configs["time_frames"]["columns"])
+        self.time_frames_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.time_frames_table.customContextMenuRequested.connect(
+            lambda pos: self._show_context_menu(pos, self.time_frames_table, "time_frames"))
+        self.time_frames_table.setSortingEnabled(True)
+        self.time_frames_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.time_frames_table.resizeColumnsToContents()
         tf_layout.addWidget(self.time_frames_table)
         btn_layout = QGridLayout()
         add_btn = QPushButton("Add Time Frame")
         remove_btn = QPushButton("Remove Time Frame")
-        add_btn.clicked.connect(self._add_time_frame_row)
-        remove_btn.clicked.connect(self._remove_time_frame_row)
+        add_btn.clicked.connect(lambda: self._add_row(self.time_frames_table, "time_frames"))
+        remove_btn.clicked.connect(lambda: self._remove_row(self.time_frames_table, "time_frames"))
         btn_layout.addWidget(add_btn, 0, 0)
         btn_layout.addWidget(remove_btn, 0, 1)
         tf_layout.addLayout(btn_layout)
@@ -139,16 +250,25 @@ class DataEntryWindow(QMainWindow):
 
     def setup_tasks_tab(self):
         tasks_layout = QVBoxLayout()
-        self.tasks_table = QTableWidget(5, 10)  # Updated from 4 to 10 columns
-        self.tasks_table.setHorizontalHeaderLabels(["Task Name", "Start Date", "Finish Date", "Row Number",
-                                                    "Label Placement", "Label Hide", "Label Alignment",
-                                                    "Horiz Offset", "Vert Offset", "Label Colour"])
+        self.tasks_table = QTableWidget(5, 11)  # +1 for Task ID
+        self.tasks_table.setHorizontalHeaderLabels(self.table_configs["tasks"]["columns"])
+        self.tasks_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tasks_table.customContextMenuRequested.connect(
+            lambda pos: self._show_context_menu(pos, self.tasks_table, "tasks"))
+        self.tasks_table.setSortingEnabled(True)
+        self.tasks_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.tasks_table.setColumnWidth(0, 80)   # Task ID
+        self.tasks_table.setColumnWidth(1, 150)  # Task Name
+        self.tasks_table.setColumnWidth(5, 120)  # Label Placement
+        self.tasks_table.setColumnWidth(7, 100)  # Label Alignment
+        self.tasks_table.setColumnWidth(8, 80)   # Horiz Offset
+        self.tasks_table.setColumnWidth(9, 80)   # Vert Offset
         tasks_layout.addWidget(self.tasks_table)
         btn_layout = QGridLayout()
         add_btn = QPushButton("Add Task")
         remove_btn = QPushButton("Remove Task")
-        add_btn.clicked.connect(self._add_task_row)
-        remove_btn.clicked.connect(self._remove_task_row)
+        add_btn.clicked.connect(lambda: self._add_row(self.tasks_table, "tasks"))
+        remove_btn.clicked.connect(lambda: self._remove_row(self.tasks_table, "tasks"))
         btn_layout.addWidget(add_btn, 0, 0)
         btn_layout.addWidget(remove_btn, 0, 1)
         tasks_layout.addLayout(btn_layout)
@@ -158,13 +278,19 @@ class DataEntryWindow(QMainWindow):
     def setup_connectors_tab(self):
         conn_layout = QVBoxLayout()
         self.connectors_table = QTableWidget(2, 2)
-        self.connectors_table.setHorizontalHeaderLabels(["From Task ID", "To Task ID"])
+        self.connectors_table.setHorizontalHeaderLabels(self.table_configs["connectors"]["columns"])
+        self.connectors_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.connectors_table.customContextMenuRequested.connect(
+            lambda pos: self._show_context_menu(pos, self.connectors_table, "connectors"))
+        self.connectors_table.setSortingEnabled(True)
+        self.connectors_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.connectors_table.resizeColumnsToContents()
         conn_layout.addWidget(self.connectors_table)
         btn_layout = QGridLayout()
         add_btn = QPushButton("Add Connector")
         remove_btn = QPushButton("Remove Connector")
-        add_btn.clicked.connect(self._add_connector_row)
-        remove_btn.clicked.connect(self._remove_connector_row)
+        add_btn.clicked.connect(lambda: self._add_row(self.connectors_table, "connectors"))
+        remove_btn.clicked.connect(lambda: self._remove_row(self.connectors_table, "connectors"))
         btn_layout.addWidget(add_btn, 0, 0)
         btn_layout.addWidget(remove_btn, 0, 1)
         conn_layout.addLayout(btn_layout)
@@ -174,13 +300,19 @@ class DataEntryWindow(QMainWindow):
     def setup_swimlanes_tab(self):
         sl_layout = QVBoxLayout()
         self.swimlanes_table = QTableWidget(2, 4)
-        self.swimlanes_table.setHorizontalHeaderLabels(["From Row Number", "To Row Number", "Title", "Colour"])
+        self.swimlanes_table.setHorizontalHeaderLabels(self.table_configs["swimlanes"]["columns"])
+        self.swimlanes_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.swimlanes_table.customContextMenuRequested.connect(
+            lambda pos: self._show_context_menu(pos, self.swimlanes_table, "swimlanes"))
+        self.swimlanes_table.setSortingEnabled(True)
+        self.swimlanes_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.swimlanes_table.resizeColumnsToContents()
         sl_layout.addWidget(self.swimlanes_table)
         btn_layout = QGridLayout()
         add_btn = QPushButton("Add Swimlane")
         remove_btn = QPushButton("Remove Swimlane")
-        add_btn.clicked.connect(self._add_swimlane_row)
-        remove_btn.clicked.connect(self._remove_swimlane_row)
+        add_btn.clicked.connect(lambda: self._add_row(self.swimlanes_table, "swimlanes"))
+        remove_btn.clicked.connect(lambda: self._remove_row(self.swimlanes_table, "swimlanes"))
         btn_layout.addWidget(add_btn, 0, 0)
         btn_layout.addWidget(remove_btn, 0, 1)
         sl_layout.addLayout(btn_layout)
@@ -190,13 +322,19 @@ class DataEntryWindow(QMainWindow):
     def setup_pipes_tab(self):
         pipes_layout = QVBoxLayout()
         self.pipes_table = QTableWidget(2, 2)
-        self.pipes_table.setHorizontalHeaderLabels(["Date", "Colour"])
+        self.pipes_table.setHorizontalHeaderLabels(self.table_configs["pipes"]["columns"])
+        self.pipes_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.pipes_table.customContextMenuRequested.connect(
+            lambda pos: self._show_context_menu(pos, self.pipes_table, "pipes"))
+        self.time_frames_table.setSortingEnabled(True)
+        self.pipes_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.pipes_table.resizeColumnsToContents()
         pipes_layout.addWidget(self.pipes_table)
         btn_layout = QGridLayout()
         add_btn = QPushButton("Add Pipe")
         remove_btn = QPushButton("Remove Pipe")
-        add_btn.clicked.connect(self._add_pipe_row)
-        remove_btn.clicked.connect(self._remove_pipe_row)
+        add_btn.clicked.connect(lambda: self._add_row(self.pipes_table, "pipes"))
+        remove_btn.clicked.connect(lambda: self._remove_row(self.pipes_table, "pipes"))
         btn_layout.addWidget(add_btn, 0, 0)
         btn_layout.addWidget(remove_btn, 0, 1)
         pipes_layout.addLayout(btn_layout)
@@ -206,13 +344,19 @@ class DataEntryWindow(QMainWindow):
     def setup_curtains_tab(self):
         curtains_layout = QVBoxLayout()
         self.curtains_table = QTableWidget(2, 3)
-        self.curtains_table.setHorizontalHeaderLabels(["From Date", "To Date", "Colour"])
+        self.curtains_table.setHorizontalHeaderLabels(self.table_configs["curtains"]["columns"])
+        self.curtains_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.curtains_table.customContextMenuRequested.connect(
+            lambda pos: self._show_context_menu(pos, self.curtains_table, "curtains"))
+        self.curtains_table.setSortingEnabled(True)
+        self.curtains_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.curtains_table.resizeColumnsToContents()
         curtains_layout.addWidget(self.curtains_table)
         btn_layout = QGridLayout()
         add_btn = QPushButton("Add Curtain")
         remove_btn = QPushButton("Remove Curtain")
-        add_btn.clicked.connect(self._add_curtain_row)
-        remove_btn.clicked.connect(self._remove_curtain_row)
+        add_btn.clicked.connect(lambda: self._add_row(self.curtains_table, "curtains"))
+        remove_btn.clicked.connect(lambda: self._remove_row(self.curtains_table, "curtains"))
         btn_layout.addWidget(add_btn, 0, 0)
         btn_layout.addWidget(remove_btn, 0, 1)
         curtains_layout.addLayout(btn_layout)
@@ -222,130 +366,121 @@ class DataEntryWindow(QMainWindow):
     def setup_text_boxes_tab(self):
         tb_layout = QVBoxLayout()
         self.text_boxes_table = QTableWidget(2, 4)
-        self.text_boxes_table.setHorizontalHeaderLabels(["Text", "X Coordinate", "Y Coordinate", "Colour"])
+        self.text_boxes_table.setHorizontalHeaderLabels(self.table_configs["text_boxes"]["columns"])
+        self.text_boxes_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.text_boxes_table.customContextMenuRequested.connect(
+            lambda pos: self._show_context_menu(pos, self.text_boxes_table, "text_boxes"))
+        self.text_boxes_table.setSortingEnabled(True)
+        self.text_boxes_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.text_boxes_table.resizeColumnsToContents()
         tb_layout.addWidget(self.text_boxes_table)
         btn_layout = QGridLayout()
         add_btn = QPushButton("Add Text Box")
         remove_btn = QPushButton("Remove Text Box")
-        add_btn.clicked.connect(self._add_text_box_row)
-        remove_btn.clicked.connect(self._remove_text_box_row)
+        add_btn.clicked.connect(lambda: self._add_row(self.text_boxes_table, "text_boxes"))
+        remove_btn.clicked.connect(lambda: self._remove_row(self.text_boxes_table, "text_boxes"))
         btn_layout.addWidget(add_btn, 0, 0)
         btn_layout.addWidget(remove_btn, 0, 1)
         tb_layout.addLayout(btn_layout)
         self.text_boxes_tab.setLayout(tb_layout)
         self.text_boxes_table.itemChanged.connect(self._sync_data_if_not_initializing)
 
-    def _add_time_frame_row(self):
-        row_count = self.time_frames_table.rowCount()
-        self.time_frames_table.insertRow(row_count)
-        today = QDate.currentDate().toString("yyyy-MM-dd")
-        if row_count == 0:
-            end_date = (datetime.strptime(today, "%Y-%m-%d") + timedelta(days=7)).strftime("%Y-%m-%d")
+    def _add_row(self, table, config_key):
+        config = self.table_configs.get(config_key, {})
+        row_count = table.rowCount()
+        table.insertRow(row_count)
+        if config_key == "tasks":
+            # Compute next task_id
+            max_task_id = 0
+            for row in range(row_count):  # Check existing rows
+                item = table.item(row, 0)
+                if item and item.text().isdigit():
+                    max_task_id = max(max_task_id, int(item.text()))
+            task_id = max_task_id + 1
+            defaults = config.get("defaults", lambda x: [])(task_id)
         else:
-            last_end = self.time_frames_table.item(row_count - 1, 0).text()
-            end_date = (datetime.strptime(last_end, "%Y-%m-%d") + timedelta(days=7)).strftime("%Y-%m-%d")
-        self.time_frames_table.setItem(row_count, 0, QTableWidgetItem(end_date))
-        self.time_frames_table.setItem(row_count, 1, QTableWidgetItem(str(100 / (row_count + 1))))
+            defaults = config.get("defaults", lambda x: [])(row_count)
+        table.itemChanged.disconnect(self._sync_data_if_not_initializing)
+        for col, default in enumerate(defaults):
+            if isinstance(default, dict) and default.get("type") == "combo":
+                combo = QComboBox()
+                combo.addItems(default["items"])
+                combo.setCurrentText(default["default"])
+                table.setCellWidget(row_count, col, combo)
+            else:
+                item = QTableWidgetItem(str(default))
+                if config_key == "tasks" and col == 0:  # Make Task ID read-only
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                table.setItem(row_count, col, item)
+        table.itemChanged.connect(self._sync_data_if_not_initializing)
         self._sync_data_if_not_initializing()
 
-    def _remove_time_frame_row(self):
-        if self.time_frames_table.rowCount() > 1:
-            self.time_frames_table.removeRow(self.time_frames_table.rowCount() - 1)
+    def _remove_row(self, table, config_key):
+        config = self.table_configs.get(config_key, {})
+        min_rows = config.get("min_rows", 1)
+        if table.rowCount() > min_rows:
+            table.removeRow(table.rowCount() - 1)
             self._sync_data_if_not_initializing()
 
-    def _add_task_row(self):
-        row_count = self.tasks_table.rowCount()
-        self.tasks_table.insertRow(row_count)
-        today = QDate.currentDate().toString("yyyy-MM-dd")
-        self.tasks_table.itemChanged.disconnect(self._sync_data_if_not_initializing)
-        self.tasks_table.setItem(row_count, 0, QTableWidgetItem(f"Task {row_count + 1}"))
-        self.tasks_table.setItem(row_count, 1, QTableWidgetItem(today))
-        self.tasks_table.setItem(row_count, 2, QTableWidgetItem(today))
-        self.tasks_table.setItem(row_count, 3, QTableWidgetItem("1"))
-        combo_placement = QComboBox()
-        combo_placement.addItems(["Inside", "To left", "To right", "Above", "Below"])
-        self.tasks_table.setCellWidget(row_count, 4, combo_placement)
-        combo_placement.setCurrentText("Inside")
-        self.tasks_table.setItem(row_count, 5, QTableWidgetItem("No"))
-        combo_alignment = QComboBox()
-        combo_alignment.addItems(["Left", "Centre", "Right"])
-        self.tasks_table.setCellWidget(row_count, 6, combo_alignment)
-        self.tasks_table.setItem(row_count, 7, QTableWidgetItem("1.0"))
-        self.tasks_table.setItem(row_count, 8, QTableWidgetItem("0.5"))
-        self.tasks_table.setItem(row_count, 9, QTableWidgetItem("black"))
-        self.tasks_table.itemChanged.connect(self._sync_data_if_not_initializing)
+    def _show_context_menu(self, pos, table, config_key):
+        menu = QMenu()
+        insert_action = QAction("Insert Row Above", self)
+        delete_action = QAction("Delete Row", self)
+        row_index = table.indexAt(pos).row()  # 0-based index (Row 1 = 0, Row 8 = 7)
+        if row_index < 0 or row_index >= table.rowCount():  # Clicked outside rows
+            row_index = 0  # Insert at top (Row 1)
+        insert_action.triggered.connect(lambda: self._insert_row(table, config_key, row_index))
+        delete_action.triggered.connect(lambda: self._delete_row(table, config_key, row_index))
+        menu.addAction(insert_action)
+        menu.addAction(delete_action)
+        menu.exec_(table.viewport().mapToGlobal(pos))
+
+    def _insert_row(self, table, config_key, row_index):
+        config = self.table_configs.get(config_key, {})
+        was_sorting = table.isSortingEnabled()
+        table.setSortingEnabled(False)
+        # Debug: Show 1-based row number (Row 8 = index 7 + 1)
+        print(f"Inserting above row {row_index + 1}, config_key={config_key}")
+        table.insertRow(row_index)  # Insert at 0-based index
+        if config_key == "tasks":
+            # Compute next task_id
+            max_task_id = 0
+            for row in range(table.rowCount()):
+                if row != row_index:  # Skip new row
+                    item = table.item(row, 0)
+                    if item and item.text().isdigit():
+                        max_task_id = max(max_task_id, int(item.text()))
+            task_id = max_task_id + 1
+            print(f"New task_id={task_id}")
+            defaults = config.get("defaults", lambda x: [])(task_id)
+        else:
+            defaults = config.get("defaults", lambda x: [])(table.rowCount())
+        table.itemChanged.disconnect(self._sync_data_if_not_initializing)
+        for col, default in enumerate(defaults):
+            if isinstance(default, dict) and default.get("type") == "combo":
+                combo = QComboBox()
+                combo.addItems(default["items"])
+                combo.setCurrentText(default["default"])
+                table.setCellWidget(row_index, col, combo)
+            else:
+                item = QTableWidgetItem(str(default))
+                if config_key == "tasks" and col == 0:  # Make Task ID read-only
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                table.setItem(row_index, col, item)
+        table.itemChanged.connect(self._sync_data_if_not_initializing)
+        # Clear sort column to prevent reordering
+        table.sortByColumn(-1, Qt.AscendingOrder)
+        table.setSortingEnabled(was_sorting)
         self._sync_data_if_not_initializing()
 
-    def _remove_task_row(self):
-        if self.tasks_table.rowCount() > 1:
-            self.tasks_table.removeRow(self.tasks_table.rowCount() - 1)
-            self._sync_data_if_not_initializing()
-
-    def _add_connector_row(self):
-        row_count = self.connectors_table.rowCount()
-        self.connectors_table.insertRow(row_count)
-        self.connectors_table.setItem(row_count, 0, QTableWidgetItem("1"))
-        self.connectors_table.setItem(row_count, 1, QTableWidgetItem("2"))
-        self._sync_data_if_not_initializing()
-
-    def _remove_connector_row(self):
-        if self.connectors_table.rowCount() > 1:
-            self.connectors_table.removeRow(self.connectors_table.rowCount() - 1)
-            self._sync_data_if_not_initializing()
-
-    def _add_swimlane_row(self):
-        row_count = self.swimlanes_table.rowCount()
-        self.swimlanes_table.insertRow(row_count)
-        self.swimlanes_table.setItem(row_count, 0, QTableWidgetItem("1"))
-        self.swimlanes_table.setItem(row_count, 1, QTableWidgetItem("2"))
-        self.swimlanes_table.setItem(row_count, 2, QTableWidgetItem(f"Swimlane {row_count + 1}"))
-        self.swimlanes_table.setItem(row_count, 3, QTableWidgetItem("lightblue"))
-        self._sync_data_if_not_initializing()
-
-    def _remove_swimlane_row(self):
-        if self.swimlanes_table.rowCount() > 1:
-            self.swimlanes_table.removeRow(self.swimlanes_table.rowCount() - 1)
-            self._sync_data_if_not_initializing()
-
-    def _add_pipe_row(self):
-        row_count = self.pipes_table.rowCount()
-        self.pipes_table.insertRow(row_count)
-        today = QDate.currentDate().toString("yyyy-MM-dd")
-        self.pipes_table.setItem(row_count, 0, QTableWidgetItem(today))
-        self.pipes_table.setItem(row_count, 1, QTableWidgetItem("red"))
-        self._sync_data_if_not_initializing()
-
-    def _remove_pipe_row(self):
-        if self.pipes_table.rowCount() > 1:
-            self.pipes_table.removeRow(self.pipes_table.rowCount() - 1)
-            self._sync_data_if_not_initializing()
-
-    def _add_curtain_row(self):
-        row_count = self.curtains_table.rowCount()
-        self.curtains_table.insertRow(row_count)
-        today = QDate.currentDate().toString("yyyy-MM-dd")
-        self.curtains_table.setItem(row_count, 0, QTableWidgetItem(today))
-        self.curtains_table.setItem(row_count, 1, QTableWidgetItem(today))
-        self.curtains_table.setItem(row_count, 2, QTableWidgetItem("gray"))
-        self._sync_data_if_not_initializing()
-
-    def _remove_curtain_row(self):
-        if self.curtains_table.rowCount() > 1:
-            self.curtains_table.removeRow(self.curtains_table.rowCount() - 1)
-            self._sync_data_if_not_initializing()
-
-    def _add_text_box_row(self):
-        row_count = self.text_boxes_table.rowCount()
-        self.text_boxes_table.insertRow(row_count)
-        self.text_boxes_table.setItem(row_count, 0, QTableWidgetItem(f"Text {row_count + 1}"))
-        self.text_boxes_table.setItem(row_count, 1, QTableWidgetItem("100"))
-        self.text_boxes_table.setItem(row_count, 2, QTableWidgetItem("100"))
-        self.text_boxes_table.setItem(row_count, 3, QTableWidgetItem("black"))
-        self._sync_data_if_not_initializing()
-
-    def _remove_text_box_row(self):
-        if self.text_boxes_table.rowCount() > 1:
-            self.text_boxes_table.removeRow(self.text_boxes_table.rowCount() - 1)
+    def _delete_row(self, table, config_key, row_index):
+        config = self.table_configs.get(config_key, {})
+        min_rows = config.get("min_rows", 1)
+        if table.rowCount() > min_rows:
+            was_sorting = table.isSortingEnabled()
+            table.setSortingEnabled(False)
+            table.removeRow(row_index)
+            table.setSortingEnabled(was_sorting)
             self._sync_data_if_not_initializing()
 
     def _sync_data(self):
@@ -391,31 +526,28 @@ class DataEntryWindow(QMainWindow):
 
             tasks_data = self._extract_table_data(self.tasks_table)
             self.project_data.tasks.clear()
-            for i, row in enumerate(tasks_data):
-                task_id = i + 1
-                task_name = row[0] or "Unnamed"
-                start_date_raw = row[1] or ""
-                finish_date_raw = row[2] or ""
-                row_number = int(row[3] or 1)
-                label_placement = row[4] or "Inside"
-                label_hide = row[5] or "No"
-                label_alignment = row[6] or "Left"
-                label_horizontal_offset = float(row[7] or 1.0)
-                label_vertical_offset = float(row[8] or 0.5)
-                label_text_colour = row[9] or "black"
+            for row in tasks_data:
+                task_id = int(row[0] or 0)  # Use stored task_id
+                task_name = row[1] or "Unnamed"
+                start_date_raw = row[2] or ""
+                finish_date_raw = row[3] or ""
+                row_number = int(row[4] or 1)
+                label_placement = row[5] or "Inside"
+                label_hide = row[6] or "No"
+                label_alignment = row[7] or "Left"
+                label_horizontal_offset = float(row[8] or 1.0)
+                label_vertical_offset = float(row[9] or 0.5)
+                label_text_colour = row[10] or "black"
 
                 if not start_date_raw and not finish_date_raw:
                     raise ValueError(f"Task {task_id}: Must provide at least one date")
 
                 is_milestone = bool(start_date_raw) != bool(finish_date_raw)
-                # For JSON, save raw dates (including blanks)
                 start_date_json = start_date_raw
                 finish_date_json = finish_date_raw
-                # For rendering, ensure non-blank dates
                 render_start = start_date_raw if start_date_raw else finish_date_raw
                 render_finish = finish_date_raw if finish_date_raw else start_date_raw
 
-                # Validate only non-empty dates
                 if start_date_raw and finish_date_raw:
                     start_dt = datetime.strptime(start_date_raw, "%Y-%m-%d")
                     finish_dt = datetime.strptime(finish_date_raw, "%Y-%m-%d")
@@ -431,9 +563,8 @@ class DataEntryWindow(QMainWindow):
                     raise ValueError(
                         f"Task {task_id}: Row number {row_number} exceeds {self.project_data.frame_config.num_rows}")
                 self.project_data.add_task(task_id, task_name, render_start, render_finish, row_number, is_milestone,
-                                           label_placement, label_hide, label_alignment,
-                                           label_horizontal_offset, label_vertical_offset, label_text_colour)
-                # Manually update the task in the list to preserve blank dates in JSON
+                                          label_placement, label_hide, label_alignment,
+                                          label_horizontal_offset, label_vertical_offset, label_text_colour)
                 self.project_data.tasks[-1].start_date = start_date_json
                 self.project_data.tasks[-1].finish_date = finish_date_json
 
@@ -477,22 +608,25 @@ class DataEntryWindow(QMainWindow):
         tasks_data = self.project_data.get_table_data("tasks")
         self.tasks_table.setRowCount(len(tasks_data))
         for row_idx, task in enumerate(tasks_data):
-            self.tasks_table.setItem(row_idx, 0, QTableWidgetItem(task[1]))  # task_name
-            self.tasks_table.setItem(row_idx, 1, QTableWidgetItem(task[2]))  # start_date
-            self.tasks_table.setItem(row_idx, 2, QTableWidgetItem(task[3]))  # finish_date
-            self.tasks_table.setItem(row_idx, 3, QTableWidgetItem(task[4]))  # row_number
+            task_id = task[0] if task[0] else str(row_idx + 1)  # Fallback for old data
+            self.tasks_table.setItem(row_idx, 0, QTableWidgetItem(task_id))
+            self.tasks_table.item(row_idx, 0).setFlags(self.tasks_table.item(row_idx, 0).flags() & ~Qt.ItemIsEditable)
+            self.tasks_table.setItem(row_idx, 1, QTableWidgetItem(task[1]))  # task_name
+            self.tasks_table.setItem(row_idx, 2, QTableWidgetItem(task[2]))  # start_date
+            self.tasks_table.setItem(row_idx, 3, QTableWidgetItem(task[3]))  # finish_date
+            self.tasks_table.setItem(row_idx, 4, QTableWidgetItem(task[4]))  # row_number
             combo_placement = QComboBox()
             combo_placement.addItems(["Inside", "To left", "To right", "Above", "Below"])
             combo_placement.setCurrentText(task[5])  # label_placement
-            self.tasks_table.setCellWidget(row_idx, 4, combo_placement)
-            self.tasks_table.setItem(row_idx, 5, QTableWidgetItem(task[6]))  # label_hide
+            self.tasks_table.setCellWidget(row_idx, 5, combo_placement)
+            self.tasks_table.setItem(row_idx, 6, QTableWidgetItem(task[6]))  # label_hide
             combo_alignment = QComboBox()
             combo_alignment.addItems(["Left", "Centre", "Right"])
             combo_alignment.setCurrentText(task[7])  # label_alignment
-            self.tasks_table.setCellWidget(row_idx, 6, combo_alignment)
-            self.tasks_table.setItem(row_idx, 7, QTableWidgetItem(task[8]))  # label_horizontal_offset
-            self.tasks_table.setItem(row_idx, 8, QTableWidgetItem(task[9]))  # label_vertical_offset
-            self.tasks_table.setItem(row_idx, 9, QTableWidgetItem(task[10]))  # label_text_colour
+            self.tasks_table.setCellWidget(row_idx, 7, combo_alignment)
+            self.tasks_table.setItem(row_idx, 8, QTableWidgetItem(task[8]))  # label_horizontal_offset
+            self.tasks_table.setItem(row_idx, 9, QTableWidgetItem(task[9]))  # label_vertical_offset
+            self.tasks_table.setItem(row_idx, 10, QTableWidgetItem(task[10]))  # label_text_colour
 
         conn_data = self.project_data.get_table_data("connectors")
         self.connectors_table.setRowCount(len(conn_data))

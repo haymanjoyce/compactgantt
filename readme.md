@@ -112,9 +112,9 @@ The GUI offers tabs for input, some planned but not yet implemented:
 - [x] Time Frames
 - [x] Scales [May need a solution for when they get overly dense]
 - [x] Gridlines [May need a solution for when they get overly dense]
-- [x] Tasks [Change shape to rounded rectangle]
+- [x] Tasks [Change shape to rounded rectangle,  replace LABEL_VERTICAL_OFFSET_FACTOR with QFontMetrics]
 - [x] Milestones [Change shape rounded corners]
-- [ ] Labels [Clear out LABEL_HORIZONTAL_OFFSET_FACTOR]
+- [ ] Labels [Clear out LABEL_HORIZONTAL_OFFSET_FACTOR, collision detection]
 - [ ] Connectors
 - [ ] Text Boxes
 - [ ] Curtains
@@ -122,19 +122,31 @@ The GUI offers tabs for input, some planned but not yet implemented:
 - [ ] Swimlanes
 
 ### User Interface
-- [x] Data Entry Window [Toolbar may be dropped]
-- [x] Data Entry Tabs [Layout tab fields need rearranging to look better]
-- [x] Data Entry Tables [May want to add more fields to the tables]
-- [x] Data Entry Buttons
-- [ ] Table Sorting
-- [ ] Table Filtering
-- [ ] Table Searching
-- [ ] Table Editing (add, edit, delete)
-- [ ] Window Resizing [Display window to scale proportionally]
-- [ ] Window Scrolling
-- [ ] Window Zooming
-- [ ] Shortcuts
-- [ ] File Handling [Default to last used directory]
+- Window Resizing & Layout
+  - [x] Outline design (data entry window (with tabs and tables) and SVG display window)
+  - [x] Add a toolbar with buttons for common actions
+    - [x] Generate Gantt Chart
+    - [ ] Save Project
+    - [ ] Undo/Redo 
+  - [ ] Make the window resizable with a minimum size (e.g., 600x400); proportional scaling
+  - [ ] Adjust table column widths dynamically to fit content (e.g., wider for Task Name, narrower for offsets)
+  - [ ] Group Layout tab fields into sections (e.g., Dimensions, Margins, Text) with QGroupBox for clarity
+- [ ] Table Sorting, Filtering & Searching
+  - [x] Clicking column header to sort
+  - [ ] Add filter bar above tables (e.g., for Tasks, filter by row number or date range)
+  - [ ] Add a search field to highlight matching rows (e.g., by Task Name)
+- [ ] Table Editing (Add, Edit, Delete)
+  - [x] Data Entry Buttons
+  - [x] Right-click Context Menu
+  - [ ] Double-click Edit
+  - [ ] Add Row Below (to compliment Add Row To End)
+  - [ ] Ensure combo boxes save changes immediately
+
+- Visual Feedback and Shortcuts
+  - [ ] Add visual feedback for user actions (e.g., highlight selected rows, highlight invalid and/or missing data, change button color on hover)
+  - [ ] Add shortcuts (e.g., Ctrl+S for Save, Ctrl+G for Generate, Ctrl+O for Open)
+  - [ ] Add tooltips to buttons and fields for better usability
+  - [ ] Add a status bar at the bottom to show messages (e.g., "Project saved", "Chart generated", etc.)
 
 ### File Input & Output
 - [x] Import/Export JSON [Barring amendments to the data model]
@@ -142,6 +154,8 @@ The GUI offers tabs for input, some planned but not yet implemented:
 - [ ] Import/Export SVG
 - [ ] Print to PDF
 - [ ] Print to Raster
+- [ ] Default to last used directory
+- [ ] File History
 
 ### Production
 - [ ] Logging
