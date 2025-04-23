@@ -55,7 +55,19 @@ class ProjectData:
                               label_horizontal_offset, label_vertical_offset, label_text_colour))
 
     def update_from_table(self, key, data):
-        setattr(self, key, data)
+        if key == "connectors":
+            valid_connectors = []
+            task_ids = {task.task_id for task in self.tasks}
+            for row in data:
+                try:
+                    from_id, to_id = int(row[0]), int(row[1])
+                    if from_id > 0 and to_id > 0 and from_id in task_ids and to_id in task_ids and from_id != to_id:
+                        valid_connectors.append(row)
+                except (ValueError, TypeError):
+                    pass
+            setattr(self, key, valid_connectors)
+        else:
+            setattr(self, key, data)
 
     def get_table_data(self, key):
         if key == "tasks":

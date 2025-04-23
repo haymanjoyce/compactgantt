@@ -22,12 +22,17 @@ class GanttChartGenerator(QObject):
 
     @pyqtSlot(dict)
     def generate_svg(self, data):
+        if not data or "frame_config" not in data:
+            print("Skipping SVG generation: Invalid or empty data")
+            self.svg_generated.emit("")  # Emit empty path to indicate no SVG
+            return
         try:
             self.data = data
             width = self.data["frame_config"].get("outer_width", 800)
             height = self.data["frame_config"].get("outer_height", 600)
-            self.dwg = svgwrite.Drawing(filename=os.path.abspath(os.path.join(self.output_folder, self.output_filename)),
-                                        size=(width, height))
+            self.dwg = svgwrite.Drawing(
+                filename=os.path.abspath(os.path.join(self.output_folder, self.output_filename)),
+                size=(width, height))
             self.start_date = self._set_time_scale()
             self.render()
             svg_path = os.path.abspath(os.path.join(self.output_folder, self.output_filename))
@@ -35,7 +40,8 @@ class GanttChartGenerator(QObject):
             return svg_path
         except Exception as e:
             print(f"SVG generation failed: {e}")
-            raise ValueError(f"SVG generation failed: {e}")
+            self.svg_generated.emit("")  # Emit empty path on error
+            return
 
     def _calculate_time_range(self):
         dates = []

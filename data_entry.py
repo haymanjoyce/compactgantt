@@ -114,6 +114,10 @@ class DataEntryWindow(QMainWindow):
         self.generate_tool.triggered.connect(self._emit_data_updated)
         self.toolbar.addAction(self.generate_tool)
 
+        # Status bar
+        self.status_bar = self.statusBar()
+        self.status_bar.showMessage("Ready")
+
         # Central widget and tabs
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -575,7 +579,7 @@ class DataEntryWindow(QMainWindow):
 
     def _sync_data(self):
         try:
-            # Validate Layout tab
+          # Validate Layout tab
             margins = (
                 float(self.top_margin_input.text() or 0),
                 float(self.right_margin_input.text() or 0),
@@ -701,9 +705,88 @@ class DataEntryWindow(QMainWindow):
                     invalid_cells.add((row_idx, 5, "invalid"))
                     has_errors = True
 
-            # Apply highlights and tooltips
+            # Validate Connectors
+            connectors_data = self._extract_table_data(self.connectors_table)
+            invalid_connector_cells = set()  # (row, col, reason)
+            task_ids = {int(row[0]) for row in tasks_data if row[0].isdigit()}  # Valid Task IDs
+            connector_pairs = set()  # Track From -> To pairs for duplicates
+
+            for row_idx, row in enumerate(connectors_data):
+                from_id, to_id = row[0], row[1]
+
+                # From Task ID (col 0)
+                try:
+                    from_id_val = int(from_id) if from_id else 0
+                    if from_id_val <= 0:
+                        invalid_connector_cells.add((row_idx, 0, "non-positive"))
+                    elif from_id_val not in task_ids:
+                        invalid_connector_cells.add((row_idx, 0, "invalid-task"))
+                    elif from_id_val == int(to_id or 0):
+                        invalid_connector_cells.add((row_idx, 0, "self-reference"))
+                except ValueError:
+                    invalid_connector_cells.add((row_idx, 0, "invalid"))
+
+                # To Task ID (col 1)
+                try:
+                    to_id_val = int(to_id) if to_id else 0
+                    if to_id_val <= 0:
+                        invalid_connector_cells.add((row_idx, 1, "non-positive"))
+                    elif to_id_val not in task_ids:
+                        invalid_connector_cells.add((row_idx, 1, "invalid-task"))
+                    elif to_id_val == int(from_id or 0):
+                        invalid_connector_cells.add((row_idx, 1, "self-reference"))
+                except ValueError:
+                    invalid_connector_cells.add((row_idx, 1, "invalid"))
+
+                # Check for duplicate connectors
+                if from_id and to_id and (from_id, to_id) in connector_pairs:
+                    invalid_connector_cells.add((row_idx, 0, "duplicate"))
+                    invalid_connector_cells.add((row_idx, 1, "duplicate"))
+                else:
+                    connector_pairs.add((from_id, to_id))
+
+            # Apply highlights and tooltips for Connectors
+            self.connectors_table.blockSignals(True)
+            for row_idx in range(self.connectors_table.rowCount()):
+                for col in (0, 1):
+                    item = self.connectors_table.item(row_idx, col)
+                    tooltip = ""
+                    if item:
+                        if any((row_idx, col, reason) in invalid_connector_cells for reason in ["non-positive"]):
+                            item.setBackground(QBrush(Qt.yellow))
+                            tooltip = f"Connector {row_idx + 1}: {'From' if col == 0 else 'To'} Task ID must be positive"
+                        elif any((row_idx, col, reason) in invalid_connector_cells for reason in ["invalid"]):
+                            item.setBackground(QBrush(Qt.yellow))
+                            tooltip = f"Connector {row_idx + 1}: {'From' if col == 0 else 'To'} Task ID must be an integer"
+                        elif any((row_idx, col, reason) in invalid_connector_cells for reason in ["invalid-task"]):
+                            item.setBackground(QBrush(Qt.yellow))
+                            tooltip = f"Connector {row_idx + 1}: {'From' if col == 0 else 'To'} Task ID does not exist"
+                        elif any((row_idx, col, reason) in invalid_connector_cells for reason in ["self-reference"]):
+                            item.setBackground(QBrush(Qt.yellow))
+                            tooltip = f"Connector {row_idx + 1}: From and To Task IDs cannot be the same"
+                        elif any((row_idx, col, reason) in invalid_connector_cells for reason in ["duplicate"]):
+                            item.setBackground(QBrush(Qt.yellow))
+                            tooltip = f"Connector {row_idx + 1}: Duplicate connector"
+                        else:
+                            item.setBackground(QBrush())
+                    else:
+                        item = QTableWidgetItem("")
+                        item.setBackground(QBrush(Qt.yellow))
+                        tooltip = f"Connector {row_idx + 1}: {'From' if col == 0 else 'To'} Task ID required"
+                        self.connectors_table.setItem(row_idx, col, item)
+                    item.setToolTip(tooltip)
+            self.connectors_table.blockSignals(False)
+
+            # Prevent SVG generation if connector errors exist
+            if invalid_connector_cells:
+                has_errors = True
+
+            # Apply highlights and tooltips for Tasks
             self.tasks_table.blockSignals(True)
             for row_idx in range(self.tasks_table.rowCount()):
+                task_id = self.tasks_table.item(row_idx, 0).text() if self.tasks_table.item(row_idx,
+                                                                                            0) else "Unknown"
+
                 # Task Order (col 1)
                 item = self.tasks_table.item(row_idx, 1)
                 tooltip = ""
@@ -712,20 +795,20 @@ class DataEntryWindow(QMainWindow):
                         task_order = float(item.text() or 0)
                         if task_order in non_unique_orders:
                             item.setBackground(QBrush(Qt.yellow))
-                            tooltip = "Task Order is not unique"
+                            tooltip = f"Task {task_id}: Task Order must be unique"
                         elif task_order <= 0:
                             item.setBackground(QBrush(Qt.yellow))
-                            tooltip = "Task Order must be positive"
+                            tooltip = f"Task {task_id}: Task Order must be positive"
                         else:
                             item.setBackground(QBrush())
                     except ValueError:
                         item.setBackground(QBrush(Qt.yellow))
-                        tooltip = "Task Order must be a valid number"
+                        tooltip = f"Task {task_id}: Task Order must be a number"
                 else:
                     item = NumericTableWidgetItem("0")
                     item.setData(Qt.UserRole, 0.0)
                     item.setBackground(QBrush(Qt.yellow))
-                    tooltip = "Task Order must be a valid number"
+                    tooltip = f"Task {task_id}: Task Order required"
                     self.tasks_table.setItem(row_idx, 1, item)
                 item.setToolTip(tooltip)
 
@@ -735,20 +818,20 @@ class DataEntryWindow(QMainWindow):
                 if item:
                     if any((row_idx, 3, reason) in invalid_cells for reason in ["invalid format"]):
                         item.setBackground(QBrush(Qt.yellow))
-                        tooltip = "Start Date must be yyyy-MM-dd or empty"
+                        tooltip = f"Task {task_id}: Start Date must be yyyy-MM-dd"
                     elif any((row_idx, 3, reason) in invalid_cells for reason in ["start-after-finish"]):
                         item.setBackground(QBrush(Qt.yellow))
-                        tooltip = "Start Date is after Finish Date"
+                        tooltip = f"Task {task_id}: Start Date cannot be after Finish Date"
                     elif any((row_idx, 3, reason) in invalid_cells for reason in ["both-empty"]):
                         item.setBackground(QBrush(Qt.yellow))
-                        tooltip = "At least one of Start or Finish Date required"
+                        tooltip = f"Task {task_id}: Start or Finish Date required"
                     else:
                         item.setBackground(QBrush())
                 else:
                     item = QTableWidgetItem("")
                     if any((row_idx, 3, reason) in invalid_cells for reason in ["both-empty"]):
                         item.setBackground(QBrush(Qt.yellow))
-                        tooltip = "At least one of Start or Finish Date required"
+                        tooltip = f"Task {task_id}: Start or Finish Date required"
                     self.tasks_table.setItem(row_idx, 3, item)
                 item.setToolTip(tooltip)
 
@@ -758,20 +841,20 @@ class DataEntryWindow(QMainWindow):
                 if item:
                     if any((row_idx, 4, reason) in invalid_cells for reason in ["invalid format"]):
                         item.setBackground(QBrush(Qt.yellow))
-                        tooltip = "Finish Date must be yyyy-MM-dd or empty"
+                        tooltip = f"Task {task_id}: Finish Date must be yyyy-MM-dd"
                     elif any((row_idx, 4, reason) in invalid_cells for reason in ["start-after-finish"]):
                         item.setBackground(QBrush(Qt.yellow))
-                        tooltip = "Finish Date is before Start Date"
+                        tooltip = f"Task {task_id}: Finish Date cannot be before Start Date"
                     elif any((row_idx, 4, reason) in invalid_cells for reason in ["both-empty"]):
                         item.setBackground(QBrush(Qt.yellow))
-                        tooltip = "At least one of Start or Finish Date required"
+                        tooltip = f"Task {task_id}: Start or Finish Date required"
                     else:
                         item.setBackground(QBrush())
                 else:
                     item = QTableWidgetItem("")
                     if any((row_idx, 4, reason) in invalid_cells for reason in ["both-empty"]):
                         item.setBackground(QBrush(Qt.yellow))
-                        tooltip = "At least one of Start or Finish Date required"
+                        tooltip = f"Task {task_id}: Start or Finish Date required"
                     self.tasks_table.setItem(row_idx, 4, item)
                 item.setToolTip(tooltip)
 
@@ -781,20 +864,21 @@ class DataEntryWindow(QMainWindow):
                 if item:
                     if any((row_idx, 5, reason) in invalid_cells for reason in ["non-positive"]):
                         item.setBackground(QBrush(Qt.yellow))
-                        tooltip = "Row Number must be positive"
+                        tooltip = f"Task {task_id}: Row Number must be positive"
                     elif any((row_idx, 5, reason) in invalid_cells for reason in ["non-integer", "invalid"]):
                         item.setBackground(QBrush(Qt.yellow))
-                        tooltip = "Row Number must be an integer"
+                        tooltip = f"Task {task_id}: Row Number must be an integer"
                     elif any((row_idx, 5, reason) in invalid_cells for reason in ["exceeds-num-rows"]):
                         item.setBackground(QBrush(Qt.yellow))
-                        tooltip = f"Row Number exceeds Number of Rows ({self.project_data.frame_config.num_rows})"
+                        tooltip = f"Task {task_id}: Row Number cannot exceed {self.project_data.frame_config.num_rows}"
                     else:
                         item.setBackground(QBrush())
                 else:
                     item = QTableWidgetItem("1")
-                    if any((row_idx, 5, reason) in invalid_cells for reason in ["non-positive", "non-integer", "invalid", "exceeds-num-rows"]):
+                    if any((row_idx, 5, reason) in invalid_cells for reason in
+                           ["non-positive", "non-integer", "invalid", "exceeds-num-rows"]):
                         item.setBackground(QBrush(Qt.yellow))
-                        tooltip = "Row Number must be a positive integer"
+                        tooltip = f"Task {task_id}: Row Number must be a positive integer"
                     self.tasks_table.setItem(row_idx, 5, item)
                 item.setToolTip(tooltip)
 
@@ -803,6 +887,7 @@ class DataEntryWindow(QMainWindow):
 
             # Process tasks only if no errors
             if has_errors:
+                self.status_bar.showMessage("Fix highlighted cells to generate chart")
                 self.data_updated.emit({})  # Signal empty data to prevent Gantt chart generation
                 return
 
@@ -839,9 +924,13 @@ class DataEntryWindow(QMainWindow):
             self.project_data.update_from_table("curtains", self._extract_table_data(self.curtains_table))
             self.project_data.update_from_table("text_boxes", self._extract_table_data(self.text_boxes_table))
 
+            self.status_bar.showMessage("Chart data ready")
             self.data_updated.emit(self.project_data.to_json())
+
         except ValueError as e:
             QMessageBox.critical(self, "Error", str(e))
+            self.data_updated.emit({})  # Ensure no crash
+
     def _load_initial_data(self):
         self.outer_width_input.setText(str(self.project_data.frame_config.outer_width))
         self.outer_height_input.setText(str(self.project_data.frame_config.outer_height))
