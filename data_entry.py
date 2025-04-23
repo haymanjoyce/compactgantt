@@ -622,13 +622,17 @@ class DataEntryWindow(QMainWindow):
 
             # Validate Tasks and apply highlights/tooltips
             tasks_data = self._extract_table_data(self.tasks_table)
-            # Debug: Log sort order if Task ID or Task Order column is sorted
-            sort_col = self.tasks_table.horizontalHeader().sortIndicatorSection()
-            sort_order = self.tasks_table.horizontalHeader().sortIndicatorOrder()
-            if sort_col == 0:
-                print(f"Task ID sorted: {'Ascending' if sort_order == Qt.AscendingOrder else 'Descending'}, data={tasks_data}")
-            elif sort_col == 1:
-                print(f"Task Order sorted: {'Ascending' if sort_order == Qt.AscendingOrder else 'Descending'}, data={tasks_data}")
+            invalid_cells = set()  # (row, col, reason)
+            task_order_counts = {}
+            for row_idx, row in enumerate(tasks_data):
+                try:
+                    task_order = float(row[1]) if row[1] else 0
+                    task_order_counts[task_order] = task_order_counts.get(task_order, 0) + 1
+                    if task_order <= 0:
+                        invalid_cells.add((row_idx, 1, "non-positive"))
+                except ValueError:
+                    invalid_cells.add((row_idx, 1, "invalid"))
+            non_unique_orders = {k for k, v in task_order_counts.items() if v > 1}
 
             # Track invalid cells with reasons for tooltips
             invalid_cells = set()  # (row, col, reason)
@@ -790,9 +794,9 @@ class DataEntryWindow(QMainWindow):
                 # Task Order (col 1)
                 item = self.tasks_table.item(row_idx, 1)
                 tooltip = ""
-                if item:
+                if item and item.text():
                     try:
-                        task_order = float(item.text() or 0)
+                        task_order = float(item.text())
                         if task_order in non_unique_orders:
                             item.setBackground(QBrush(Qt.yellow))
                             tooltip = f"Task {task_id}: Task Order must be unique"
