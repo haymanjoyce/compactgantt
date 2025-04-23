@@ -12,7 +12,7 @@ This tool creates compact, visually rich Gantt charts, packing extensive project
 ## Example
 This picture was hand-drawn in PowerPoint and shows the kind of picture that I want the tool to produce.
 
-![Sample POAP (.png).](https://github.com/haymanjoyce/gantt_02/blob/main/examples/Sample%20POAP.png)
+![Sample POAP (.png)](https://github.com/haymanjoyce/gantt_02/blob/main/examples/Sample%20POAP.png)
 
 ## Quick Start
 1. Ensure Python 3.8+ is installed with dependencies (see [Requirements](#requirements)):  
@@ -50,6 +50,7 @@ The GUI offers tabs for input, some planned but not yet implemented:
   - `width` - Percentage (e.g., 100%)
 - **Tasks Tab** (table):
   - `task id` - Integer (e.g., 1) and auto-generated from row index (1-based) (hidden field)
+  - `task order` - Float (e.g., 1.0)
   - `task name` - String (e.g., "Design Phase")
   - `start date` - Date (e.g., 2025-01-05)
   - `finish date` - Date (e.g., 2025-01-15)
@@ -82,24 +83,45 @@ The GUI offers tabs for input, some planned but not yet implemented:
   - `colour` - String
 
 ## Files
-- `main.py`: Entry point for the application.
-- `data_model.py`: Defines the data model for project data.
-- `data_entry.py`: Manages the data entry GUI.
-- `svg_generator.py`: Generates SVG files from input data.
-- `svg_display.py`: Displays the generated SVG.
-- `config.py`: Stores configuration settings.
+- `main.py`: Application entry point, initializes and connects components.
+- `ui/data_entry_window.py`: Main GUI window, manages tabs and user interactions.
+- `ui/table_utils.py`: Shared utilities for table operations (e.g., row insertion, context menus).
+- `ui/tabs/layout_tab.py`: Layout tab UI and logic.
+- `ui/tabs/time_frames_tab.py`: Time Frames tab UI and logic.
+- `ui/tabs/tasks_tab.py`: Tasks tab UI and logic.
+- `ui/tabs/connectors_tab.py`: Connectors tab UI and logic.
+- `ui/tabs/swimlanes_tab.py`: Swimlanes tab UI and logic.
+- `ui/tabs/pipes_tab.py`: Pipes tab UI and logic.
+- `ui/tabs/curtains_tab.py`: Curtains tab UI and logic.
+- `ui/tabs/text_boxes_tab.py`: Text Boxes tab UI and logic.
+- `ui/tabs/tab_factory.py`: Factory for creating tab instances dynamically.
+- `core/data_model.py`: Defines data structures (`FrameConfig`, `Task`, `ProjectData`).
+- `core/validators.py`: Validation logic for all tabs, decoupled from UI.
+- `core/controller.py`: Coordinates UI, data model, and output generation.
+- `core/event_bus.py`: Centralized event handling for cross-module communication.
+- `core/config/app_config.py`: Application-wide settings (e.g., window sizes).
+- `core/config/chart_config.py`: Chart-specific settings (e.g., SVG dimensions, scales).
+- `core/config/constants.py`: Shared constants (e.g., default colors, label offsets).
+- `core/config/table_configs.py`: Table configurations for data entry tabs.
+- `output/svg_generator.py`: Generates SVG Gantt charts from project data.
+- `output/svg_display.py`: Displays generated SVG files.
 - `.gitignore`: Excludes unnecessary files from version control.
 - `LICENSE`: Project license (TBD).
 - `requirements.txt`: Lists Python dependencies.
-- `README.md`: This documentation. [Check tab fields correctly listed]
+- `README.md`: This documentation.
 
 ## Folders
 - `haymanjoyce-gantt_02/`: Main project directory.
-- `docs/`: Additional documentation (e.g., `design.md`).
+- `ui/`: User interface modules, including main window and tab-specific logic.
+- `ui/tabs/`: Individual tab implementations for modular UI design.
+- `core/`: Core business logic, data models, and configuration.
+- `core/config/`: Configuration settings and constants, split for clarity.
+- `output/`: Modules for generating and displaying chart output.
+- `docs/`: Additional documentation (e.g., `general_design.md`, `label_specification.md`).
 - `tests/`: Unit tests (planned).
 - `assets/`: Icons and images (planned).
 - `resources/`: SVG templates or stylesheets (planned).
-- `examples/`: Sample SVGs or screenshots (planned).
+- `examples/`: Sample SVGs or screenshots (e.g., `Sample POAP.png`).
 - `scripts/`: Utility scripts (planned).
 - `data/`: Sample data files (planned).
 - `logs/`: Log files (planned).
@@ -112,7 +134,7 @@ The GUI offers tabs for input, some planned but not yet implemented:
 - [x] Time Frames
 - [x] Scales [May need a solution for when they get overly dense]
 - [x] Gridlines [May need a solution for when they get overly dense]
-- [x] Tasks [Change shape to rounded rectangle,  replace LABEL_VERTICAL_OFFSET_FACTOR with QFontMetrics]
+- [x] Tasks [Change shape to rounded rectangle, replace LABEL_VERTICAL_OFFSET_FACTOR with QFontMetrics]
 - [x] Milestones [Change shape rounded corners]
 - [ ] Labels [Clear out LABEL_HORIZONTAL_OFFSET_FACTOR, collision detection]
 - [ ] Connectors
@@ -123,7 +145,7 @@ The GUI offers tabs for input, some planned but not yet implemented:
 
 ### User Interface
 - Window Resizing & Layout
-  - [x] Outline design (data entry window (with tabs and tables) and SVG display window)
+  - [x] Outline design (data entry window with tabs and tables, SVG display window)
   - [x] Add a toolbar with buttons for common actions
     - [x] Generate Gantt Chart
     - [ ] Save Project
@@ -131,22 +153,22 @@ The GUI offers tabs for input, some planned but not yet implemented:
   - [ ] Make the window resizable with a minimum size (e.g., 600x400); proportional scaling
   - [ ] Adjust table column widths dynamically to fit content (e.g., wider for Task Name, narrower for offsets)
   - [ ] Group Layout tab fields into sections (e.g., Dimensions, Margins, Text) with QGroupBox for clarity
-- [ ] Table Sorting, Filtering & Searching
+- Table Sorting, Filtering & Searching
   - [x] Clicking column header to sort
   - [ ] Add filter bar above tables (e.g., for Tasks, filter by row number or date range)
   - [ ] Add a search field to highlight matching rows (e.g., by Task Name)
-- [ ] Table Editing (Add, Edit, Delete)
+- Table Editing (Add, Edit, Delete)
   - [x] Data Entry Buttons
   - [x] Right-click Context Menu
   - [ ] Double-click Edit
-  - [ ] Add Row Below (to compliment Add Row To End)
+  - [ ] Add Row Below (to complement Add Row To End)
   - [ ] Ensure combo boxes save changes immediately
-
 - Visual Feedback and Shortcuts
-  - [ ] Add visual feedback for user actions (e.g., highlight selected rows, highlight invalid and/or missing data, change button color on hover)
+  - [x] Add visual feedback for user actions (e.g., highlight selected rows, highlight invalid/missing data)
+  - [ ] Add visual feedback for button hover (e.g., change button color)
   - [ ] Add shortcuts (e.g., Ctrl+S for Save, Ctrl+G for Generate, Ctrl+O for Open)
   - [ ] Add tooltips to buttons and fields for better usability
-  - [ ] Add a status bar at the bottom to show messages (e.g., "Project saved", "Chart generated", etc.)
+  - [x] Add a status bar to show messages (e.g., "Project saved", "Chart generated", "Fix highlighted cells")
 
 ### File Input & Output
 - [x] Import/Export JSON [Barring amendments to the data model]
