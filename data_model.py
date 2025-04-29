@@ -43,8 +43,12 @@ class ProjectData:
         self.curtains = []
         self.text_boxes = []
 
-    def add_time_frame(self, finish_date, width_proportion):
-        self.time_frames.append({"finish_date": finish_date, "width_proportion": width_proportion})
+    def add_time_frame(self, time_frame_id, finish_date, width_proportion):
+        self.time_frames.append({
+            "time_frame_id": time_frame_id,
+            "finish_date": finish_date,
+            "width_proportion": width_proportion
+        })
 
     def add_task(self, task_id, task_name, start_date, finish_date, row_number, is_milestone=False,
                  label_placement="Inside", label_hide="No", label_alignment="Left",
@@ -65,6 +69,25 @@ class ProjectData:
                 except (ValueError, TypeError):
                     pass
             setattr(self, key, valid_connectors)
+        elif key == "time_frames":
+            # Preserve existing time_frame_id where possible
+            new_time_frames = []
+            existing_ids = {tf["time_frame_id"]: tf for tf in self.time_frames}
+            for row in data:
+                time_frame_id = int(row[0]) if row[0] else len(new_time_frames) + 1
+                if time_frame_id in existing_ids:
+                    new_time_frames.append({
+                        "time_frame_id": time_frame_id,
+                        "finish_date": row[1],
+                        "width_proportion": float(row[2]) / 100
+                    })
+                else:
+                    new_time_frames.append({
+                        "time_frame_id": time_frame_id,
+                        "finish_date": row[1],
+                        "width_proportion": float(row[2]) / 100
+                    })
+            self.time_frames = sorted(new_time_frames, key=lambda x: x["time_frame_id"])
         else:
             setattr(self, key, data)
 
@@ -75,13 +98,14 @@ class ProjectData:
                      str(t.label_horizontal_offset), str(t.label_vertical_offset), t.label_text_colour]
                     for t in self.tasks]
         elif key == "time_frames":
-            return [[tf["finish_date"], str(tf["width_proportion"] * 100)] for tf in self.time_frames]
+            return [[str(tf["time_frame_id"]), tf["finish_date"], str(tf["width_proportion"] * 100)]
+                    for tf in sorted(self.time_frames, key=lambda x: x["time_frame_id"])]
         return getattr(self, key, [])
 
     def to_json(self):
         return {
             "frame_config": vars(self.frame_config),
-            "time_frames": self.time_frames,
+            "time_frames": sorted(self.time_frames, key=lambda x: x["time_frame_id"]),
             "tasks": [{"task_id": t.task_id, "task_order": t.task_order, "task_name": t.task_name,
                        "start_date": t.start_date, "finish_date": t.finish_date, "row_number": t.row_number,
                        "is_milestone": t.is_milestone, "label_placement": t.label_placement,
@@ -100,14 +124,24 @@ class ProjectData:
     def from_json(cls, data):
         project = cls()
         project.frame_config = FrameConfig(**data.get("frame_config", {}))
-        project.time_frames = data.get("time_frames", [])
+        time_frames = data.get("time_frames", [])
+        for idx, tf in enumerate(time_frames, 1):
+            # Assign time_frame_id for legacy JSONs lacking it
+            time_frame_id = tf.get("time_frame_id", idx)
+            project.add_time_frame(
+                time_frame_id,
+                tf.get("finish_date", "2025-01-01"),
+                tf.get("width_proportion", 1.0)
+            )
         for task in data.get("tasks", []):
-            project.add_task(task["task_id"], task["task_name"], task["start_date"],
-                             task["finish_date"], task["row_number"], task.get("is_milestone", False),
-                             task.get("label_placement", "Inside"), task.get("label_hide", "No"),
-                             task.get("label_alignment", "Left"), task.get("label_horizontal_offset", 1.0),
-                             task.get("label_vertical_offset", 0.5), task.get("label_text_colour", "black"),
-                             task.get("task_order", float(len(project.tasks) + 1)))
+            project.add_task(
+                task["task_id"], task["task_name"], task["start_date"],
+                task["finish_date"], task["row_number"], task.get("is_milestone", False),
+                task.get("label_placement", "Inside"), task.get("label_hide", "No"),
+                task.get("label_alignment", "Left"), task.get("label_horizontal_offset", 1.0),
+                task.get("label_vertical_offset", 0.5), task.get("label_text_colour", "black"),
+                task.get("task_order", float(len(project.tasks) + 1))
+            )
         project.connectors = data.get("connectors", [])
         project.swimlanes = data.get("swimlanes", [])
         project.pipes = data.get("pipes", [])

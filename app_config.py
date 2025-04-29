@@ -2,6 +2,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import List, Dict, Callable, Any, Tuple
 from PyQt5.QtCore import QDate
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 @dataclass
 class GeneralConfig:
@@ -84,10 +87,28 @@ class AppConfig:
     def __post_init__(self):
         # Define default value generators
         def time_frames_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
-            return [
-                (QDate.currentDate().addDays(7 * (row_idx + 1))).toString("yyyy-MM-dd"),
-                str(100 / (row_idx + 2))
-            ]
+            logging.debug(f"Generating time_frames_default for row {row_idx}, context: {context}")
+            try:
+                max_time_frame_id = context.get("max_time_frame_id", 0)
+                # Ensure valid time_frame_id
+                time_frame_id = max_time_frame_id + 1
+                # Generate a safe future date
+                finish_date = QDate.currentDate().addDays(7 * (row_idx + 1)).toString("yyyy-MM-dd")
+                # Ensure width is positive and reasonable
+                width = 100.0 / max(1, row_idx + 2)
+                return [
+                    str(time_frame_id),  # time_frame_id
+                    finish_date,
+                    str(width)
+                ]
+            except Exception as e:
+                logging.error(f"Error in time_frames_default: {e}", exc_info=True)
+                # Fallback values to prevent crash
+                return [
+                    str(max_time_frame_id + 1),
+                    QDate.currentDate().toString("yyyy-MM-dd"),
+                    "50.0"
+                ]
 
         def tasks_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
             task_id = context.get("max_task_id", 0) + 1
@@ -124,6 +145,7 @@ class AppConfig:
             "time_frames": TableConfig(
                 key="time_frames",
                 columns=[
+                    TableColumnConfig("Time Frame ID", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Finish Date", validator=lambda x: bool(datetime.strptime(x, "%Y-%m-%d") if x else False)),
                     TableColumnConfig("Width (%)", validator=lambda x: float(x) > 0 if x else False)
                 ],

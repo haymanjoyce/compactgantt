@@ -1,29 +1,35 @@
+# File: svg_generator.py
 import svgwrite
 from datetime import datetime, timedelta
 import os
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QFont, QFontMetrics
 from app_config import AppConfig
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class GanttChartGenerator(QObject):
     svg_generated = pyqtSignal(str)
 
     def __init__(self, output_folder: str = None, output_filename: str = None):
         super().__init__()
-        self.config = AppConfig()  # Store AppConfig as instance variable
+        self.config = AppConfig()
         self.output_folder = output_folder or self.config.general.svg_output_folder
         self.output_filename = output_filename or self.config.general.svg_output_filename
         self.dwg = None
         self.data = {"frame_config": {}, "time_frames": [], "tasks": []}
         self.start_date = None
-        self.font = QFont("Arial", 10)  # Match SVG font_size=10
+        self.font = QFont("Arial", 10)
         self.font_metrics = QFontMetrics(self.font)
+        logging.debug("GanttChartGenerator initialized")
 
     @pyqtSlot(dict)
     def generate_svg(self, data):
+        logging.debug("Starting generate_svg")
         if not data or "frame_config" not in data:
-            print("Skipping SVG generation: Invalid or empty data")
-            self.svg_generated.emit("")  # Emit empty path to indicate no SVG
+            logging.warning("Skipping SVG generation: Invalid or empty data")
+            self.svg_generated.emit("")
             return
         try:
             self.data = data
@@ -35,14 +41,16 @@ class GanttChartGenerator(QObject):
             self.start_date = self._set_time_scale()
             self.render()
             svg_path = os.path.abspath(os.path.join(self.output_folder, self.output_filename))
+            logging.debug(f"SVG generated at: {svg_path}")
             self.svg_generated.emit(svg_path)
             return svg_path
         except Exception as e:
-            print(f"SVG generation failed: {e}")
-            self.svg_generated.emit("")  # Emit empty path on error
+            logging.error(f"SVG generation failed: {e}", exc_info=True)
+            self.svg_generated.emit("")
             return
 
     def _calculate_time_range(self):
+        logging.debug("Calculating time range")
         dates = []
         for task in self.data.get("tasks", []):
             start_date_str = task["start_date"]
@@ -61,16 +69,18 @@ class GanttChartGenerator(QObject):
         if not dates:
             today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
             return today, today + timedelta(days=30)
-        return min(dates), max(dates) + timedelta(days=1)  # Include end day
+        return min(dates), max(dates) + timedelta(days=1)
 
     def _set_time_scale(self):
         start_date, _ = self._calculate_time_range()
+        logging.debug(f"Time scale set with start_date: {start_date}")
         return start_date
 
     def render_outer_frame(self):
         width = self.data["frame_config"].get("outer_width", self.config.general.svg_width)
         height = self.data["frame_config"].get("outer_height", self.config.general.svg_height)
         self.dwg.add(self.dwg.rect(insert=(0, 0), size=(width, height), fill="white", stroke="black", stroke_width=2))
+        logging.debug("Outer frame rendered")
 
     def render_header(self):
         margins = self.data["frame_config"].get("margins", (10, 10, 10, 10))
@@ -83,6 +93,7 @@ class GanttChartGenerator(QObject):
             self.dwg.add(self.dwg.text(header_text,
                                        insert=(margins[3] + width / 2, margins[0] + height / 2),
                                        text_anchor="middle", font_size="14"))
+        logging.debug("Header rendered")
 
     def render_footer(self):
         margins = self.data["frame_config"].get("margins", (10, 10, 10, 10))
@@ -96,6 +107,7 @@ class GanttChartGenerator(QObject):
             self.dwg.add(self.dwg.text(footer_text,
                                        insert=(margins[3] + width / 2, y + height / 2),
                                        text_anchor="middle", font_size="14"))
+        logging.debug("Footer rendered")
 
     def render_inner_frame(self):
         margins = self.data["frame_config"].get("margins", (10, 10, 10, 10))
@@ -106,8 +118,10 @@ class GanttChartGenerator(QObject):
                   self.data["frame_config"].get("footer_height", 50) - margins[0] - margins[2])
         self.dwg.add(self.dwg.rect(insert=(margins[3], y), size=(width, height),
                                    fill="none", stroke="blue", stroke_width=1, stroke_dasharray="4"))
+        logging.debug("Inner frame rendered")
 
     def render_time_frames(self):
+        logging.debug("Starting render_time_frames")
         margins = self.data["frame_config"].get("margins", (10, 10, 10, 10))
         inner_y = margins[0] + self.data["frame_config"].get("header_height", 50)
         inner_width = self.data["frame_config"].get("outer_width", self.config.general.svg_width) - margins[1] - margins[3]
@@ -118,7 +132,15 @@ class GanttChartGenerator(QObject):
         chart_start = datetime.strptime(self.data["frame_config"]["chart_start_date"], "%Y-%m-%d")
         prev_end = chart_start
 
-        for tf in self.data.get("time_frames", []):
+        # Sort time frames by finish_date to ensure chronological rendering
+        time_frames = self.data.get("time_frames", [])
+        sorted_time_frames = sorted(
+            time_frames,
+            key=lambda tf: datetime.strptime(tf["finish_date"], "%Y-%m-%d")
+        )
+        logging.debug(f"Sorted time frames by finish_date: {[tf['finish_date'] for tf in sorted_time_frames]}")
+
+        for tf in sorted_time_frames:
             tf_width = inner_width * tf.get("width_proportion", 1.0)
             tf_end = datetime.strptime(tf["finish_date"], "%Y-%m-%d")
             self.dwg.add(self.dwg.rect(insert=(x_offset, inner_y), size=(tf_width, inner_height),
@@ -126,8 +148,10 @@ class GanttChartGenerator(QObject):
             self.render_scales_and_rows(x_offset, inner_y, tf_width, inner_height, prev_end, tf_end)
             x_offset += tf_width
             prev_end = tf_end + timedelta(days=1)
+        logging.debug("render_time_frames completed")
 
     def render_tasks(self, x, y, width, height, start_date, end_date, num_rows):
+        logging.debug(f"Rendering tasks from {start_date} to {end_date}")
         total_days = max((end_date - start_date).days, 1)
         tf_time_scale = width / total_days if total_days > 0 else width
         row_height = height / num_rows if num_rows > 0 else height
@@ -162,11 +186,11 @@ class GanttChartGenerator(QObject):
             width_task = tf_time_scale if task_start == task_finish else max(x_end - x_start, tf_time_scale)
             y_task = y + row_num * row_height
 
-            label_width = len(task_name) * font_size * self.config.general.label_text_width_factor  # For Left/Right
+            label_width = len(task_name) * font_size * self.config.general.label_text_width_factor
 
             label_horizontal_offset = float(task.get("label_horizontal_offset", self.config.general.leader_line_horizontal_default))
             if label_horizontal_offset < 0:
-                label_horizontal_offset = self.config.general.leader_line_horizontal_default  # Enforce no negatives
+                label_horizontal_offset = self.config.general.leader_line_horizontal_default
 
             if is_milestone:
                 half_size = task_height / 2
@@ -187,8 +211,6 @@ class GanttChartGenerator(QObject):
                         label_y = label_y_base
                         leader_start = (label_x, center_y)
                         leader_end = (milestone_left, center_y)
-                        print(
-                            f"Milestone To left: label_x={label_x}, text_width={text_width}, leader_start={leader_start}, leader_end={leader_end}, offset={label_horizontal_offset}")
                         self.dwg.add(self.dwg.text(task_name, insert=(label_x, label_y), font_size="10",
                                                    font_family="Arial", fill="black", text_anchor="end"))
                         self.dwg.add(self.dwg.line(leader_start, leader_end, stroke="black", stroke_width=1))
@@ -198,8 +220,6 @@ class GanttChartGenerator(QObject):
                         label_y = label_y_base
                         leader_start = (label_x, center_y)
                         leader_end = (milestone_right, center_y)
-                        print(
-                            f"Milestone To right: label_x={label_x}, text_width={text_width}, leader_start={leader_start}, leader_end={leader_end}, offset={label_horizontal_offset}")
                         self.dwg.add(self.dwg.text(task_name, insert=(label_x, label_y), font_size="10",
                                                    font_family="Arial", fill="black", text_anchor="start"))
                         self.dwg.add(self.dwg.line(leader_start, leader_end, stroke="black", stroke_width=1))
@@ -241,7 +261,7 @@ class GanttChartGenerator(QObject):
                                         right = mid - 1
                                 max_chars = right
                                 task_name_display = task_name[:max_chars] + "…" if max_chars > 0 else ""
-                                text_width = self.font_metrics.horizontalAdvance(task_name_display)  # Recalculate
+                                text_width = self.font_metrics.horizontalAdvance(task_name_display)
                             else:
                                 task_name_display = task_name
 
@@ -249,7 +269,7 @@ class GanttChartGenerator(QObject):
                                 label_x = x_start
                                 anchor = "start"
                             elif label_alignment == "Centre":
-                                label_x = x_start + width_task / 2  # Move to task midpoint
+                                label_x = x_start + width_task / 2
                                 anchor = "middle"
                             elif label_alignment == "Right" and text_width <= width_task:
                                 label_x = x_start + width_task
@@ -305,6 +325,7 @@ class GanttChartGenerator(QObject):
                                                        stroke_width=1))
 
     def render_scales_and_rows(self, x, y, width, height, start_date, end_date):
+        logging.debug(f"Rendering scales and rows from {start_date} to {end_date}")
         total_days = max((end_date - start_date).days, 1)
         tf_time_scale = width / total_days if total_days > 0 else width
 
@@ -375,6 +396,7 @@ class GanttChartGenerator(QObject):
         return week_start + timedelta(days=6)
 
     def render_scale_interval(self, x, y, width, height, start_date, end_date, interval, tf_time_scale):
+        logging.debug(f"Rendering scale interval: {interval}")
         current_date = start_date
         prev_x = x
         while current_date <= end_date:
@@ -417,6 +439,7 @@ class GanttChartGenerator(QObject):
             current_date = next_date
 
     def render(self):
+        logging.debug("Starting render")
         os.makedirs(self.output_folder, exist_ok=True)
         self.start_date = self._set_time_scale()
         self.render_outer_frame()
@@ -425,3 +448,4 @@ class GanttChartGenerator(QObject):
         self.render_inner_frame()
         self.render_time_frames()
         self.dwg.save()
+        logging.debug("Render completed")
