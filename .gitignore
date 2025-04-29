@@ -131,3 +131,10 @@ cython_debug/
 
 # Custom entries from the current .gitignore file
 *.tmp
+*.svg
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
