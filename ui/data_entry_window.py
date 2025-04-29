@@ -50,7 +50,7 @@ class DataEntryWindow(QMainWindow):
         self.status_bar.showMessage("Ready")
 
         self.tab_widget = QTabWidget()
-        self.layout_tab = LayoutTab(self.project_data)
+        self.layout_tab = LayoutTab(self.project_data, self.app_config)
         self.time_frames_tab = TimeFramesTab(self.project_data, self.app_config)
         self.tasks_tab = TasksTab(self.project_data, self.app_config)
         self.connectors_tab = ConnectorsTab(self.project_data, self.app_config)

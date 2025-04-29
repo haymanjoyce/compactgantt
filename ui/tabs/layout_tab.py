@@ -3,13 +3,14 @@ from PyQt5.QtCore import pyqtSignal, QDate
 from datetime import datetime
 from app_config import AppConfig
 
+
 class LayoutTab(QWidget):
     data_updated = pyqtSignal(dict)
 
-    def __init__(self, project_data):
+    def __init__(self, project_data, app_config):
         super().__init__()
         self.project_data = project_data
-        self.app_config = AppConfig()  # Use AppConfig for defaults
+        self.app_config = app_config
         self.setup_ui()
         self._load_initial_data()
         self._connect_signals()

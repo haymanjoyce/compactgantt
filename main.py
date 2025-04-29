@@ -4,13 +4,16 @@ from ui.data_entry_window import DataEntryWindow
 from data_model import ProjectData
 from svg_generator import GanttChartGenerator
 from svg_display import SVGDisplayWindow
+from app_config import AppConfig
+
 
 def main():
     app = QApplication(sys.argv)
+    app_config = AppConfig()  # Single instance
     project_data = ProjectData()
     data_entry = DataEntryWindow(project_data)  # Pass project_data
     svg_generator = GanttChartGenerator()
-    svg_display = SVGDisplayWindow()
+    svg_display = SVGDisplayWindow(app_config)
 
     def handle_svg_path(svg_path):
         if svg_path:
