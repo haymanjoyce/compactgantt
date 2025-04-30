@@ -4,7 +4,7 @@ from typing import List, Dict, Callable, Any, Tuple
 from PyQt5.QtCore import QDate
 import logging
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 @dataclass
 class GeneralConfig:

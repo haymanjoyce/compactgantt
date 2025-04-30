@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QTableWidgetItem, QMenu, QComboBox, QAction
 from PyQt5.QtCore import Qt
 import logging
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class NumericTableWidgetItem(QTableWidgetItem):
     def __lt__(self, other):
@@ -25,6 +25,13 @@ def add_row(table, table_key, table_configs, parent, context=None):
 
         table.setSortingEnabled(False)
         table.blockSignals(True)
+        # Disconnect itemChanged to prevent premature _sync_data
+        if table_key == "tasks":
+            try:
+                table.itemChanged.disconnect()
+                logging.debug("Disconnected itemChanged signal")
+            except Exception:
+                logging.debug("No itemChanged connection to disconnect")
 
         table_config = table_configs.get(table_key)
         print("table_config:", table_config)
@@ -40,7 +47,7 @@ def add_row(table, table_key, table_configs, parent, context=None):
         if table_key == "tasks":
             max_task_id = 0
             max_task_order = 0
-            for row in range(table.rowCount()):
+            for row in range(table.rowCount() - 1):
                 item_id = table.item(row, 0)
                 item_order = table.item(row, 1)
                 if item_id and item_id.text().isdigit():
@@ -50,48 +57,63 @@ def add_row(table, table_key, table_configs, parent, context=None):
                         max_task_order = max(max_task_order, float(item_order.text()))
                     except ValueError:
                         pass
-            context["max_task_id"] = max_task_id
-            context["max_task_order"] = max_task_order
+                context["max_task_id"] = max_task_id
+                context["max_task_order"] = max_task_order
 
         defaults = table_config.default_generator(row_idx, context)
         print("defaults:", defaults)
-
-        # Create all items at once, handling both combo and non-combo columns
         for col_idx, default in enumerate(defaults):
             col_config = table_config.columns[col_idx]
             if col_config.widget_type == "combo":
                 combo = QComboBox()
                 combo.addItems(col_config.combo_items)
-                combo.setCurrentText(str(default))
+                combo.setCurrentText(str(default) or col_config.combo_items[0])
                 table.setCellWidget(row_idx, col_idx, combo)
+                logging.debug(f"Set QComboBox for row {row_idx}, col {col_idx} with value {combo.currentText()}")
             else:
-                item = NumericTableWidgetItem(str(default)) if table_key == "tasks" and col_idx in (0, 1) else QTableWidgetItem(str(default))
+                item = NumericTableWidgetItem(str(default)) if col_idx in (0, 1) else QTableWidgetItem(str(default))
+                if table_key == "time_frames" and col_idx == 0:
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                 if table_key == "tasks" and col_idx == 0:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                     item.setData(Qt.UserRole, int(default) if str(default).isdigit() else 0)
                 elif table_key == "tasks" and col_idx == 1:
                     item.setData(Qt.UserRole, float(default) if default else 0.0)
                 table.setItem(row_idx, col_idx, item)
+        print("add_row: row added successfully")
 
         if table_key == "tasks":
             renumber_task_orders(table)
 
-        print("add_row: row added successfully")
+        logging.debug("Table state after adding row:")
+        for col_idx in range(table.columnCount()):
+            widget = table.cellWidget(row_idx, col_idx)
+            item = table.item(row_idx, col_idx)
+            logging.debug(f"Row {row_idx}, Col {col_idx}: Widget={type(widget).__name__ if widget else None}, Item={item.text() if item else None}")
 
         table.blockSignals(False)
+
+        # Reconnect itemChanged
+        if table_key == "tasks":
+            table.itemChanged.connect(parent._sync_data_if_not_initializing)
+            logging.debug("Reconnected itemChanged signal")
+
+        parent._sync_data_if_not_initializing()
+
         table.setSortingEnabled(was_sorting)
         if was_sorting:
             table.sortByColumn(sort_col, sort_order)
 
-        # Call sync_data after everything is set up
-        if hasattr(parent, '_sync_data'):
-            parent._sync_data()
-
+        logging.debug("Table state after sorting:")
+        for col_idx in range(table.columnCount()):
+            widget = table.cellWidget(row_idx, col_idx)
+            item = table.item(row_idx, col_idx)
+            logging.debug(f"Row {row_idx}, Col {col_idx}: Widget={type(widget).__name__ if widget else None}, Item={item.text() if item else None}")
     except Exception as e:
         print("add_row exception:", e)
         logging.error(f"Error in add_row: {e}", exc_info=True)
         table.blockSignals(False)
-        table.setSortingEnabled(True)
+        table.setSortingEnabled(was_sorting)
         raise
 
 def remove_row(table, table_key, table_configs, parent):

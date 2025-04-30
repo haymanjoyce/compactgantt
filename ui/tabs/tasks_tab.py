@@ -4,6 +4,8 @@ from PyQt5.QtGui import QBrush
 from ..table_utils import NumericTableWidgetItem, add_row, remove_row, show_context_menu, renumber_task_orders
 import logging
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 class TasksTab(QWidget):
     data_updated = pyqtSignal(dict)
 
@@ -14,7 +16,7 @@ class TasksTab(QWidget):
         self.table_config = app_config.get_table_config("tasks")
         self.setup_ui()
         self._load_initial_data()
-        self.tasks_table.itemChanged.connect(self._sync_data_if_not_initializing)
+        self._item_changed_connection = self.tasks_table.itemChanged.connect(self._sync_data_if_not_initializing)
         self._initializing = False
 
     def setup_ui(self):
@@ -99,6 +101,7 @@ class TasksTab(QWidget):
         self._initializing = False
 
     def _sync_data(self):
+        logging.debug("Starting _sync_data in TasksTab")
         tasks_data = self._extract_table_data()
         invalid_cells = set()
         task_order_counts = {}
@@ -114,31 +117,49 @@ class TasksTab(QWidget):
         non_unique_orders = {k for k, v in task_order_counts.items() if v > 1}
         self.tasks_table.blockSignals(True)
         for row_idx in range(self.tasks_table.rowCount()):
-            item = self.tasks_table.item(row_idx, 1)
-            tooltip = ""
-            task_id = self.tasks_table.item(row_idx, 0).text() if self.tasks_table.item(row_idx, 0) else "Unknown"
-            if item and item.text():
-                try:
-                    task_order = float(item.text())
-                    if task_order in non_unique_orders:
-                        item.setBackground(QBrush(Qt.yellow))
-                        tooltip = f"Task {task_id}: Task Order must be unique"
-                    elif task_order <= 0:
-                        item.setBackground(QBrush(Qt.yellow))
-                        tooltip = f"Task {task_id}: Task Order must be positive"
-                    else:
-                        item.setBackground(QBrush())
-                except ValueError:
-                    item.setBackground(QBrush(Qt.yellow))
-                    tooltip = f"Task {task_id}: Task Order must be a number"
-            else:
-                item = NumericTableWidgetItem("0")
-                item.setData(Qt.UserRole, 0.0)
-                item.setBackground(QBrush(Qt.yellow))
-                tooltip = f"Task {task_id}: Task Order required"
-                self.tasks_table.setItem(row_idx, 1, item)
-            item.setToolTip(tooltip)
+            for col in range(self.tasks_table.columnCount()):
+                col_config = self.table_config.columns[col]
+                if col_config.widget_type == "combo":
+                    current_widget = self.tasks_table.cellWidget(row_idx, col)
+                    if not isinstance(current_widget, QComboBox):
+                        combo = QComboBox()
+                        combo.addItems(col_config.combo_items)
+                        value = tasks_data[row_idx][col] if row_idx < len(tasks_data) else col_config.combo_items[0]
+                        combo.setCurrentText(value or col_config.combo_items[0])
+                        self.tasks_table.setCellWidget(row_idx, col, combo)
+                        logging.debug(f"Set QComboBox in _sync_data for row {row_idx}, col {col} with value {combo.currentText()}")
+                else:
+                    item = self.tasks_table.item(row_idx, col)
+                    tooltip = ""
+                    task_id = self.tasks_table.item(row_idx, 0).text() if self.tasks_table.item(row_idx, 0) else "Unknown"
+                    if col == 1:  # Task Order column
+                        if item and item.text():
+                            try:
+                                task_order = float(item.text())
+                                if task_order in non_unique_orders:
+                                    item.setBackground(QBrush(Qt.yellow))
+                                    tooltip = f"Task {task_id}: Task Order must be unique"
+                                elif task_order <= 0:
+                                    item.setBackground(QBrush(Qt.yellow))
+                                    tooltip = f"Task {task_id}: Task Order must be positive"
+                                else:
+                                    item.setBackground(QBrush())
+                            except ValueError:
+                                item.setBackground(QBrush(Qt.yellow))
+                                tooltip = f"Task {task_id}: Task Order must be a number"
+                        else:
+                            item = NumericTableWidgetItem("0")
+                            item.setData(Qt.UserRole, 0.0)
+                            item.setBackground(QBrush(Qt.yellow))
+                            tooltip = f"Task {task_id}: Task Order required"
+                            self.tasks_table.setItem(row_idx, col, item)
+                        item.setToolTip(tooltip)
         self.tasks_table.blockSignals(False)
+
+        if invalid_cells:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.critical(self, "Error", "Fix highlighted cells in Tasks tab")
+            return
 
         self.project_data.tasks.clear()
         for row in tasks_data:
@@ -165,10 +186,19 @@ class TasksTab(QWidget):
             except (ValueError, TypeError):
                 continue
 
+        logging.debug("Table state after _sync_data:")
+        for row_idx in range(self.tasks_table.rowCount()):
+            for col_idx in range(self.tasks_table.columnCount()):
+                widget = self.tasks_table.cellWidget(row_idx, col_idx)
+                item = self.tasks_table.item(row_idx, col_idx)
+                logging.debug(f"Row {row_idx}, Col {col_idx}: Widget={type(widget).__name__ if widget else None}, Item={item.text() if item else None}")
+
         self.data_updated.emit(self.project_data.to_json())
+        logging.debug("_sync_data in TasksTab completed")
 
     def _sync_data_if_not_initializing(self):
         if not self._initializing:
+            logging.debug("Calling _sync_data from itemChanged")
             self._sync_data()
 
     def _extract_table_data(self):
@@ -184,61 +214,3 @@ class TasksTab(QWidget):
                     row_data.append(item.text() if item else "")
             data.append(row_data)
         return data
-
-def add_row(table, table_key, table_configs, parent, context=None):
-    print(f"add_row called for {table_key}")
-    logging.debug(f"Starting add_row for table_key: {table_key}, context: {context}")
-    try:
-        was_sorting = table.isSortingEnabled()
-        sort_col = table.horizontalHeader().sortIndicatorSection()
-        sort_order = table.horizontalHeader().sortIndicatorOrder()
-
-        table.setSortingEnabled(False)
-        table.blockSignals(True)
-
-        table_config = table_configs.get(table_key)
-        print("table_config:", table_config)
-        if not table_config:
-            logging.error(f"No table config found for key: {table_key}")
-            table.blockSignals(False)
-            table.setSortingEnabled(was_sorting)
-            return
-        row_idx = table.rowCount()
-        table.insertRow(row_idx)
-
-        context = context or {}
-        if table_key == "tasks":
-            max_task_id = 0
-            max_task_order = 0
-            for row in range(table.rowCount()):
-                item_id = table.item(row, 0)
-                item_order = table.item(row, 1)
-                if item_id and item_id.text().isdigit():
-                    max_task_id = max(max_task_id, int(item_id.text()))
-                if item_order:
-                    try:
-                        max_task_order = max(max_task_order, float(item_order.text()))
-                    except ValueError:
-                        pass
-            context["max_task_id"] = max_task_id
-            context["max_task_order"] = max_task_order
-
-        defaults = table_config.default_generator(row_idx, context)
-        print("defaults:", defaults)
-        for col_idx, default in enumerate(defaults):
-            item = QTableWidgetItem(str(default))
-            if table_key == "time_frames" and col_idx == 0:
-                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-            table.setItem(row_idx, col_idx, item)
-        print("add_row: row added successfully")
-
-        table.blockSignals(False)
-        table.setSortingEnabled(was_sorting)
-        if was_sorting:
-            table.sortByColumn(sort_col, sort_order)
-    except Exception as e:
-        print("add_row exception:", e)
-        logging.error(f"Error in add_row: {e}", exc_info=True)
-        table.blockSignals(False)
-        table.setSortingEnabled(True)
-        raise
