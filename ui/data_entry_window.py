@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QTabWidget, QToolBar, QAction, QFileDialog, QMessageBox
+from PyQt5.QtWidgets import QMainWindow, QTabWidget, QToolBar, QAction, QFileDialog, QMessageBox, QWidget, QSizePolicy, QPushButton
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSignal, QDate
 from data_model import ProjectData
@@ -38,13 +38,20 @@ class DataEntryWindow(QMainWindow):
         self.load_action.triggered.connect(self.load_from_json)
         file_menu.addAction(self.load_action)
 
-        self.toolbar = QToolBar("Tools")
-        self.addToolBar(self.toolbar)
-        style = self.style()
-        self.generate_tool = QAction(QIcon(style.standardIcon(style.SP_ArrowRight)), "Generate Gantt Chart", self)
-        self.generate_tool.setShortcut("Ctrl+G")
-        self.generate_tool.triggered.connect(self._emit_data_updated)
-        self.toolbar.addAction(self.generate_tool)
+        # Add a spacer to push the "Update Image" action to the right
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.menu_bar.setCornerWidget(spacer)
+
+        # Create a QPushButton for "Update Image" and place it in the corner
+        self.update_image_button = QPushButton("Update Image")
+        self.update_image_button.setFlat(True)
+        # self.update_image_button.setStyleSheet("background-color: #000000; color: #ffffff;")
+        # style = self.style()
+        # self.update_image_button.setIcon(QIcon(style.standardIcon(style.SP_ArrowRight)))
+        # self.update_image_button.setStyleSheet("margin: 5px 10px;")
+        self.update_image_button.clicked.connect(self._emit_data_updated)
+        self.menu_bar.setCornerWidget(self.update_image_button)
 
         self.status_bar = self.statusBar()
         self.status_bar.showMessage("Ready")
