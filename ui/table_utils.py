@@ -93,8 +93,8 @@ def show_context_menu(pos, table, table_key, parent, table_configs):
     logging.debug(f"Showing context menu for table_key: {table_key}")
     try:
         menu = QMenu()
-        add_action = QAction("Add Row", parent)
-        remove_action = QAction("Remove Selected Row(s)", parent)
+        add_action = QAction("Insert Row", parent)
+        remove_action = QAction("Delete Row(s)", parent)
         
         # Use insert_row_with_id for all tables, it will handle IDs appropriately
         add_action.triggered.connect(
