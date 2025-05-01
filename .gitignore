@@ -145,3 +145,17 @@ jpeg/
 gif/
 bmp/
 tiff/
+
+# Image files (except in assets and examples)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+
+# But allow files in assets and examples to be visible (not tracked)
+!assets/
+!assets/*
+!examples/
+!examples/*
