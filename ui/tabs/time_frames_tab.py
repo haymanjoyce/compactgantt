@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, pyqtSignal, QDate
 from PyQt5.QtGui import QBrush
 from datetime import datetime, timedelta
 import logging
-from ..table_utils import add_row, remove_row, show_context_menu
+from ..table_utils import add_row, remove_row, show_context_menu, add_row_with_id
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -40,47 +40,13 @@ class TimeFramesTab(QWidget):
         btn_layout = QGridLayout()
         add_btn = QPushButton("Add Time Frame")
         remove_btn = QPushButton("Remove Time Frame")
-        add_btn.clicked.connect(self._add_row_with_id)
+        add_btn.clicked.connect(lambda: add_row_with_id(self.time_frames_table, "time_frames", self.app_config.tables, self))
         remove_btn.clicked.connect(lambda: remove_row(self.time_frames_table, "time_frames", self.app_config.tables, self))
         btn_layout.addWidget(add_btn, 0, 0)
         btn_layout.addWidget(remove_btn, 0, 1)
         layout.addLayout(btn_layout)
         self.setLayout(layout)
         logging.debug("TimeFramesTab UI setup complete")
-
-    def _add_row_with_id(self):
-        logging.debug("Starting _add_row_with_id")
-        try:
-            # Calculate next time_frame_id safely
-            max_id = 0
-            for row in range(self.time_frames_table.rowCount()):
-                item = self.time_frames_table.item(row, 0)
-                try:
-                    if item and item.text():
-                        max_id = max(max_id, int(item.text()))
-                except (ValueError, TypeError):
-                    logging.warning(f"Invalid time_frame_id in row {row}: {item.text() if item else 'None'}")
-                    continue
-            context = {"max_time_frame_id": max_id}
-            logging.debug(f"Calculated max_time_frame_id: {max_id}, context: {context}")
-
-            # Block signals to prevent premature _sync_data
-            self.time_frames_table.blockSignals(True)
-            logging.debug("Signals blocked, calling add_row")
-            add_row(self.time_frames_table, "time_frames", self.app_config.tables, self, context=context)
-            logging.debug("add_row completed")
-            self.time_frames_table.blockSignals(False)
-            logging.debug("Signals unblocked")
-
-            # Explicitly sync data
-            logging.debug("Calling _sync_data")
-            self._sync_data()
-            logging.debug("_sync_data completed")
-        except Exception as e:
-            logging.error(f"Error in _add_row_with_id: {e}", exc_info=True)
-            QMessageBox.critical(self, "Error", f"Failed to add time frame: {e}")
-        finally:
-            self.time_frames_table.blockSignals(False)  # Ensure signals are always unblocked
 
     def _load_initial_data(self):
         logging.debug("Starting _load_initial_data")

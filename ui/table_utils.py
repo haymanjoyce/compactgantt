@@ -133,12 +133,22 @@ def remove_row(table, table_key, table_configs, parent):
         raise
 
 def show_context_menu(pos, table, table_key, parent, table_configs):
+    """
+    Show a context menu for a table with add/remove row options.
+    For tables that need unique IDs, use add_row_with_id instead of add_row.
+    """
     logging.debug(f"Showing context menu for table_key: {table_key}")
     try:
         menu = QMenu()
         add_action = QAction("Add Row", parent)
         remove_action = QAction("Remove Selected Row(s)", parent)
-        add_action.triggered.connect(lambda: add_row(table, table_key, table_configs, parent))
+        
+        # Use add_row_with_id for tables that need unique IDs
+        if table_key in ["time_frames", "tasks"]:  # Add other tables that need unique IDs
+            add_action.triggered.connect(lambda: add_row_with_id(table, table_key, table_configs, parent))
+        else:
+            add_action.triggered.connect(lambda: add_row(table, table_key, table_configs, parent))
+            
         remove_action.triggered.connect(lambda: remove_row(table, table_key, table_configs, parent))
         menu.addAction(add_action)
         menu.addAction(remove_action)
@@ -247,3 +257,47 @@ def delete_row(table, config_key, table_configs, tab, row_index):
         if config_key == "tasks":
             renumber_task_orders(table)
         tab._sync_data_if_not_initializing()
+
+def add_row_with_id(table, table_key, table_configs, parent, id_column=0):
+    """
+    Add a row to a table with a unique ID in the specified column.
+    
+    Args:
+        table: QTableWidget - The table to add a row to
+        table_key: str - The key identifying the table type
+        table_configs: dict - Configuration for all tables
+        parent: QWidget - The parent widget (tab) containing the table
+        id_column: int - The column index containing the ID (default 0)
+    """
+    logging.debug(f"Starting add_row_with_id for {table_key}")
+    try:
+        # Calculate next ID safely
+        max_id = 0
+        for row in range(table.rowCount()):
+            item = table.item(row, id_column)
+            try:
+                if item and item.text():
+                    max_id = max(max_id, int(item.text()))
+            except (ValueError, TypeError):
+                logging.warning(f"Invalid ID in row {row}: {item.text() if item else 'None'}")
+                continue
+        context = {f"max_{table_key.rstrip('s')}_id": max_id}
+        logging.debug(f"Calculated max ID: {max_id}, context: {context}")
+
+        # Block signals to prevent premature sync
+        table.blockSignals(True)
+        logging.debug("Signals blocked, calling add_row")
+        add_row(table, table_key, table_configs, parent, context=context)
+        logging.debug("add_row completed")
+        table.blockSignals(False)
+        logging.debug("Signals unblocked")
+
+        # Explicitly sync data
+        parent._sync_data()
+        logging.debug("_sync_data completed")
+    except Exception as e:
+        logging.error(f"Error in add_row_with_id: {e}", exc_info=True)
+        from PyQt5.QtWidgets import QMessageBox
+        QMessageBox.critical(parent, "Error", f"Failed to add row: {e}")
+    finally:
+        table.blockSignals(False)  # Ensure signals are always unblocked
