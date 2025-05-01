@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, pyqtSignal, QDate
 from PyQt5.QtGui import QBrush
 from datetime import datetime, timedelta
 import logging
-from ..table_utils import add_row, remove_row, _extract_table_data, CheckBoxWidget
+from ..table_utils import add_row, remove_row, CheckBoxWidget
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

@@ -184,19 +184,3 @@ def renumber_task_orders(table):
     except Exception as e:
         logging.error(f"Error in renumber_task_orders: {e}", exc_info=True)
         raise
-
-def _extract_table_data(table):
-    """Extract data from table, skipping the checkbox column."""
-    data = []
-    for row in range(table.rowCount()):
-        row_data = []
-        # Start from column 1 to skip checkbox column
-        for col in range(1, table.columnCount()):
-            widget = table.cellWidget(row, col)
-            if widget and isinstance(widget, QComboBox):
-                row_data.append(widget.currentText())
-            else:
-                item = table.item(row, col)
-                row_data.append(item.text() if item else "")
-        data.append(row_data)
-    return data
