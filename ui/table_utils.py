@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QTableWidgetItem, QMenu, QComboBox, QAction
+from PyQt5.QtWidgets import QTableWidgetItem, QMenu, QComboBox, QAction, QCheckBox, QWidget, QHBoxLayout
 from PyQt5.QtCore import Qt
 import logging
 
@@ -14,6 +14,25 @@ class NumericTableWidgetItem(QTableWidgetItem):
             except (TypeError, ValueError):
                 pass
         return super().__lt__(other)
+
+class CheckBoxWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QHBoxLayout()
+        layout.setContentsMargins(3, 3, 3, 3)
+        layout.setAlignment(Qt.AlignCenter)
+        self.checkbox = QCheckBox()
+        self.checkbox.setStyleSheet("""
+            QCheckBox {
+                padding: 2px;
+            }
+            QCheckBox::indicator {
+                width: 15px;
+                height: 15px;
+            }
+        """)
+        layout.addWidget(self.checkbox)
+        self.setLayout(layout)
 
 def add_row(table, table_key, table_configs, parent, row_index=None):
     """
@@ -80,7 +99,11 @@ def add_row(table, table_key, table_configs, parent, row_index=None):
         defaults = config.default_generator(row_index, context)
         for col_idx, default in enumerate(defaults):
             col_config = config.columns[col_idx]
-            if col_config.widget_type == "combo":
+            if col_config.widget_type == "checkbox":
+                checkbox_widget = CheckBoxWidget()
+                checkbox_widget.checkbox.setChecked(bool(default))
+                table.setCellWidget(row_index, col_idx, checkbox_widget)
+            elif col_config.widget_type == "combo":
                 combo = QComboBox()
                 combo.addItems(col_config.combo_items)
                 combo.setCurrentText(str(default) or col_config.combo_items[0])
@@ -118,17 +141,37 @@ def add_row(table, table_key, table_configs, parent, row_index=None):
         table.setSortingEnabled(was_sorting)
 
 def remove_row(table, table_key, table_configs, parent):
+    """Remove checked rows from the table."""
     logging.debug(f"Starting remove_row for table_key: {table_key}")
     try:
-        selected_rows = sorted(set(index.row() for index in table.selectedIndexes()), reverse=True)
         table_config = table_configs.get(table_key)
-        if not selected_rows and table.rowCount() > table_config.min_rows:
-            selected_rows = [table.rowCount() - 1]
-        for row in selected_rows:
-            if table.rowCount() > table_config.min_rows:
+        if not table_config:
+            return
+
+        # Get all checked rows
+        checked_rows = []
+        for row in range(table.rowCount()):
+            checkbox_widget = table.cellWidget(row, 0)
+            if checkbox_widget and isinstance(checkbox_widget, CheckBoxWidget):
+                if checkbox_widget.checkbox.isChecked():
+                    checked_rows.append(row)
+
+        # Sort in reverse order to avoid index shifting
+        checked_rows.sort(reverse=True)
+
+        # Check if we can remove the rows
+        if checked_rows and table.rowCount() - len(checked_rows) >= table_config.min_rows:
+            for row in checked_rows:
                 table.removeRow(row)
-        parent._sync_data()
-        logging.debug("remove_row completed")
+            parent._sync_data()
+            logging.debug(f"Removed {len(checked_rows)} rows")
+        elif not checked_rows:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.information(parent, "No Selection", "Please select rows to remove by checking their checkboxes.")
+        else:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.warning(parent, "Cannot Remove", 
+                              f"Cannot remove all selected rows. Table must have at least {table_config.min_rows} row(s).")
     except Exception as e:
         logging.error(f"Error in remove_row: {e}", exc_info=True)
         raise
@@ -180,3 +223,19 @@ def renumber_task_orders(table):
     except Exception as e:
         logging.error(f"Error in renumber_task_orders: {e}", exc_info=True)
         raise
+
+def _extract_table_data(table):
+    """Extract data from table, skipping the checkbox column."""
+    data = []
+    for row in range(table.rowCount()):
+        row_data = []
+        # Start from column 1 to skip checkbox column
+        for col in range(1, table.columnCount()):
+            widget = table.cellWidget(row, col)
+            if widget and isinstance(widget, QComboBox):
+                row_data.append(widget.currentText())
+            else:
+                item = table.item(row, col)
+                row_data.append(item.text() if item else "")
+        data.append(row_data)
+    return data

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import List, Dict, Callable, Any, Tuple
+from typing import List, Dict, Callable, Any, Tuple, Optional
 from PyQt5.QtCore import QDate
 import logging
 
@@ -68,9 +68,9 @@ class GeneralConfig:
 class TableColumnConfig:
     name: str
     default_value: Any = None
-    widget_type: str = "text"  # Options: "text", "combo", "date"
+    widget_type: str = "text"  # Options: "text", "combo", "date", "checkbox"
     combo_items: List[str] = field(default_factory=list)
-    validator: Callable[[Any], bool] = lambda x: True
+    validator: Optional[Callable[[Any], bool]] = None  # Make validator optional
 
 @dataclass
 class TableConfig:
@@ -90,21 +90,19 @@ class AppConfig:
             logging.debug(f"Generating time_frames_default for row {row_idx}, context: {context}")
             try:
                 max_time_frame_id = context.get("max_time_frame_id", 0)
-                # Ensure valid time_frame_id
                 time_frame_id = max_time_frame_id + 1
-                # Generate a safe future date
                 finish_date = QDate.currentDate().addDays(7 * (row_idx + 1)).toString("yyyy-MM-dd")
-                # Ensure width is positive and reasonable
                 width = 100.0 / max(1, row_idx + 2)
                 return [
-                    str(time_frame_id),  # time_frame_id
+                    False,  # Checkbox state (unchecked by default)
+                    str(time_frame_id),
                     finish_date,
                     str(width)
                 ]
             except Exception as e:
                 logging.error(f"Error in time_frames_default: {e}", exc_info=True)
-                # Fallback values to prevent crash
                 return [
+                    False,  # Checkbox state (unchecked by default)
                     str(max_time_frame_id + 1),
                     QDate.currentDate().toString("yyyy-MM-dd"),
                     "50.0"
@@ -151,9 +149,19 @@ class AppConfig:
             "time_frames": TableConfig(
                 key="time_frames",
                 columns=[
-                    TableColumnConfig("Time Frame ID", validator=lambda x: int(x) > 0 if x else False),
-                    TableColumnConfig("Finish Date", validator=lambda x: bool(datetime.strptime(x, "%Y-%m-%d") if x else False)),
-                    TableColumnConfig("Width (%)", validator=lambda x: float(x) > 0 if x else False)
+                    TableColumnConfig("Select", widget_type="checkbox"),  # No validator needed
+                    TableColumnConfig(
+                        name="Time Frame ID",
+                        validator=lambda x: int(x) > 0 if x else False
+                    ),
+                    TableColumnConfig(
+                        name="Finish Date",
+                        validator=lambda x: bool(datetime.strptime(x, "%Y-%m-%d") if x else False)
+                    ),
+                    TableColumnConfig(
+                        name="Width (%)",
+                        validator=lambda x: float(x) > 0 if x else False
+                    )
                 ],
                 min_rows=1,
                 default_generator=time_frames_default
@@ -161,6 +169,7 @@ class AppConfig:
             "tasks": TableConfig(
                 key="tasks",
                 columns=[
+                    TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("Task ID", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Task Order", validator=lambda x: float(x) > 0 if x else False),
                     TableColumnConfig("Task Name"),
@@ -175,57 +184,62 @@ class AppConfig:
                     TableColumnConfig("Label Colour")
                 ],
                 min_rows=1,
-                default_generator=tasks_default
+                default_generator=lambda row_idx, context: [False] + tasks_default(row_idx, context)
             ),
             "connectors": TableConfig(
                 key="connectors",
                 columns=[
+                    TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("From Task ID", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("To Task ID", validator=lambda x: int(x) > 0 if x else False)
                 ],
                 min_rows=0,
-                default_generator=connectors_default
+                default_generator=lambda row_idx, context: [False] + connectors_default(row_idx, context)
             ),
             "swimlanes": TableConfig(
                 key="swimlanes",
                 columns=[
+                    TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("From Row Number", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("To Row Number", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Title"),
                     TableColumnConfig("Colour")
                 ],
                 min_rows=0,
-                default_generator=swimlanes_default
+                default_generator=lambda row_idx, context: [False] + swimlanes_default(row_idx, context)
             ),
             "pipes": TableConfig(
                 key="pipes",
                 columns=[
+                    TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("Date", validator=lambda x: bool(datetime.strptime(x, "%Y-%m-%d") if x else False)),
                     TableColumnConfig("Colour")
                 ],
                 min_rows=0,
-                default_generator=pipes_default
+                default_generator=lambda row_idx, context: [False] + pipes_default(row_idx, context)
             ),
             "curtains": TableConfig(
                 key="curtains",
                 columns=[
+                    TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("From Date", validator=lambda x: bool(datetime.strptime(x, "%Y-%m-%d") if x else False)),
                     TableColumnConfig("To Date", validator=lambda x: bool(datetime.strptime(x, "%Y-%m-%d") if x else False)),
                     TableColumnConfig("Colour")
                 ],
                 min_rows=0,
-                default_generator=curtains_default
+                default_generator=lambda row_idx, context: [False] + curtains_default(row_idx, context)
             ),
             "text_boxes": TableConfig(
                 key="text_boxes",
                 columns=[
+                    TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("Text"),
                     TableColumnConfig("X Coordinate", validator=lambda x: float(x) >= 0 if x else False),
                     TableColumnConfig("Y Coordinate", validator=lambda x: float(x) >= 0 if x else False),
                     TableColumnConfig("Colour")
                 ],
                 min_rows=0,
-                default_generator=text_boxes_default
+                default_generator=lambda row_idx, context: [False] + text_boxes_default(row_idx, context)
             )
         }
 

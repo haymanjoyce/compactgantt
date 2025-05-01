@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, pyqtSignal, QDate
 from PyQt5.QtGui import QBrush
 from datetime import datetime, timedelta
 import logging
-from ..table_utils import add_row, remove_row, show_context_menu
+from ..table_utils import add_row, remove_row, show_context_menu, _extract_table_data, CheckBoxWidget
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -60,16 +60,27 @@ class TimeFramesTab(QWidget):
             self.time_frames_table.setRowCount(row_count)
 
             for row_idx in range(row_count):
+                # Add checkbox first
+                checkbox_widget = CheckBoxWidget()
+                self.time_frames_table.setCellWidget(row_idx, 0, checkbox_widget)
+
                 if row_idx < len(table_data):
                     row_data = table_data[row_idx]
+                    # Start from column 1 since column 0 is checkbox
+                    for col_idx, value in enumerate(row_data, start=1):
+                        item = QTableWidgetItem(str(value))
+                        if col_idx == 1:  # Time Frame ID is read-only
+                            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                        self.time_frames_table.setItem(row_idx, col_idx, item)
                 else:
                     context = {"max_time_frame_id": len(table_data) + row_idx}
-                    row_data = self.table_config.default_generator(row_idx, context)
-                for col_idx, value in enumerate(row_data):
-                    item = QTableWidgetItem(str(value))
-                    if col_idx == 0:  # Time Frame ID is read-only
-                        item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                    self.time_frames_table.setItem(row_idx, col_idx, item)
+                    defaults = self.table_config.default_generator(row_idx, context)
+                    # Skip the first default (checkbox state) and start from index 1
+                    for col_idx, default in enumerate(defaults[1:], start=1):
+                        item = QTableWidgetItem(str(default))
+                        if col_idx == 1:  # Time Frame ID is read-only
+                            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                        self.time_frames_table.setItem(row_idx, col_idx, item)
 
             self.time_frames_table.setSortingEnabled(was_sorting)
             self._initializing = False
@@ -80,114 +91,63 @@ class TimeFramesTab(QWidget):
             QMessageBox.critical(self, "Error", f"Failed to load initial data: {e}")
 
     def _sync_data(self):
-        logging.debug("Starting _sync_data")
-        try:
-            tf_data = self._extract_table_data()
-            if not tf_data:
-                raise ValueError("At least one time frame is required")
-            invalid_cells = set()
-            time_frame_ids = set()
-
-            for row_idx, row in enumerate(tf_data):
-                time_frame_id = row[0] or ""
-                end = row[1] or ""
-                width = row[2] or ""
-
-                logging.debug(f"Validating row {row_idx}: {row}")
-                # Validate Time Frame ID
-                try:
-                    tf_id = int(time_frame_id)
-                    if tf_id <= 0:
-                        invalid_cells.add((row_idx, 0, "non-positive"))
-                    elif tf_id in time_frame_ids:
-                        invalid_cells.add((row_idx, 0, "duplicate"))
-                    time_frame_ids.add(tf_id)
-                except (ValueError, TypeError):
-                    invalid_cells.add((row_idx, 0, "invalid"))
-                    logging.warning(f"Invalid time_frame_id in row {row_idx}: {time_frame_id}")
-
-                # Validate Finish Date
-                try:
-                    if end:
-                        datetime.strptime(end, "%Y-%m-%d")
-                    else:
-                        invalid_cells.add((row_idx, 1, "empty"))
-                        continue
-                except ValueError:
-                    invalid_cells.add((row_idx, 1, "invalid format"))
-                    logging.warning(f"Invalid finish_date in row {row_idx}: {end}")
+        time_frames_data = self._extract_table_data()
+        invalid_cells = set()
+        
+        # Create a mapping of column names to indices
+        header_to_index = {self.time_frames_table.horizontalHeaderItem(i).text(): i 
+                          for i in range(self.time_frames_table.columnCount())}
+        
+        # Create a mapping of column names to validators
+        validators = {col.name: col.validator for col in self.table_config.columns if col.validator}
+        
+        for row_idx, row in enumerate(time_frames_data):
+            for col_name, validator in validators.items():
+                if col_name not in header_to_index:
                     continue
-
-                # Validate Width
+                    
+                col_idx = header_to_index[col_name]
+                value = row[col_idx - 1]  # Adjust index because _extract_table_data skips checkbox column
+                
                 try:
-                    width_val = float(width) / 100
-                    if width_val <= 0:
-                        invalid_cells.add((row_idx, 2, "non-positive"))
-                except (ValueError, TypeError):
-                    invalid_cells.add((row_idx, 2, "invalid"))
-                    logging.warning(f"Invalid width in row {row_idx}: {width}")
-                    continue
-
-                # Removed Date Order Validation: No longer checking if end_dt < prev_end
-
-            logging.debug(f"Invalid cells: {invalid_cells}")
-            self.time_frames_table.blockSignals(True)
-            for row_idx in range(self.time_frames_table.rowCount()):
-                for col in range(self.time_frames_table.columnCount()):
-                    item = self.time_frames_table.item(row_idx, col)
-                    tooltip = ""
-                    if item and item.text():
-                        if (row_idx, col, "invalid") in invalid_cells:
-                            item.setBackground(QBrush(Qt.yellow))
-                            tooltip = f"Time Frame {row_idx + 1}: {'Time Frame ID' if col == 0 else 'Width'} must be a number"
-                        elif (row_idx, col, "non-positive") in invalid_cells:
-                            item.setBackground(QBrush(Qt.yellow))
-                            tooltip = f"Time Frame {row_idx + 1}: {'Time Frame ID' if col == 0 else 'Width'} must be positive"
-                        elif (row_idx, col, "duplicate") in invalid_cells:
-                            item.setBackground(QBrush(Qt.yellow))
-                            tooltip = f"Time Frame {row_idx + 1}: Time Frame ID must be unique"
-                        elif (row_idx, col, "invalid format") in invalid_cells:
-                            item.setBackground(QBrush(Qt.yellow))
-                            tooltip = f"Time Frame {row_idx + 1}: Finish Date must be yyyy-MM-dd"
-                        elif (row_idx, col, "empty") in invalid_cells:
-                            item.setBackground(QBrush(Qt.yellow))
-                            tooltip = f"Time Frame {row_idx + 1}: Finish Date required"
-                        else:
-                            item.setBackground(QBrush())
-                    else:
-                        item = QTableWidgetItem("")
-                        item.setBackground(QBrush(Qt.yellow))
-                        tooltip = f"Time Frame {row_idx + 1}: {'Time Frame ID' if col == 0 else 'Finish Date' if col == 1 else 'Width'} required"
-                        if col == 0:
-                            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                        self.time_frames_table.setItem(row_idx, col, item)
-                    item.setToolTip(tooltip)
-            self.time_frames_table.blockSignals(False)
-
-            if invalid_cells:
-                logging.debug("Invalid cells detected, raising error")
-                raise ValueError("Fix highlighted cells in Time Frames tab")
-
-            # Update project_data.time_frames
-            new_time_frames = []
-            for row in tf_data:
-                try:
-                    new_time_frames.append({
-                        "time_frame_id": int(row[0]),
-                        "finish_date": row[1],
-                        "width_proportion": float(row[2]) / 100
-                    })
+                    if not validator(value):
+                        invalid_cells.add((row_idx, col_idx))
+                        if col_name == "Time Frame ID":
+                            logging.warning(f"Invalid Time Frame ID in row {row_idx}: {value}")
+                        elif col_name == "Finish Date":
+                            logging.warning(f"Invalid Finish Date in row {row_idx}: {value}")
+                        elif col_name == "Width (%)":
+                            logging.warning(f"Invalid Width in row {row_idx}: {value}")
                 except (ValueError, TypeError) as e:
-                    logging.warning(f"Skipping invalid row {row}: {e}")
-                    continue
-            self.project_data.time_frames = sorted(new_time_frames, key=lambda x: x["time_frame_id"])
+                    invalid_cells.add((row_idx, col_idx))
+                    logging.warning(f"Validation error in {col_name} at row {row_idx}: {e}")
 
-            logging.debug("Emitting data_updated signal")
-            self.data_updated.emit(self.project_data.to_json())
-            logging.debug("_sync_data completed successfully")
-        except Exception as e:
-            logging.error(f"Error in _sync_data: {e}", exc_info=True)
-            QMessageBox.critical(self, "Error", f"Failed to sync data: {e}")
+        # Highlight invalid cells
+        self.time_frames_table.blockSignals(True)
+        for row in range(self.time_frames_table.rowCount()):
+            for col in range(self.time_frames_table.columnCount()):
+                item = self.time_frames_table.item(row, col)
+                if item:
+                    if (row, col) in invalid_cells:
+                        item.setBackground(QBrush(Qt.yellow))
+                        col_name = self.time_frames_table.horizontalHeaderItem(col).text()
+                        if col_name == "Time Frame ID":
+                            item.setToolTip("Time Frame ID must be a positive number")
+                        elif col_name == "Finish Date":
+                            item.setToolTip("Date must be in YYYY-MM-DD format")
+                        elif col_name == "Width (%)":
+                            item.setToolTip("Width must be a positive number")
+                    else:
+                        item.setBackground(QBrush())
+                        item.setToolTip("")
+        self.time_frames_table.blockSignals(False)
+
+        if invalid_cells:
+            QMessageBox.critical(self, "Error", "Please fix highlighted cells")
+            return
+
+        self.project_data.update_from_table("time_frames", time_frames_data)
+        self.data_updated.emit(self.project_data.to_json())
 
     def _sync_data_if_not_initializing(self):
         if not self._initializing:
@@ -195,13 +155,13 @@ class TimeFramesTab(QWidget):
             self._sync_data()
 
     def _extract_table_data(self):
-        logging.debug("Extracting table data")
+        """Extract data from table, skipping the checkbox column."""
         data = []
         for row in range(self.time_frames_table.rowCount()):
             row_data = []
-            for col in range(self.time_frames_table.columnCount()):
+            # Start from column 1 to skip checkbox column
+            for col in range(1, self.time_frames_table.columnCount()):
                 item = self.time_frames_table.item(row, col)
                 row_data.append(item.text() if item else "")
             data.append(row_data)
-        logging.debug(f"Extracted table data: {data}")
         return data
