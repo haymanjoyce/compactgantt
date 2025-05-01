@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QGridLayout, QGroupBox, QLineEdit, QCheckBox, QDateEdit, QLabel
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QGridLayout, QGroupBox, QLineEdit, QCheckBox, QDateEdit, QLabel, QMessageBox
 from PyQt5.QtCore import pyqtSignal, QDate, Qt
 from datetime import datetime
 from PyQt5.QtGui import QBrush, QColor
@@ -268,12 +268,8 @@ class LayoutTab(QWidget):
 
             # Update project data
             self.project_data.frame_config = type(self.project_data.frame_config)(**frame_config)
-            self.data_updated.emit(self.project_data.to_json())
         except ValueError as e:
-            print(f"Validation error in LayoutTab: {e}")
-            # Optionally show a message to the user
-            # from PyQt5.QtWidgets import QMessageBox
-            # QMessageBox.critical(self, "Error", str(e))
+            QMessageBox.critical(self, "Error", str(e))
 
     def _sync_data_if_not_initializing(self):
         if not self._initializing:

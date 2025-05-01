@@ -160,13 +160,10 @@ class TimeFramesTab(QWidget):
         self.time_frames_table.blockSignals(False)
 
         if invalid_cells:
-            QMessageBox.critical(self, "Error", "Please fix highlighted cells")
+            QMessageBox.critical(self, "Error", "Fix highlighted cells in Time Frames tab")
             return
 
-        # Get the updated data after potential ID changes
-        time_frames_data = self._extract_table_data()
         self.project_data.update_from_table("time_frames", time_frames_data)
-        self.data_updated.emit(self.project_data.to_json())
 
     def _sync_data_if_not_initializing(self):
         if not self._initializing:

@@ -114,7 +114,6 @@ class TextBoxesTab(QWidget):
             return
 
         self.project_data.update_from_table("text_boxes", text_boxes_data)
-        self.data_updated.emit(self.project_data.to_json())
 
     def _sync_data_if_not_initializing(self):
         if not self._initializing:

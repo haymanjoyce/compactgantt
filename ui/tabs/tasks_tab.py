@@ -158,39 +158,7 @@ class TasksTab(QWidget):
             QMessageBox.critical(self, "Error", "Fix highlighted cells in Tasks tab")
             return
 
-        self.project_data.tasks.clear()
-        for row in tasks_data:
-            try:
-                task_id = int(row[0] or 0)
-                task_order = float(row[1] or 0)
-                task_name = row[2] or "Unnamed"
-                start_date = row[3] or ""
-                finish_date = row[4] or ""
-                row_number = int(row[5] or 1)
-                label_placement = row[6] or "Inside"
-                label_hide = row[7] or "No"
-                label_alignment = row[8] or "Left"
-                label_horizontal_offset = float(row[9] or 1.0)
-                label_vertical_offset = float(row[10] or 0.5)
-                label_text_colour = row[11] or "black"
-                self.project_data.add_task(
-                    task_id, task_name, start_date, finish_date, row_number,
-                    label_placement=label_placement, label_hide=label_hide,
-                    label_alignment=label_alignment, label_horizontal_offset=label_horizontal_offset,
-                    label_vertical_offset=label_vertical_offset, label_text_colour=label_text_colour,
-                    task_order=task_order
-                )
-            except (ValueError, TypeError):
-                continue
-
-        logging.debug("Table state after _sync_data:")
-        for row_idx in range(self.tasks_table.rowCount()):
-            for col_idx in range(self.tasks_table.columnCount()):
-                widget = self.tasks_table.cellWidget(row_idx, col_idx)
-                item = self.tasks_table.item(row_idx, col_idx)
-                logging.debug(f"Row {row_idx}, Col {col_idx}: Widget={type(widget).__name__ if widget else None}, Item={item.text() if item else None}")
-
-        self.data_updated.emit(self.project_data.to_json())
+        self.project_data.update_from_table("tasks", tasks_data)
         logging.debug("_sync_data in TasksTab completed")
 
     def _sync_data_if_not_initializing(self):

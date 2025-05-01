@@ -25,7 +25,7 @@ class DataEntryWindow(QMainWindow):
         self.project_data = project_data  # Use passed project_data instance
         self.app_config = AppConfig()  # Initialize centralized config
         self.setup_ui()
-        self._connect_signals()
+        # No longer connecting signals for automatic updates
 
     def setup_ui(self):
         # Create menu bar
@@ -86,11 +86,6 @@ class DataEntryWindow(QMainWindow):
         """)
         self.status_bar.showMessage("Ready")
 
-    def _connect_signals(self):
-        for tab in [self.layout_tab, self.time_frames_tab, self.tasks_tab, self.connectors_tab,
-                    self.swimlanes_tab, self.pipes_tab, self.curtains_tab, self.text_boxes_tab]:
-            tab.data_updated.connect(self.data_updated.emit)
-
     def save_to_json(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Save Project", "", "JSON Files (*.json)")
         if file_path:
@@ -138,4 +133,5 @@ class DataEntryWindow(QMainWindow):
                 self.status_bar.showMessage("Error loading project")
 
     def _emit_data_updated(self):
+        """Only called when Update Image button is clicked"""
         self.data_updated.emit(self.project_data.to_json())
