@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, pyqtSignal, QDate
 from PyQt5.QtGui import QBrush
 from datetime import datetime, timedelta
 import logging
-from ..table_utils import add_row, remove_row, show_context_menu, add_row_with_id
+from ..table_utils import add_row, remove_row, show_context_menu, insert_row_with_id
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -40,7 +40,7 @@ class TimeFramesTab(QWidget):
         btn_layout = QGridLayout()
         add_btn = QPushButton("Add Time Frame")
         remove_btn = QPushButton("Remove Time Frame")
-        add_btn.clicked.connect(lambda: add_row_with_id(self.time_frames_table, "time_frames", self.app_config.tables, self))
+        add_btn.clicked.connect(lambda: add_row(self.time_frames_table, "time_frames", self.app_config.tables, self))
         remove_btn.clicked.connect(lambda: remove_row(self.time_frames_table, "time_frames", self.app_config.tables, self))
         btn_layout.addWidget(add_btn, 0, 0)
         btn_layout.addWidget(remove_btn, 0, 1)
