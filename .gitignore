@@ -159,3 +159,4 @@ tiff/
 !assets/*
 !docs/
 !docs/*
+!docs/images/*
