@@ -5,40 +5,6 @@ import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-class FrameConfig:
-    def __init__(self, outer_width=800, outer_height=600, header_height=50, footer_height=50,
-                 margins=(10, 10, 10, 10), num_rows=1, header_text="", footer_text="",
-                 horizontal_gridlines=True, vertical_gridlines=True, chart_start_date="2025-01-01"):
-        self.outer_width = outer_width
-        self.outer_height = outer_height
-        self.header_height = header_height
-        self.footer_height = footer_height
-        self.margins = margins
-        self.num_rows = num_rows
-        self.header_text = header_text
-        self.footer_text = footer_text
-        self.horizontal_gridlines = horizontal_gridlines
-        self.vertical_gridlines = vertical_gridlines
-        self.chart_start_date = chart_start_date
-
-class Task:
-    def __init__(self, task_id, task_name, start_date, finish_date, row_number, is_milestone=False,
-                 label_placement="Inside", label_hide="No", label_alignment="Left",
-                 label_horizontal_offset=1.0, label_vertical_offset=0.5, label_text_colour="black", task_order=1.0):
-        self.task_id = task_id
-        self.task_order = task_order
-        self.task_name = task_name
-        self.start_date = start_date
-        self.finish_date = finish_date
-        self.row_number = row_number
-        self.is_milestone = is_milestone
-        self.label_placement = label_placement
-        self.label_hide = label_hide
-        self.label_alignment = label_alignment
-        self.label_horizontal_offset = label_horizontal_offset
-        self.label_vertical_offset = label_vertical_offset
-        self.label_text_colour = label_text_colour
-
 class ProjectData:
     def __init__(self):
         self.frame_config: FrameConfig = FrameConfig()
