@@ -47,7 +47,7 @@ class TasksTab(QWidget):
         self.setLayout(layout)
 
     def _load_initial_data(self):
-        table_data = self.project_data.get_table_data("tasks")
+        table_data = self.project_data.project_service.get_table_data(self.project_data, "tasks")
         row_count = max(len(table_data), self.table_config.min_rows)
         self.tasks_table.setRowCount(row_count)
         self._initializing = True
@@ -107,7 +107,7 @@ class TasksTab(QWidget):
     def _sync_data(self):
         logging.debug("Starting _sync_data in TasksTab")
         tasks_data = self._extract_table_data()
-        errors = self.project_data.update_from_table("tasks", tasks_data)
+        errors = self.project_data.project_service.update_from_table(self.project_data, "tasks", tasks_data)
         
         # Clear all highlights first
         self.tasks_table.blockSignals(True)

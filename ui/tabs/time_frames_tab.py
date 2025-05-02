@@ -53,7 +53,7 @@ class TimeFramesTab(QWidget):
     def _load_initial_data(self):
         logging.debug("Starting _load_initial_data")
         try:
-            table_data = self.project_data.get_table_data("time_frames")
+            table_data = self.project_data.project_service.get_table_data(self.project_data, "time_frames")
             self._initializing = True
             self.time_frames_table.clearContents()
             was_sorting = self.time_frames_table.isSortingEnabled()
@@ -93,7 +93,7 @@ class TimeFramesTab(QWidget):
 
     def _sync_data(self):
         time_frames_data = self._extract_table_data()
-        errors = self.project_data.update_from_table("time_frames", time_frames_data)
+        errors = self.project_data.project_service.update_from_table(self.project_data, "time_frames", time_frames_data)
         
         # Clear all highlights first
         self.time_frames_table.blockSignals(True)
