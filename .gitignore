@@ -157,5 +157,5 @@ tiff/
 # But allow files in assets and examples to be visible (not tracked)
 !assets/
 !assets/*
-!examples/
-!examples/*
+!docs/
+!docs/*
