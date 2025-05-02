@@ -1,7 +1,7 @@
 import sys
 from PyQt5.QtWidgets import QApplication
 from ui.data_entry_window import DataEntryWindow
-from data_model import ProjectData
+from models.project import ProjectData
 from services.gantt_chart_service import GanttChartService
 from ui.svg_display import SVGDisplayWindow
 from config.app_config import AppConfig

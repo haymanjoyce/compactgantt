@@ -1,7 +1,6 @@
 from PyQt5.QtWidgets import QMainWindow, QTabWidget, QToolBar, QAction, QFileDialog, QMessageBox, QWidget, QSizePolicy, QPushButton, QVBoxLayout
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSignal, QDate, QObject
-from data_model import ProjectData
 from config.app_config import AppConfig
 from models import FrameConfig, TimeFrame, Task
 from .tabs.layout_tab import LayoutTab
