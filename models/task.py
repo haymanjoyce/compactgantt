@@ -1,41 +1,6 @@
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime
+from typing import Dict, Any
 
-@dataclass
-class FrameConfig:
-    outer_width: int = 800
-    outer_height: int = 600
-    header_height: int = 50
-    footer_height: int = 50
-    margins: Tuple[int, int, int, int] = (10, 10, 10, 10)
-    num_rows: int = 1
-    header_text: str = ""
-    footer_text: str = ""
-    horizontal_gridlines: bool = True
-    vertical_gridlines: bool = True
-    chart_start_date: str = "2025-01-01"
-
-@dataclass
-class TimeFrame:
-    time_frame_id: int
-    finish_date: str
-    width_proportion: float
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'TimeFrame':
-        return cls(
-            time_frame_id=data["time_frame_id"],
-            finish_date=data["finish_date"],
-            width_proportion=data["width_proportion"]
-        )
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "time_frame_id": self.time_frame_id,
-            "finish_date": self.finish_date,
-            "width_proportion": self.width_proportion
-        }
 
 @dataclass
 class Task:

@@ -2,6 +2,9 @@ from typing import List, Dict, Any, Optional, Set
 from models import FrameConfig, TimeFrame, Task
 from validators import DataValidator
 import logging
+from services.project_service import ProjectService
+from services.time_frame_service import TimeFrameService
+from services.task_service import TaskService
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -16,41 +19,23 @@ class ProjectData:
         self.curtains: List[List[str]] = []
         self.text_boxes: List[List[str]] = []
         self.validator = DataValidator()
+        self.project_service = ProjectService()
+        self.time_frame_service = TimeFrameService()
+        self.task_service = TaskService()
 
     def add_time_frame(self, time_frame_id: int, finish_date: str, width_proportion: float) -> List[str]:
-        time_frame = TimeFrame(time_frame_id, finish_date, width_proportion)
-        used_ids = {tf.time_frame_id for tf in self.time_frames}
-        errors = self.validator.validate_time_frame(time_frame, used_ids)
-        if not errors:
-            self.time_frames.append(time_frame)
-            self.time_frames.sort(key=lambda x: x.time_frame_id)
-        return errors
+        return self.time_frame_service.add_time_frame(self, time_frame_id, finish_date, width_proportion)
 
     def add_task(self, task_id: int, task_name: str, start_date: str, finish_date: str, 
                 row_number: int, is_milestone: bool = False, label_placement: str = "Inside",
                 label_hide: str = "No", label_alignment: str = "Left",
                 label_horizontal_offset: float = 1.0, label_vertical_offset: float = 0.5,
                 label_text_colour: str = "black", task_order: float = 1.0) -> List[str]:
-        task = Task(
-            task_id=task_id,
-            task_order=task_order,
-            task_name=task_name,
-            start_date=start_date,
-            finish_date=finish_date,
-            row_number=row_number,
-            is_milestone=is_milestone,
-            label_placement=label_placement,
-            label_hide=label_hide,
-            label_alignment=label_alignment,
-            label_horizontal_offset=label_horizontal_offset,
-            label_vertical_offset=label_vertical_offset,
-            label_text_colour=label_text_colour
+        return self.task_service.add_task(
+            self, task_id, task_name, start_date, finish_date, row_number,
+            is_milestone, label_placement, label_hide, label_alignment,
+            label_horizontal_offset, label_vertical_offset, label_text_colour, task_order
         )
-        used_ids = {t.task_id for t in self.tasks}
-        errors = self.validator.validate_task(task, used_ids)
-        if not errors:
-            self.tasks.append(task)
-        return errors
 
     def update_from_table(self, key: str, data: List[List[str]]) -> List[str]:
         errors = []
@@ -131,3 +116,10 @@ class ProjectData:
         project.text_boxes = data.get("text_boxes", [])
         
         return project
+
+    def save_to_file(self, file_path):
+        self.project_service.save_project(file_path, self)
+
+    def load_from_file(self, file_path):
+        loaded = self.project_service.load_project(file_path)
+        self.__dict__.update(loaded.__dict__)

@@ -3,15 +3,12 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSignal, QDate
 from data_model import ProjectData
 from app_config import AppConfig
-from data_model import FrameConfig
+from models import FrameConfig, TimeFrame, Task
 from .tabs.layout_tab import LayoutTab
 from .tabs.tasks_tab import TasksTab
 from .tabs.time_frames_tab import TimeFramesTab
-from .tabs.connectors_tab import ConnectorsTab
-from .tabs.swimlanes_tab import SwimlanesTab
-from .tabs.pipes_tab import PipesTab
-from .tabs.curtains_tab import CurtainsTab
-from .tabs.text_boxes_tab import TextBoxesTab
+from .tabs.placeholder_tab import PlaceholderTab
+from repositories.project_repository import JsonProjectRepository
 import json
 
 class DataEntryWindow(QMainWindow):
@@ -24,6 +21,7 @@ class DataEntryWindow(QMainWindow):
         self.setMinimumSize(600, 400)
         self.project_data = project_data  # Use passed project_data instance
         self.app_config = AppConfig()  # Initialize centralized config
+        self.repository = JsonProjectRepository()  # Add this line
         self.setup_ui()
         # No longer connecting signals for automatic updates
 
@@ -49,11 +47,14 @@ class DataEntryWindow(QMainWindow):
         self.layout_tab = LayoutTab(self.project_data, self.app_config)
         self.time_frames_tab = TimeFramesTab(self.project_data, self.app_config)
         self.tasks_tab = TasksTab(self.project_data, self.app_config)
-        self.connectors_tab = ConnectorsTab(self.project_data, self.app_config)
-        self.swimlanes_tab = SwimlanesTab(self.project_data, self.app_config)
-        self.pipes_tab = PipesTab(self.project_data, self.app_config)
-        self.curtains_tab = CurtainsTab(self.project_data, self.app_config)
-        self.text_boxes_tab = TextBoxesTab(self.project_data, self.app_config)
+        
+        # Create placeholder tabs
+        self.connectors_tab = PlaceholderTab(self.project_data, self.app_config, "Connectors")
+        self.swimlanes_tab = PlaceholderTab(self.project_data, self.app_config, "Swimlanes")
+        self.pipes_tab = PlaceholderTab(self.project_data, self.app_config, "Pipes")
+        self.curtains_tab = PlaceholderTab(self.project_data, self.app_config, "Curtains")
+        self.text_boxes_tab = PlaceholderTab(self.project_data, self.app_config, "Text Boxes")
+        
         self.tab_widget.addTab(self.layout_tab, "Layout")
         self.tab_widget.addTab(self.time_frames_tab, "Time Frames")
         self.tab_widget.addTab(self.tasks_tab, "Tasks")
@@ -62,6 +63,7 @@ class DataEntryWindow(QMainWindow):
         self.tab_widget.addTab(self.pipes_tab, "Pipes")
         self.tab_widget.addTab(self.curtains_tab, "Curtains")
         self.tab_widget.addTab(self.text_boxes_tab, "Text Boxes")
+        
         main_layout.addWidget(self.tab_widget)
 
         # Create Update Image button at the bottom
@@ -90,9 +92,7 @@ class DataEntryWindow(QMainWindow):
         file_path, _ = QFileDialog.getSaveFileName(self, "Save Project", "", "JSON Files (*.json)")
         if file_path:
             try:
-                json_str = json.dumps(self.project_data.to_json(), indent=4)
-                with open(file_path, "w") as jsonfile:
-                    jsonfile.write(json_str)
+                self.repository.save(file_path, self.project_data)
                 QMessageBox.information(self, "Success", "Project saved successfully!")
                 self.status_bar.showMessage("Project saved successfully")
             except Exception as e:
@@ -103,31 +103,14 @@ class DataEntryWindow(QMainWindow):
         file_path, _ = QFileDialog.getOpenFileName(self, "Open Project", "", "JSON Files (*.json)")
         if file_path:
             try:
-                with open(file_path, "r") as jsonfile:
-                    data = json.load(jsonfile)
-                self.project_data.__init__()  # Reset existing project_data
-                self.project_data.frame_config = FrameConfig(**data.get("frame_config", {}))
-                self.project_data.time_frames = data.get("time_frames", [])
-                for task in data.get("tasks", []):
-                    self.project_data.add_task(
-                        task["task_id"], task["task_name"], task["start_date"],
-                        task["finish_date"], task["row_number"], task.get("is_milestone", False),
-                        task.get("label_placement", "Inside"), task.get("label_hide", "No"),
-                        task.get("label_alignment", "Left"), task.get("label_horizontal_offset", 1.0),
-                        task.get("label_vertical_offset", 0.5), task.get("label_text_colour", "black"),
-                        task.get("task_order", float(len(self.project_data.tasks) + 1))
-                    )
-                self.project_data.connectors = data.get("connectors", [])
-                self.project_data.swimlanes = data.get("swimlanes", [])
-                self.project_data.pipes = data.get("pipes", [])
-                self.project_data.curtains = data.get("curtains", [])
-                self.project_data.text_boxes = data.get("text_boxes", [])
-                for tab in [self.time_frames_tab, self.layout_tab, self.tasks_tab, self.connectors_tab,
-                            self.swimlanes_tab, self.pipes_tab, self.curtains_tab, self.text_boxes_tab]:
+                loaded_project = self.repository.load(file_path)
+                self.project_data.__dict__.update(loaded_project.__dict__)
+                # Only reload data for implemented tabs
+                for tab in [self.time_frames_tab, self.layout_tab, self.tasks_tab]:
                     tab._load_initial_data()
                 self.data_updated.emit(self.project_data.to_json())
                 QMessageBox.information(self, "Success", "Project loaded successfully!")
-                self.status_bar.showMessage("Project loaded successfully")  # User feedback
+                self.status_bar.showMessage("Project loaded successfully")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Error loading JSON: {e}")
                 self.status_bar.showMessage("Error loading project")
