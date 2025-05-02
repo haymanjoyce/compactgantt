@@ -14,7 +14,7 @@ This tool creates compact Gantt charts using PyQt5 and SVG output, allowing mult
 ## Example
 See a hand-drawn sample of the desired output:
 
-![Sample POAP](https://github.com/haymanjoyce/gantt_02/blob/main/examples/Sample%20POAP.png)
+![Sample POAP](docs/images/Sample%20POAP.png)
 
 ## Quick Start
 1. Ensure Python 3.8+ is installed.
