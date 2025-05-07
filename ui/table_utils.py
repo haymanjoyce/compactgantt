@@ -35,7 +35,7 @@ class CheckBoxWidget(QWidget):
         self.setLayout(layout)
 
 def add_row(table, table_key, table_configs, parent, id_field_name, row_index=None):
-    """Add a row to a table with proper ID and sorting handling."""
+    """Add a row to a table with proper ID and sorting handling, using generic default value logic."""
     logging.debug(f"Starting add_row for {table_key}")
     try:
         config = table_configs.get(table_key)
@@ -82,26 +82,53 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
             row_index = table.rowCount()
         table.insertRow(row_index)
 
-        # Add checkbox first
+        # Add checkbox first (assume first column is always checkbox)
         checkbox_widget = CheckBoxWidget()
         table.setCellWidget(row_index, 0, checkbox_widget)
 
-        # Add ID
-        id_item = QTableWidgetItem(str(next_id))
-        id_item.setFlags(id_item.flags() & ~Qt.ItemIsEditable)  # Make ID read-only
-        table.setItem(row_index, id_column, id_item)
+        # Prepare context for default_generator if available
+        context = {"max_id": next_id}
+        if hasattr(config, "default_generator"):
+            defaults = config.default_generator(row_index, context)
+        else:
+            # Fallback: just use empty strings
+            defaults = [""] * table.columnCount()
 
-        # Add default values for other columns
-        finish_date = QDate.currentDate().addDays(7).toString("yyyy-MM-dd")
-        width = "50.0"
+        # Set default values for each column (skip checkbox column)
+        for col_idx in range(1, table.columnCount()):
+            header_text = table.horizontalHeaderItem(col_idx).text()
+            col_config = None
+            if hasattr(config, "columns"):
+                # Find the config for this column (skip checkbox, so col_idx-1)
+                try:
+                    col_config = config.columns[col_idx - 1]
+                except (IndexError, AttributeError):
+                    pass
 
-        # Find column indices
-        for i in range(table.columnCount()):
-            header_text = table.horizontalHeaderItem(i).text()
-            if header_text == "Finish Date":
-                table.setItem(row_index, i, QTableWidgetItem(finish_date))
-            elif header_text == "Width (%)":
-                table.setItem(row_index, i, QTableWidgetItem(width))
+            # Use default from generator if available, else empty string
+            default = ""
+            if defaults and col_idx < len(defaults):
+                default = defaults[col_idx]
+
+            # Set ID column
+            if col_idx == id_column:
+                id_item = QTableWidgetItem(str(next_id))
+                id_item.setFlags(id_item.flags() & ~Qt.ItemIsEditable)
+                table.setItem(row_index, col_idx, id_item)
+            # Combo box column
+            elif col_config and getattr(col_config, "widget_type", None) == "combo":
+                combo = QComboBox()
+                combo.addItems(col_config.combo_items)
+                combo.setCurrentText(str(default) if default else col_config.combo_items[0])
+                table.setCellWidget(row_index, col_idx, combo)
+            # Numeric column (optional: check for numeric type)
+            elif col_config and getattr(col_config, "widget_type", None) == "numeric":
+                item = NumericTableWidgetItem(str(default))
+                table.setItem(row_index, col_idx, item)
+            # Generic text column
+            else:
+                item = QTableWidgetItem(str(default))
+                table.setItem(row_index, col_idx, item)
 
         # Restore table state
         table.blockSignals(False)
