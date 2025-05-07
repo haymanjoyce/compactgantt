@@ -41,6 +41,7 @@ See a hand-drawn sample of the desired output:
 - `ui/data_entry_window.py`: Main GUI window with tabs.
 - `ui/svg_display.py`: Displays SVG output.
 - `ui/table_utils.py`: Table widget utilities (row insertion, removal, etc.).
+- `ui/window_utils.py`: Utility functions for controlling window positioning, size, and multiple screens.
 - `ui/tabs/layout_tab.py`: Layout tab for chart settings.
 - `ui/tabs/time_frames_tab.py`: Time Frames tab for time spans.
 - `ui/tabs/tasks_tab.py`: Tasks tab for task entry.
@@ -72,6 +73,7 @@ See a hand-drawn sample of the desired output:
 - `svg/`: Generated SVG output.
 - `docs/`: Documentation and images for README.
 - `examples/`: Example project files and demo data.
+- `ui/`: User interface modules and utilities.
 
 ## Project Architecture
 
@@ -93,10 +95,14 @@ This structure makes the codebase easier to maintain, extend, and test as the pr
 
 ## Utility Functions
 
-The `utils/` package contains helper functions for use throughout the codebase. For example:
+The `utils/` and `ui/` packages contain helper functions for use throughout the codebase. For example:
 
 - **`utils/conversion.py`**:  
   - `safe_int(val, default=0)`: Safely convert a value to `int`, returning `default` if conversion fails.
   - `safe_float(val, default=0.0)`: Safely convert a value to `float`, returning `default` if conversion fails.
 
-These are used in the service layer and elsewhere to robustly handle user input and data conversion.
+- **`ui/window_utils.py`**:  
+  - `move_window_to_screen_center(window, screen_number=0, width=None, height=None)`: Move and optionally resize a window to the center of a given screen.
+  - `move_window_to_screen_right_of(window, reference_window, screen_number=0, width=None, height=None)`: Move and optionally resize a window to the right of another window, on a given screen.
+
+These are used in the UI and service layers to robustly handle user input, data conversion, and window management.
