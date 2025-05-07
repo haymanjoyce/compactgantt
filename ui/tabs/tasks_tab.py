@@ -25,8 +25,8 @@ class TasksTab(QWidget):
         layout = QVBoxLayout()
         
         # Create table
-        self.tasks_table = QTableWidget(0, len(self.table_config.columns) + 1)  # +1 for checkbox
-        headers = ["Select"] + [col.name for col in self.table_config.columns]
+        self.tasks_table = QTableWidget(0, len(self.table_config.columns))
+        headers = [col.name for col in self.table_config.columns]
         self.tasks_table.setHorizontalHeaderLabels(headers)
         self.tasks_table.setSortingEnabled(True)
         self.tasks_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
