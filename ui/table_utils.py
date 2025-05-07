@@ -34,7 +34,7 @@ class CheckBoxWidget(QWidget):
         layout.addWidget(self.checkbox)
         self.setLayout(layout)
 
-def add_row(table, table_key, table_configs, parent, row_index=None):
+def add_row(table, table_key, table_configs, parent, id_field_name, row_index=None):
     """Add a row to a table with proper ID and sorting handling."""
     logging.debug(f"Starting add_row for {table_key}")
     try:
@@ -51,15 +51,15 @@ def add_row(table, table_key, table_configs, parent, row_index=None):
         table.setSortingEnabled(False)
         table.blockSignals(True)
 
-        # Find the Time Frame ID column index
+        # Find the ID column index using the provided id_field_name
         id_column = None
         for i in range(table.columnCount()):
-            if table.horizontalHeaderItem(i).text() == "Time Frame ID":
+            if table.horizontalHeaderItem(i).text() == id_field_name:
                 id_column = i
                 break
 
         if id_column is None:
-            logging.error("Could not find Time Frame ID column")
+            logging.error(f"Could not find ID column: {id_field_name}")
             return
 
         # Calculate next available ID
@@ -86,7 +86,7 @@ def add_row(table, table_key, table_configs, parent, row_index=None):
         checkbox_widget = CheckBoxWidget()
         table.setCellWidget(row_index, 0, checkbox_widget)
 
-        # Add Time Frame ID
+        # Add ID
         id_item = QTableWidgetItem(str(next_id))
         id_item.setFlags(id_item.flags() & ~Qt.ItemIsEditable)  # Make ID read-only
         table.setItem(row_index, id_column, id_item)

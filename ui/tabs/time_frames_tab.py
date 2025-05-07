@@ -40,8 +40,7 @@ class TimeFramesTab(QWidget):
         btn_layout = QGridLayout()
         add_btn = QPushButton("Add Time Frame")
         remove_btn = QPushButton("Remove Time Frame")
-        add_btn.clicked.connect(lambda: add_row(self.time_frames_table, "time_frames", 
-                                              self.app_config.tables, self))
+        add_btn.clicked.connect(lambda: add_row(self.time_frames_table, "time_frames", self.app_config.tables, self, "Time Frame ID"))
         remove_btn.clicked.connect(lambda: remove_row(self.time_frames_table, "time_frames", 
                                                     self.app_config.tables, self))
         btn_layout.addWidget(add_btn, 0, 0)
