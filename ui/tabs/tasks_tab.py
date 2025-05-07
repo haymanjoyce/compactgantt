@@ -28,8 +28,15 @@ class TasksTab(QWidget):
         self.tasks_table = QTableWidget(0, len(self.table_config.columns))
         headers = [col.name for col in self.table_config.columns]
         self.tasks_table.setHorizontalHeaderLabels(headers)
+
+        # Set all columns to resize to contents
+        header = self.tasks_table.horizontalHeader()
+        for i in range(self.tasks_table.columnCount()):
+            header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
+
+        # Enable horizontal scroll bar
+        self.tasks_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.tasks_table.setSortingEnabled(True)
-        self.tasks_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         layout.addWidget(self.tasks_table)
 
         # Create buttons
