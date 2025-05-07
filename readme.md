@@ -56,6 +56,7 @@ See a hand-drawn sample of the desired output:
 - `repositories/project_repository.py`: Handles file I/O for projects.
 - `repositories/interfaces/repository.py`: Repository interface definition.
 - `validators/validators.py`: Data validation logic.
+- `utils/conversion.py`: Utility functions for safe type conversion (`safe_int`, `safe_float`).
 - `requirements.txt`: Python dependencies.
 - `README.md`: This documentation.
 
@@ -66,6 +67,7 @@ See a hand-drawn sample of the desired output:
 - `models/`: Data structures and serialization.
 - `repositories/`: File I/O and persistence logic.
 - `validators/`: Data validation logic.
+- `utils/`: Utility/helper functions used throughout the codebase.
 - `config/`: Application configuration.
 - `svg/`: Generated SVG output.
 - `docs/`: Documentation and images for README.
@@ -88,3 +90,13 @@ All future development should continue to honor this separation.
 - File I/O should be handled exclusively by repositories.
 
 This structure makes the codebase easier to maintain, extend, and test as the project evolves.
+
+## Utility Functions
+
+The `utils/` package contains helper functions for use throughout the codebase. For example:
+
+- **`utils/conversion.py`**:  
+  - `safe_int(val, default=0)`: Safely convert a value to `int`, returning `default` if conversion fails.
+  - `safe_float(val, default=0.0)`: Safely convert a value to `float`, returning `default` if conversion fails.
+
+These are used in the service layer and elsewhere to robustly handle user input and data conversion.
