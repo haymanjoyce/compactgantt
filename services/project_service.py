@@ -4,6 +4,7 @@ from typing import List, Set
 import logging
 from models.time_frame import TimeFrame
 from models.task import Task
+from utils.conversion import safe_int, safe_float
 
 class ProjectService:
     def __init__(self, repository=None):
@@ -49,18 +50,6 @@ class ProjectService:
                 if not errors:
                     project_data.time_frames = sorted(new_time_frames, key=lambda x: x.time_frame_id)
             elif key == "tasks":
-                def safe_int(val, default=0):
-                    try:
-                        return int(val)
-                    except (ValueError, TypeError):
-                        return default
-
-                def safe_float(val, default=0.0):
-                    try:
-                        return float(val)
-                    except (ValueError, TypeError):
-                        return default
-
                 new_tasks = []
                 used_ids: Set[int] = set()
                 for row_idx, row in enumerate(data, 1):
