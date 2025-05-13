@@ -92,6 +92,24 @@ class TimeFramesTab(QWidget):
 
     def _sync_data(self):
         time_frames_data = self._extract_table_data()
+        # --- Simple validation for total width ---
+        total_width = 0.0
+        width_col_index = None
+        for idx, col in enumerate(self.table_config.columns):
+            if col.name == "Width (%)":
+                width_col_index = idx - 1  # Subtract 1 because _extract_table_data skips the checkbox column
+                break
+        if width_col_index is not None:
+            for row in time_frames_data:
+                try:
+                    width_val = float(row[width_col_index])
+                    total_width += width_val
+                except (ValueError, IndexError):
+                    continue
+            if total_width > 100.0:
+                QMessageBox.warning(self, "Invalid Time Frames", f"Total width of all time frames exceeds 100% ({total_width:.2f}%). Please adjust the values.")
+                return  # Prevent further processing
+
         errors = self.project_data.project_service.update_from_table(self.project_data, "time_frames", time_frames_data)
         
         # Clear all highlights first
