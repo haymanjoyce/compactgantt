@@ -5,12 +5,14 @@ import logging
 from services.project_service import ProjectService
 from services.time_frame_service import TimeFrameService
 from services.task_service import TaskService
+from config.app_config import AppConfig
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class ProjectData:
     def __init__(self):
-        self.frame_config: FrameConfig = FrameConfig()
+        app_config = AppConfig()
+        self.frame_config = FrameConfig(num_rows=app_config.general.tasks_rows)
         self.time_frames: List[TimeFrame] = []
         self.tasks: List[Task] = []
         self.connectors: List[List[str]] = []

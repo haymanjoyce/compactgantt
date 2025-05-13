@@ -9,14 +9,14 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 @dataclass
 class GeneralConfig:
     # Window settings (for application window sizes)
-    data_entry_width: int = 800
+    data_entry_width: int = 400
     data_entry_height: int = 500
     svg_display_width: int = 800
-    svg_display_height: int = 400
+    svg_display_height: int = 600
 
     # SVG/image generation settings (for chart resolution)
-    outer_width: int = 600      # SVG/chart width in pixels
-    outer_height: int = 400     # SVG/chart height in pixels
+    outer_width: int = 800      # SVG/chart width in pixels
+    outer_height: int = 600     # SVG/chart height in pixels
 
     # SVG generation settings
     svg_output_folder: str = "svg"
@@ -34,7 +34,7 @@ class GeneralConfig:
     min_interval_width: int = 5
 
     # Default table row counts
-    tasks_rows: int = 5
+    tasks_rows: int = 10
     pipes_rows: int = 3
     curtains_rows: int = 3
 

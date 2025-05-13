@@ -85,7 +85,7 @@ class LayoutTab(QWidget):
         # Number of Rows
         rows_label = QLabel("Number of Rows:")
         rows_label.setFixedWidth(label_width)
-        self.num_rows = QLineEdit("5")
+        self.num_rows = QLineEdit(str(self.app_config.general.tasks_rows))
         self.num_rows.setToolTip("Number of rows in the chart")
 
         layout.addWidget(width_label, 0, 0)
