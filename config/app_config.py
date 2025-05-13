@@ -15,7 +15,7 @@ class GeneralConfig:
     svg_display_height: int = 400
 
     # SVG/image generation settings (for chart resolution)
-    outer_width: int = 800      # SVG/chart width in pixels
+    outer_width: int = 600      # SVG/chart width in pixels
     outer_height: int = 400     # SVG/chart height in pixels
 
     # SVG generation settings

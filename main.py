@@ -3,8 +3,8 @@ from PyQt5.QtWidgets import QApplication
 from ui.data_entry_window import DataEntryWindow
 from models.project import ProjectData
 from services.gantt_chart_service import GanttChartService
-from ui.svg_display import SVGDisplayWindow
 from config.app_config import AppConfig
+from ui.svg_display import FitToWindowSvgDisplay
 
 
 def main():
@@ -13,7 +13,7 @@ def main():
     project_data = ProjectData()
     data_entry = DataEntryWindow(project_data)  # Pass project_data
     gantt_chart_service = GanttChartService()
-    svg_display = SVGDisplayWindow(app_config)
+    svg_display = FitToWindowSvgDisplay(app_config)
 
     def handle_svg_path(svg_path):
         if svg_path:
