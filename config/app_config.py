@@ -23,10 +23,10 @@ class GeneralConfig:
     svg_output_filename: str = "gantt_chart.svg"
 
     # Scale proportions
-    scale_proportion_years: float = 0.2
-    scale_proportion_months: float = 0.2
-    scale_proportion_weeks: float = 0.2
-    scale_proportion_days: float = 0.2
+    scale_proportion_years: float = 0.05
+    scale_proportion_months: float = 0.05
+    scale_proportion_weeks: float = 0.05
+    scale_proportion_days: float = 0.05
 
     # Scale label thresholds
     full_label_width: int = 50
