@@ -24,10 +24,6 @@ class LayoutTab(QWidget):
         layout = QVBoxLayout()
         LABEL_WIDTH = 120  # Consistent label width
 
-        # Chart Settings Group
-        chart_group = self._create_chart_settings_group(LABEL_WIDTH)
-        layout.addWidget(chart_group)
-
         # Dimensions Group
         dim_group = self._create_dimensions_group(LABEL_WIDTH)
         layout.addWidget(dim_group)
@@ -45,24 +41,6 @@ class LayoutTab(QWidget):
         layout.addWidget(grid_group)
 
         self.setLayout(layout)
-
-    def _create_chart_settings_group(self, label_width: int) -> QGroupBox:
-        group = QGroupBox("Chart Settings")
-        layout = QGridLayout()
-        layout.setHorizontalSpacing(10)
-        layout.setVerticalSpacing(5)
-
-        chart_label = QLabel("Chart Start Date:")
-        chart_label.setFixedWidth(label_width)
-        self.chart_start_date = QDateEdit()
-        self.chart_start_date.setCalendarPopup(True)
-        self.chart_start_date.setDate(QDate.currentDate())
-
-        layout.addWidget(chart_label, 0, 0)
-        layout.addWidget(self.chart_start_date, 0, 1)
-        layout.setColumnStretch(1, 1)
-        group.setLayout(layout)
-        return group
 
     def _create_dimensions_group(self, label_width: int) -> QGroupBox:
         group = QGroupBox("Dimensions")
@@ -178,8 +156,6 @@ class LayoutTab(QWidget):
         return group
 
     def _connect_signals(self):
-        # Connect all input widgets to _sync_data
-        self.chart_start_date.dateChanged.connect(self._sync_data_if_not_initializing)
         self.outer_width.textChanged.connect(self._sync_data_if_not_initializing)
         self.outer_height.textChanged.connect(self._sync_data_if_not_initializing)
         self.num_rows.textChanged.connect(self._sync_data_if_not_initializing)
@@ -195,14 +171,6 @@ class LayoutTab(QWidget):
     def _load_initial_data(self):
         try:
             frame_config = self.project_data.frame_config
-
-            # Load Chart Start Date
-            start_date = frame_config.chart_start_date
-            try:
-                date = datetime.strptime(start_date, "%Y-%m-%d")
-                self.chart_start_date.setDate(QDate(date.year, date.month, date.day))
-            except ValueError:
-                self.chart_start_date.setDate(QDate.currentDate())
 
             # Load Dimensions
             self.outer_width.setText(str(frame_config.outer_width))
@@ -259,7 +227,6 @@ class LayoutTab(QWidget):
                     raise
 
             # Update frame config
-            self.project_data.frame_config.chart_start_date = self.chart_start_date.date().toString("yyyy-MM-dd")
             self.project_data.frame_config.outer_width = int(self.outer_width.text())
             self.project_data.frame_config.outer_height = int(self.outer_height.text())
             self.project_data.frame_config.margins = (

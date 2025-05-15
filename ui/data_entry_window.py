@@ -111,10 +111,24 @@ class DataEntryWindow(QMainWindow):
         if file_path:
             try:
                 loaded_project = self.repository.load(file_path, ProjectData)
-                self.project_data.__dict__.update(loaded_project.__dict__)
-                # Only reload data for implemented tabs
-                for tab in [self.time_frames_tab, self.layout_tab, self.tasks_tab]:
-                    tab._load_initial_data()
+                self.project_data = loaded_project  # Use the loaded instance
+
+                # Re-create tabs with the new project_data
+                self.layout_tab = LayoutTab(self.project_data, self.app_config)
+                self.time_frames_tab = TimeFramesTab(self.project_data, self.app_config)
+                self.tasks_tab = TasksTab(self.project_data, self.app_config)
+                # (Re-create other tabs as needed...)
+
+                self.tab_widget.clear()
+                self.tab_widget.addTab(self.layout_tab, "Layout")
+                self.tab_widget.addTab(self.time_frames_tab, "Time Frames")
+                self.tab_widget.addTab(self.tasks_tab, "Tasks")
+                self.tab_widget.addTab(self.connectors_tab, "Connectors")
+                self.tab_widget.addTab(self.swimlanes_tab, "Swimlanes")
+                self.tab_widget.addTab(self.pipes_tab, "Pipes")
+                self.tab_widget.addTab(self.curtains_tab, "Curtains")
+                self.tab_widget.addTab(self.text_boxes_tab, "Text Boxes")
+
                 self.data_updated.emit(self.project_data.to_json())
                 QMessageBox.information(self, "Success", "Project loaded successfully!")
                 self.status_bar.showMessage("Project loaded successfully")

@@ -1,6 +1,6 @@
 # File: ui/tabs/time_frames_tab.py
 from PyQt5.QtWidgets import (QWidget, QTableWidget, QVBoxLayout, QPushButton, 
-                           QGridLayout, QMessageBox, QHeaderView, QTableWidgetItem)
+                           QGridLayout, QMessageBox, QHeaderView, QTableWidgetItem, QLabel, QDateEdit)
 from PyQt5.QtCore import Qt, pyqtSignal, QDate
 from PyQt5.QtGui import QBrush, QIntValidator
 from datetime import datetime
@@ -19,6 +19,7 @@ class TimeFramesTab(QWidget):
         self.project_data = project_data
         self.app_config = app_config
         self.table_config = app_config.get_table_config("time_frames")
+        self._initializing = True
         self.setup_ui()
         self._load_initial_data()
         self.time_frames_table.itemChanged.connect(self._sync_data_if_not_initializing)
@@ -28,9 +29,20 @@ class TimeFramesTab(QWidget):
     def setup_ui(self):
         layout = QVBoxLayout()
         
+        # --- Add Chart Start Date field above the table ---
+        chart_start_layout = QGridLayout()
+        chart_start_label = QLabel("Chart Start Date:")
+        self.chart_start_date = QDateEdit()
+        self.chart_start_date.setCalendarPopup(True)
+        self.chart_start_date.setDate(QDate.currentDate())
+        chart_start_layout.addWidget(chart_start_label, 0, 0)
+        chart_start_layout.addWidget(self.chart_start_date, 0, 1)
+        layout.addLayout(chart_start_layout)
+        self.chart_start_date.dateChanged.connect(self._sync_data_if_not_initializing)
+
         # Create table
-        self.time_frames_table = QTableWidget(0, len(self.table_config.columns))  # Remove +1 since checkbox column is already in config
-        headers = [col.name for col in self.table_config.columns]  # Use column names directly from config
+        self.time_frames_table = QTableWidget(0, len(self.table_config.columns))
+        headers = [col.name for col in self.table_config.columns]
         self.time_frames_table.setHorizontalHeaderLabels(headers)
         self.time_frames_table.setSortingEnabled(True)
         self.time_frames_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -52,7 +64,17 @@ class TimeFramesTab(QWidget):
     def _load_initial_data(self):
         logging.debug("Starting _load_initial_data")
         try:
+            # --- Load Chart Start Date ---
+            frame_config = self.project_data.frame_config
+            start_date = frame_config.chart_start_date
+            try:
+                date = datetime.strptime(start_date, "%Y-%m-%d")
+                self.chart_start_date.setDate(QDate(date.year, date.month, date.day))
+            except Exception:
+                self.chart_start_date.setDate(QDate.currentDate())
+
             table_data = self.project_data.project_service.get_table_data(self.project_data, "time_frames")
+            print("DEBUG: table_data =", table_data)
             self._initializing = True
             self.time_frames_table.clearContents()
             was_sorting = self.time_frames_table.isSortingEnabled()
@@ -106,6 +128,9 @@ class TimeFramesTab(QWidget):
             QMessageBox.critical(self, "Error", f"Failed to load initial data: {e}")
 
     def _sync_data(self):
+        # --- Save Chart Start Date ---
+        self.project_data.frame_config.chart_start_date = self.chart_start_date.date().toString("yyyy-MM-dd")
+
         time_frames_data = self._extract_table_data()
         # --- Simple validation for total width ---
         total_width = 0.0
@@ -159,7 +184,7 @@ class TimeFramesTab(QWidget):
 
     def _sync_data_if_not_initializing(self):
         if not self._initializing:
-            logging.debug("Calling _sync_data from itemChanged")
+            logging.debug("Calling _sync_data from itemChanged or dateChanged")
             self._sync_data()
 
     def _extract_table_data(self) -> List[List[str]]:

@@ -92,6 +92,7 @@ class ProjectService:
                     str(t.label_horizontal_offset), str(t.label_vertical_offset), t.label_text_colour]
                    for t in project_data.tasks]
         elif key == "time_frames":
+            print("DEBUG: project_data.time_frames =", project_data.time_frames)
             return [[str(tf.time_frame_id), tf.finish_date, str(tf.width_proportion * 100)]
                    for tf in sorted(project_data.time_frames, key=lambda x: x.time_frame_id)]
         return getattr(project_data, key, [])
