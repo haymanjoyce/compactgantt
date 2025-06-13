@@ -36,10 +36,6 @@ class LayoutTab(QWidget):
         header_footer_group = self._create_header_footer_group(LABEL_WIDTH)
         layout.addWidget(header_footer_group)
 
-        # Grid Settings Group
-        grid_group = self._create_grid_settings_group()
-        layout.addWidget(grid_group)
-
         self.setLayout(layout)
 
     def _create_dimensions_group(self, label_width: int) -> QGroupBox:
@@ -139,22 +135,6 @@ class LayoutTab(QWidget):
         group.setLayout(layout)
         return group
 
-    def _create_grid_settings_group(self) -> QGroupBox:
-        group = QGroupBox("Grid Settings")
-        layout = QGridLayout()
-        layout.setHorizontalSpacing(10)
-        layout.setVerticalSpacing(5)
-
-        self.horizontal_gridlines = QCheckBox("Show Horizontal Gridlines")
-        self.vertical_gridlines = QCheckBox("Show Vertical Gridlines")
-        self.horizontal_gridlines.setToolTip("Display horizontal gridlines in the chart")
-        self.vertical_gridlines.setToolTip("Display vertical gridlines in the chart")
-
-        layout.addWidget(self.horizontal_gridlines, 0, 0)
-        layout.addWidget(self.vertical_gridlines, 1, 0)
-        group.setLayout(layout)
-        return group
-
     def _connect_signals(self):
         self.outer_width.textChanged.connect(self._sync_data_if_not_initializing)
         self.outer_height.textChanged.connect(self._sync_data_if_not_initializing)
@@ -165,8 +145,6 @@ class LayoutTab(QWidget):
         self.footer_height.textChanged.connect(self._sync_data_if_not_initializing)
         self.header_text.textChanged.connect(self._sync_data_if_not_initializing)
         self.footer_text.textChanged.connect(self._sync_data_if_not_initializing)
-        self.horizontal_gridlines.stateChanged.connect(self._sync_data_if_not_initializing)
-        self.vertical_gridlines.stateChanged.connect(self._sync_data_if_not_initializing)
 
     def _load_initial_data(self):
         try:
@@ -189,10 +167,6 @@ class LayoutTab(QWidget):
             self.footer_height.setText(str(frame_config.footer_height))
             self.header_text.setText(frame_config.header_text)
             self.footer_text.setText(frame_config.footer_text)
-
-            # Load Gridlines
-            self.horizontal_gridlines.setChecked(frame_config.horizontal_gridlines)
-            self.vertical_gridlines.setChecked(frame_config.vertical_gridlines)
 
         except Exception as e:
             logging.error(f"Error in _load_initial_data: {e}", exc_info=True)
@@ -240,8 +214,6 @@ class LayoutTab(QWidget):
             self.project_data.frame_config.header_text = self.header_text.text()
             self.project_data.frame_config.footer_text = self.footer_text.text()
             self.project_data.frame_config.num_rows = int(self.num_rows.text())
-            self.project_data.frame_config.horizontal_gridlines = self.horizontal_gridlines.isChecked()
-            self.project_data.frame_config.vertical_gridlines = self.vertical_gridlines.isChecked()
 
         except ValueError as e:
             QMessageBox.critical(self, "Error", str(e))
