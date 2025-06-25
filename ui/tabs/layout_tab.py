@@ -32,9 +32,9 @@ class LayoutTab(QWidget):
         margins_group = self._create_margins_group(LABEL_WIDTH)
         layout.addWidget(margins_group)
 
-        # Header/Footer Group
-        header_footer_group = self._create_header_footer_group(LABEL_WIDTH)
-        layout.addWidget(header_footer_group)
+        # Footer Group
+        footer_group = self._create_footer_group(LABEL_WIDTH)
+        layout.addWidget(footer_group)
 
         self.setLayout(layout)
 
@@ -95,22 +95,11 @@ class LayoutTab(QWidget):
         group.setLayout(layout)
         return group
 
-    def _create_header_footer_group(self, label_width: int) -> QGroupBox:
-        group = QGroupBox("Header/Footer")
+    def _create_footer_group(self, label_width: int) -> QGroupBox:
+        group = QGroupBox("Footer")
         layout = QGridLayout()
         layout.setHorizontalSpacing(10)
         layout.setVerticalSpacing(5)
-
-        # Header settings
-        header_height_label = QLabel("Header Height:")
-        header_height_label.setFixedWidth(label_width)
-        self.header_height = QLineEdit("50")
-        self.header_height.setToolTip("Height of the header section in pixels")
-
-        header_text_label = QLabel("Header Text:")
-        header_text_label.setFixedWidth(label_width)
-        self.header_text = QLineEdit()
-        self.header_text.setToolTip("Text to display in the header")
 
         # Footer settings
         footer_height_label = QLabel("Footer Height:")
@@ -123,14 +112,10 @@ class LayoutTab(QWidget):
         self.footer_text = QLineEdit()
         self.footer_text.setToolTip("Text to display in the footer")
 
-        layout.addWidget(header_height_label, 0, 0)
-        layout.addWidget(self.header_height, 0, 1)
-        layout.addWidget(header_text_label, 1, 0)
-        layout.addWidget(self.header_text, 1, 1)
-        layout.addWidget(footer_height_label, 2, 0)
-        layout.addWidget(self.footer_height, 2, 1)
-        layout.addWidget(footer_text_label, 3, 0)
-        layout.addWidget(self.footer_text, 3, 1)
+        layout.addWidget(footer_height_label, 0, 0)
+        layout.addWidget(self.footer_height, 0, 1)
+        layout.addWidget(footer_text_label, 1, 0)
+        layout.addWidget(self.footer_text, 1, 1)
         layout.setColumnStretch(1, 1)
         group.setLayout(layout)
         return group
@@ -141,9 +126,7 @@ class LayoutTab(QWidget):
         self.num_rows.textChanged.connect(self._sync_data_if_not_initializing)
         for margin in self.margin_inputs:
             margin.textChanged.connect(self._sync_data_if_not_initializing)
-        self.header_height.textChanged.connect(self._sync_data_if_not_initializing)
         self.footer_height.textChanged.connect(self._sync_data_if_not_initializing)
-        self.header_text.textChanged.connect(self._sync_data_if_not_initializing)
         self.footer_text.textChanged.connect(self._sync_data_if_not_initializing)
 
     def _load_initial_data(self):
@@ -162,10 +145,8 @@ class LayoutTab(QWidget):
             self.margin_left.setText(str(margins[2]))
             self.margin_right.setText(str(margins[3]))
 
-            # Load Header and Footer
-            self.header_height.setText(str(frame_config.header_height))
+            # Load Footer
             self.footer_height.setText(str(frame_config.footer_height))
-            self.header_text.setText(frame_config.header_text)
             self.footer_text.setText(frame_config.footer_text)
 
         except Exception as e:
@@ -182,7 +163,6 @@ class LayoutTab(QWidget):
             numeric_fields = {
                 "outer_width": self.outer_width.text(),
                 "outer_height": self.outer_height.text(),
-                "header_height": self.header_height.text(),
                 "footer_height": self.footer_height.text(),
                 "num_rows": self.num_rows.text(),
                 "margin_top": self.margin_top.text(),
@@ -209,9 +189,7 @@ class LayoutTab(QWidget):
                 int(self.margin_left.text()),
                 int(self.margin_right.text())
             )
-            self.project_data.frame_config.header_height = int(self.header_height.text())
             self.project_data.frame_config.footer_height = int(self.footer_height.text())
-            self.project_data.frame_config.header_text = self.header_text.text()
             self.project_data.frame_config.footer_text = self.footer_text.text()
             self.project_data.frame_config.num_rows = int(self.num_rows.text())
 
