@@ -1,7 +1,6 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QGridLayout, QGroupBox, QLineEdit, 
-                           QCheckBox, QDateEdit, QLabel, QMessageBox)
-from PyQt5.QtCore import pyqtSignal, QDate, Qt
-from datetime import datetime
+                           QLabel, QMessageBox)
+from PyQt5.QtCore import pyqtSignal, Qt
 from typing import Dict, Any, Tuple
 import logging
 
@@ -31,10 +30,6 @@ class LayoutTab(QWidget):
         # Margins Group
         margins_group = self._create_margins_group(LABEL_WIDTH)
         layout.addWidget(margins_group)
-
-        # Footer Group
-        footer_group = self._create_footer_group(LABEL_WIDTH)
-        layout.addWidget(footer_group)
 
         self.setLayout(layout)
 
@@ -95,39 +90,12 @@ class LayoutTab(QWidget):
         group.setLayout(layout)
         return group
 
-    def _create_footer_group(self, label_width: int) -> QGroupBox:
-        group = QGroupBox("Footer")
-        layout = QGridLayout()
-        layout.setHorizontalSpacing(10)
-        layout.setVerticalSpacing(5)
-
-        # Footer settings
-        footer_height_label = QLabel("Footer Height:")
-        footer_height_label.setFixedWidth(label_width)
-        self.footer_height = QLineEdit("50")
-        self.footer_height.setToolTip("Height of the footer section in pixels")
-
-        footer_text_label = QLabel("Footer Text:")
-        footer_text_label.setFixedWidth(label_width)
-        self.footer_text = QLineEdit()
-        self.footer_text.setToolTip("Text to display in the footer")
-
-        layout.addWidget(footer_height_label, 0, 0)
-        layout.addWidget(self.footer_height, 0, 1)
-        layout.addWidget(footer_text_label, 1, 0)
-        layout.addWidget(self.footer_text, 1, 1)
-        layout.setColumnStretch(1, 1)
-        group.setLayout(layout)
-        return group
-
     def _connect_signals(self):
         self.outer_width.textChanged.connect(self._sync_data_if_not_initializing)
         self.outer_height.textChanged.connect(self._sync_data_if_not_initializing)
         self.num_rows.textChanged.connect(self._sync_data_if_not_initializing)
         for margin in self.margin_inputs:
             margin.textChanged.connect(self._sync_data_if_not_initializing)
-        self.footer_height.textChanged.connect(self._sync_data_if_not_initializing)
-        self.footer_text.textChanged.connect(self._sync_data_if_not_initializing)
 
     def _load_initial_data(self):
         try:
@@ -145,10 +113,6 @@ class LayoutTab(QWidget):
             self.margin_left.setText(str(margins[2]))
             self.margin_right.setText(str(margins[3]))
 
-            # Load Footer
-            self.footer_height.setText(str(frame_config.footer_height))
-            self.footer_text.setText(frame_config.footer_text)
-
         except Exception as e:
             logging.error(f"Error in _load_initial_data: {e}", exc_info=True)
             QMessageBox.critical(self, "Error", f"Failed to load initial data: {e}")
@@ -163,7 +127,6 @@ class LayoutTab(QWidget):
             numeric_fields = {
                 "outer_width": self.outer_width.text(),
                 "outer_height": self.outer_height.text(),
-                "footer_height": self.footer_height.text(),
                 "num_rows": self.num_rows.text(),
                 "margin_top": self.margin_top.text(),
                 "margin_bottom": self.margin_bottom.text(),
@@ -189,8 +152,6 @@ class LayoutTab(QWidget):
                 int(self.margin_left.text()),
                 int(self.margin_right.text())
             )
-            self.project_data.frame_config.footer_height = int(self.footer_height.text())
-            self.project_data.frame_config.footer_text = self.footer_text.text()
             self.project_data.frame_config.num_rows = int(self.num_rows.text())
 
         except ValueError as e:
