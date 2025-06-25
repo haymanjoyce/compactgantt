@@ -14,6 +14,12 @@ class GeneralConfig:
     svg_display_width: int = 800
     svg_display_height: int = 600
 
+    # Window positioning settings
+    data_entry_screen: int = 0  # Which screen to display on (0 = primary screen)
+    data_entry_position: str = "center"  # Options: "center", "top_left", "top_right", "bottom_left", "bottom_right", "custom"
+    data_entry_x: int = 100  # Custom X position (used when position is "custom")
+    data_entry_y: int = 100  # Custom Y position (used when position is "custom")
+
     # SVG/image generation settings (for chart resolution)
     outer_width: int = 600      # Main SVG/chart width in pixels (user-facing)
     outer_height: int = 400     # Main SVG/chart height in pixels (user-facing)
@@ -51,10 +57,16 @@ class GeneralConfig:
         for field_name in ["data_entry_width", "data_entry_height", "svg_display_width",
                           "svg_display_height", "outer_width", "outer_height",
                           "full_label_width", "short_label_width", "min_interval_width",
-                          "tasks_rows", "pipes_rows", "curtains_rows"]:
+                          "tasks_rows", "pipes_rows", "curtains_rows", "data_entry_screen",
+                          "data_entry_x", "data_entry_y"]:
             value = getattr(self, field_name)
-            if not isinstance(value, int) or value <= 0:
-                raise ValueError(f"{field_name} must be a positive integer")
+            if not isinstance(value, int) or value < 0:
+                raise ValueError(f"{field_name} must be a non-negative integer")
+
+        # Validate position string
+        valid_positions = ["center", "top_left", "top_right", "bottom_left", "bottom_right", "custom"]
+        if self.data_entry_position not in valid_positions:
+            raise ValueError(f"data_entry_position must be one of: {valid_positions}")
 
         # Validate floats
         for field_name in ["scale_proportion_years", "scale_proportion_months",

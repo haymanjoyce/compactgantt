@@ -1,5 +1,10 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QGridLayout, QGroupBox, QLineEdit, 
+                           QLabel, QMessageBox, QComboBox, QSpinBox)
 from PyQt5.QtCore import pyqtSignal, Qt
+from typing import Dict, Any
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class UserPreferencesTab(QWidget):
     data_updated = pyqtSignal(dict)
@@ -8,14 +13,109 @@ class UserPreferencesTab(QWidget):
         super().__init__()
         self.project_data = project_data
         self.app_config = app_config
+        self._initializing = True
         self.setup_ui()
+        self._load_initial_data()
+        self._connect_signals()
+        self._initializing = False
 
     def setup_ui(self):
         layout = QVBoxLayout()
-        label = QLabel("User Preferences functionality will be implemented in a future version.")
-        label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(label)
+        LABEL_WIDTH = 150  # Consistent label width
+
+        # Window Positioning Group
+        window_group = self._create_window_positioning_group(LABEL_WIDTH)
+        layout.addWidget(window_group)
+
         self.setLayout(layout)
 
+    def _create_window_positioning_group(self, label_width: int) -> QGroupBox:
+        group = QGroupBox("Data Entry Window Positioning")
+        layout = QGridLayout()
+        layout.setHorizontalSpacing(10)
+        layout.setVerticalSpacing(5)
+
+        # Screen selection
+        screen_label = QLabel("Screen:")
+        screen_label.setFixedWidth(label_width)
+        self.screen_spinbox = QSpinBox()
+        self.screen_spinbox.setMinimum(0)
+        self.screen_spinbox.setMaximum(10)  # Reasonable max for number of screens
+        self.screen_spinbox.setToolTip("Screen number (0 = primary screen)")
+
+        # Position selection
+        position_label = QLabel("Position:")
+        position_label.setFixedWidth(label_width)
+        self.position_combo = QComboBox()
+        self.position_combo.addItems(["center", "top_left", "top_right", "bottom_left", "bottom_right", "custom"])
+        self.position_combo.setToolTip("Window position on the selected screen")
+
+        # Custom X position
+        x_label = QLabel("Custom X Position:")
+        x_label.setFixedWidth(label_width)
+        self.custom_x = QSpinBox()
+        self.custom_x.setMinimum(0)
+        self.custom_x.setMaximum(9999)
+        self.custom_x.setToolTip("Custom X coordinate (used when position is 'custom')")
+
+        # Custom Y position
+        y_label = QLabel("Custom Y Position:")
+        y_label.setFixedWidth(label_width)
+        self.custom_y = QSpinBox()
+        self.custom_y.setMinimum(0)
+        self.custom_y.setMaximum(9999)
+        self.custom_y.setToolTip("Custom Y coordinate (used when position is 'custom')")
+
+        layout.addWidget(screen_label, 0, 0)
+        layout.addWidget(self.screen_spinbox, 0, 1)
+        layout.addWidget(position_label, 1, 0)
+        layout.addWidget(self.position_combo, 1, 1)
+        layout.addWidget(x_label, 2, 0)
+        layout.addWidget(self.custom_x, 2, 1)
+        layout.addWidget(y_label, 3, 0)
+        layout.addWidget(self.custom_y, 3, 1)
+        layout.setColumnStretch(1, 1)
+        group.setLayout(layout)
+        return group
+
+    def _connect_signals(self):
+        self.screen_spinbox.valueChanged.connect(self._sync_data_if_not_initializing)
+        self.position_combo.currentTextChanged.connect(self._sync_data_if_not_initializing)
+        self.custom_x.valueChanged.connect(self._sync_data_if_not_initializing)
+        self.custom_y.valueChanged.connect(self._sync_data_if_not_initializing)
+
     def _load_initial_data(self):
-        pass
+        try:
+            # Load window positioning settings
+            self.screen_spinbox.setValue(self.app_config.general.data_entry_screen)
+            self.position_combo.setCurrentText(self.app_config.general.data_entry_position)
+            self.custom_x.setValue(self.app_config.general.data_entry_x)
+            self.custom_y.setValue(self.app_config.general.data_entry_y)
+
+        except Exception as e:
+            logging.error(f"Error in _load_initial_data: {e}", exc_info=True)
+            QMessageBox.critical(self, "Error", f"Failed to load initial data: {e}")
+
+    def _sync_data_if_not_initializing(self):
+        if not self._initializing:
+            self._sync_data()
+
+    def _sync_data(self):
+        try:
+            # Update app config
+            self.app_config.general.data_entry_screen = self.screen_spinbox.value()
+            self.app_config.general.data_entry_position = self.position_combo.currentText()
+            self.app_config.general.data_entry_x = self.custom_x.value()
+            self.app_config.general.data_entry_y = self.custom_y.value()
+
+            # Emit data updated signal
+            self.data_updated.emit({
+                'data_entry_screen': self.app_config.general.data_entry_screen,
+                'data_entry_position': self.app_config.general.data_entry_position,
+                'data_entry_x': self.app_config.general.data_entry_x,
+                'data_entry_y': self.app_config.general.data_entry_y
+            })
+
+        except Exception as e:
+            logging.error(f"Error in _sync_data: {e}", exc_info=True)
+            QMessageBox.critical(self, "Error", f"Failed to save data: {e}")

@@ -8,7 +8,7 @@ from .tabs.time_frames_tab import TimeFramesTab
 from .tabs.placeholder_tab import PlaceholderTab
 from repositories.project_repository import JsonProjectRepository
 from models.project import ProjectData  # Import here to avoid circular import
-from ui.window_utils import move_window_to_screen_center
+from ui.window_utils import move_window_according_to_preferences
 from .tabs.user_preferences_tab import UserPreferencesTab
 from .tabs.header_tab import HeaderTab
 from .tabs.footer_tab import FooterTab
@@ -28,9 +28,9 @@ class DataEntryWindow(QMainWindow):
         self.app_config = AppConfig()  # Initialize centralized config
         self.repository = JsonProjectRepository()  # Add this line
         self.resize(self.app_config.general.data_entry_width, self.app_config.general.data_entry_height)
-        move_window_to_screen_center(
+        move_window_according_to_preferences(
             self,
-            screen_number=0,
+            self.app_config,
             width=self.app_config.general.data_entry_width,
             height=self.app_config.general.data_entry_height
         )
@@ -83,6 +83,7 @@ class DataEntryWindow(QMainWindow):
 
     def _create_all_tabs(self):
         self.user_preferences_tab = UserPreferencesTab(self.project_data, self.app_config)
+        self.user_preferences_tab.data_updated.connect(self._on_user_preferences_updated)
         self.layout_tab = LayoutTab(self.project_data, self.app_config)
         self.header_tab = HeaderTab(self.project_data, self.app_config)
         self.footer_tab = FooterTab(self.project_data, self.app_config)
@@ -144,3 +145,14 @@ class DataEntryWindow(QMainWindow):
     def _emit_data_updated(self):
         """Only called when Update Image button is clicked"""
         self.data_updated.emit(self.project_data.to_json())
+
+    def _on_user_preferences_updated(self, data):
+        """Handle updates from user preferences tab"""
+        # Reposition window if positioning preferences changed
+        if any(key in data for key in ['data_entry_screen', 'data_entry_position', 'data_entry_x', 'data_entry_y']):
+            move_window_according_to_preferences(
+                self,
+                self.app_config,
+                width=self.app_config.general.data_entry_width,
+                height=self.app_config.general.data_entry_height
+            )
