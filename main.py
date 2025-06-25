@@ -11,9 +11,9 @@ def main():
     app = QApplication(sys.argv)
     app_config = AppConfig()  # Single instance
     project_data = ProjectData()
-    data_entry = DataEntryWindow(project_data)  # Pass project_data
     gantt_chart_service = GanttChartService()
     svg_display = FitToWindowSvgDisplay(app_config)
+    data_entry = DataEntryWindow(project_data, svg_display)  # Pass project_data and svg_display
 
     def handle_svg_path(svg_path):
         if svg_path:

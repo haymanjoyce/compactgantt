@@ -19,7 +19,7 @@ from .tabs.swimlanes_tab import SwimlanesTab
 class DataEntryWindow(QMainWindow):
     data_updated = pyqtSignal(dict)
 
-    def __init__(self, project_data):
+    def __init__(self, project_data, svg_display=None):
         super().__init__()
         self.setWindowTitle("Compact Gantt")
         self.setWindowIcon(QIcon("assets/logo.png"))  # Add window icon
@@ -27,6 +27,7 @@ class DataEntryWindow(QMainWindow):
         self.project_data = project_data  # Use passed project_data instance
         self.app_config = AppConfig()  # Initialize centralized config
         self.repository = JsonProjectRepository()  # Add this line
+        self.svg_display = svg_display  # Reference to SVG display window
         self.resize(self.app_config.general.data_entry_width, self.app_config.general.data_entry_height)
         move_window_according_to_preferences(
             self,
@@ -148,7 +149,7 @@ class DataEntryWindow(QMainWindow):
 
     def _on_user_preferences_updated(self, data):
         """Handle updates from user preferences tab"""
-        # Reposition window if positioning preferences changed
+        # Reposition data entry window if positioning preferences changed
         if any(key in data for key in ['data_entry_screen', 'data_entry_position', 'data_entry_x', 'data_entry_y']):
             move_window_according_to_preferences(
                 self,
@@ -156,3 +157,14 @@ class DataEntryWindow(QMainWindow):
                 width=self.app_config.general.data_entry_width,
                 height=self.app_config.general.data_entry_height
             )
+        
+        # Reposition SVG display window if positioning preferences changed
+        if any(key in data for key in ['svg_display_screen', 'svg_display_position', 'svg_display_x', 'svg_display_y']):
+            if self.svg_display:
+                move_window_according_to_preferences(
+                    self.svg_display,
+                    self.app_config,
+                    width=self.app_config.general.svg_display_width,
+                    height=self.app_config.general.svg_display_height,
+                    window_type="svg_display"
+                )

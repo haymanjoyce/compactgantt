@@ -53,7 +53,7 @@ def move_window_to_screen_right_of(window, reference_window, screen_number=0, wi
             window.resize(width, height)
         window.move(100, 100)
 
-def move_window_according_to_preferences(window, app_config, width=None, height=None):
+def move_window_according_to_preferences(window, app_config, width=None, height=None, window_type="data_entry"):
     """
     Position window according to user preferences stored in app_config.
     
@@ -62,11 +62,27 @@ def move_window_according_to_preferences(window, app_config, width=None, height=
         app_config: AppConfig instance containing positioning preferences
         width: Optional width to resize window to
         height: Optional height to resize window to
+        window_type: Type of window ("data_entry" or "svg_display")
     """
     app = QApplication.instance()
     screens = app.screens()
-    screen_number = app_config.general.data_entry_screen
-    position = app_config.general.data_entry_position
+    
+    if window_type == "data_entry":
+        screen_number = app_config.general.data_entry_screen
+        position = app_config.general.data_entry_position
+        custom_x = app_config.general.data_entry_x
+        custom_y = app_config.general.data_entry_y
+    elif window_type == "svg_display":
+        screen_number = app_config.general.svg_display_screen
+        position = app_config.general.svg_display_position
+        custom_x = app_config.general.svg_display_x
+        custom_y = app_config.general.svg_display_y
+    else:
+        # Fallback to data entry settings
+        screen_number = app_config.general.data_entry_screen
+        position = app_config.general.data_entry_position
+        custom_x = app_config.general.data_entry_x
+        custom_y = app_config.general.data_entry_y
     
     # Ensure screen number is valid
     if screen_number >= len(screens):
@@ -104,8 +120,8 @@ def move_window_according_to_preferences(window, app_config, width=None, height=
     
     elif position == "custom":
         # Use custom coordinates, but ensure window stays within screen bounds
-        x = app_config.general.data_entry_x
-        y = app_config.general.data_entry_y
+        x = custom_x
+        y = custom_y
         
         # Clamp to screen bounds
         max_x = geometry.right() - (width or window.width())

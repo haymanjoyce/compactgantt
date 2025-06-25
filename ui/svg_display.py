@@ -6,7 +6,7 @@ from PyQt5.QtGui import QIcon, QPixmap, QPainter, QPalette
 from PyQt5.QtCore import Qt, QSize
 import os
 from config.app_config import AppConfig
-from ui.window_utils import move_window_to_screen_center, move_window_to_screen_right_of
+from ui.window_utils import move_window_according_to_preferences
 
 # --- Custom Centered Scroll Area ---
 class CenteredScrollArea(QScrollArea):
@@ -105,17 +105,14 @@ class FitToWindowSvgDisplay(QDialog):
         if initial_path and os.path.exists(initial_path):
             self.load_svg(initial_path)
 
-        # Try to open on screen 2 (index 1)
-        app = QApplication.instance()
-        screens = app.screens()
-        if len(screens) > 1:
-            move_window_to_screen_center(self, screen_number=2, width=width, height=height)
-        else:
-            # Open to the right of DataEntryWindow on screen 1
-            if reference_window is not None:
-                move_window_to_screen_right_of(self, reference_window, screen_number=0, width=width, height=height)
-            else:
-                move_window_to_screen_center(self, screen_number=2, width=width, height=height)
+        # Position window according to user preferences
+        move_window_according_to_preferences(
+            self,
+            app_config,
+            width=width,
+            height=height,
+            window_type="svg_display"
+        )
 
     def load_svg(self, svg_path):
         absolute_path = os.path.abspath(svg_path)
