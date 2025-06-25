@@ -23,13 +23,13 @@ class LayoutTab(QWidget):
         layout = QVBoxLayout()
         LABEL_WIDTH = 120  # Consistent label width
 
-        # Dimensions Group
-        dim_group = self._create_dimensions_group(LABEL_WIDTH)
-        layout.addWidget(dim_group)
-
         # Margins Group
         margins_group = self._create_margins_group(LABEL_WIDTH)
         layout.addWidget(margins_group)
+
+        # Dimensions Group
+        dim_group = self._create_dimensions_group(LABEL_WIDTH)
+        layout.addWidget(dim_group)
 
         self.setLayout(layout)
 
