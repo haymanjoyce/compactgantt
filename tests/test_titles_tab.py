@@ -5,6 +5,10 @@ This verifies that the combined header/footer tab works correctly.
 """
 
 import sys
+import os
+from pathlib import Path
+# Add the parent directory to the Python path so we can import project modules
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from PyQt5.QtWidgets import QApplication
 from models.project import ProjectData
 from config.app_config import AppConfig

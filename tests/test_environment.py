@@ -9,6 +9,10 @@ import os
 import traceback
 from pathlib import Path
 
+# Add the parent directory to the Python path so we can import project modules
+# This allows the test to run from the tests/ directory
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 def test_python_version():
     """Test that Python version is 3.8+."""
     print("Testing Python version...")
