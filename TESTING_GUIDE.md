@@ -47,9 +47,9 @@ python test_window_positioning.py
 
 ### Tab Navigation
 - [ ] All tabs are accessible and clickable
-- [ ] Tab order is correct: User Preferences → Layout → Titles → Scales → Grid → Time Frames → Tasks → Connectors → Swimlanes → Pipes → Curtains → Text Boxes
+- [ ] Tab order is correct: Windows → Layout → Titles → Scales → Grid → Time Frames → Tasks → Connectors → Swimlanes → Pipes → Curtains → Text Boxes
 
-### User Preferences Tab
+### Windows Tab
 - [ ] **Data Entry Window Settings**
   - [ ] Screen selection works
   - [ ] Position dropdown works (center, top_left, top_right, bottom_left, bottom_right, custom)

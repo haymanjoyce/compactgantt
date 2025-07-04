@@ -97,7 +97,7 @@ class DataEntryWindow(QMainWindow):
         self.text_boxes_tab = PlaceholderTab(self.project_data, self.app_config, "Text Boxes")
 
     def _add_all_tabs(self):
-        self.tab_widget.addTab(self.user_preferences_tab, "User Preferences")
+        self.tab_widget.addTab(self.user_preferences_tab, "Windows")
         self.tab_widget.addTab(self.layout_tab, "Layout")
         self.tab_widget.addTab(self.titles_tab, "Titles")
         self.tab_widget.addTab(self.scales_tab, "Scales")
