@@ -89,6 +89,7 @@ class UserPreferencesTab(BaseTab):
         layout.addWidget(y_label, 4, 0)
         layout.addWidget(custom_y, 4, 1)
         layout.setColumnStretch(1, 1)
+        layout.setRowStretch(5, 1)  # Add row stretch after the last field
         group.setLayout(layout)
         return group
 
