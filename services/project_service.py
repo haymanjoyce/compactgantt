@@ -4,7 +4,7 @@ from typing import List, Set
 import logging
 from models.time_frame import TimeFrame
 from models.task import Task
-from utils.conversion import safe_int, safe_float
+from utils.conversion import safe_int, safe_float, display_to_internal_date, internal_to_display_date
 
 class ProjectService:
     def __init__(self, repository=None):
@@ -32,11 +32,13 @@ class ProjectService:
                 for row_idx, row in enumerate(data, 1):
                     try:
                         time_frame_id = int(row[0])
-                        finish_date = row[1]
+                        finish_date_display = row[1]
+                        # Convert display format to internal format
+                        finish_date_internal = display_to_internal_date(finish_date_display)
                         width_proportion = float(row[2]) / 100
                         tf = TimeFrame(
                             time_frame_id=time_frame_id,
-                            finish_date=finish_date,
+                            finish_date=finish_date_internal,  # Store in internal format
                             width_proportion=width_proportion
                         )
                         row_errors = self.validator.validate_time_frame(tf, used_ids)
@@ -54,12 +56,15 @@ class ProjectService:
                 used_ids: Set[int] = set()
                 for row_idx, row in enumerate(data, 1):
                     try:
+                        # Convert display format to internal format for dates
+                        start_date_internal = display_to_internal_date(row[3])
+                        finish_date_internal = display_to_internal_date(row[4])
                         task = Task(
                             task_id=safe_int(row[0]),
                             task_order=safe_float(row[1]),
                             task_name=row[2],
-                            start_date=row[3],
-                            finish_date=row[4],
+                            start_date=start_date_internal,  # Store in internal format
+                            finish_date=finish_date_internal,  # Store in internal format
                             row_number=safe_int(row[5], 1),
                             label_placement=row[6],
                             label_hide=row[7],
@@ -87,13 +92,17 @@ class ProjectService:
 
     def get_table_data(self, project_data, key: str) -> List[List[str]]:
         if key == "tasks":
-            return [[str(t.task_id), str(t.task_order), t.task_name, t.start_date, t.finish_date,
+            return [[str(t.task_id), str(t.task_order), t.task_name, 
+                    internal_to_display_date(t.start_date),  # Convert to display format
+                    internal_to_display_date(t.finish_date),  # Convert to display format
                     str(t.row_number), t.label_placement, t.label_hide, t.label_alignment,
                     str(t.label_horizontal_offset), str(t.label_vertical_offset), t.label_text_colour]
                    for t in project_data.tasks]
         elif key == "time_frames":
             print("DEBUG: project_data.time_frames =", project_data.time_frames)
-            return [[str(tf.time_frame_id), tf.finish_date, str(tf.width_proportion * 100)]
+            return [[str(tf.time_frame_id), 
+                    internal_to_display_date(tf.finish_date),  # Convert to display format
+                    str(tf.width_proportion * 100)]
                    for tf in sorted(project_data.time_frames, key=lambda x: x.time_frame_id)]
         return getattr(project_data, key, [])
 

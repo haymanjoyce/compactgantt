@@ -8,6 +8,7 @@ import logging
 from ..table_utils import add_row, remove_row, CheckBoxWidget, highlight_table_errors, extract_table_data
 from typing import List, Set, Tuple
 from .base_tab import BaseTab
+from utils.conversion import internal_to_display_date, display_to_internal_date
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

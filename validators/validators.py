@@ -1,6 +1,7 @@
 from typing import List, Set, Dict, Any
 from datetime import datetime
 from models import TimeFrame, Task
+from utils.conversion import is_valid_internal_date
 
 
 class DataValidator:
@@ -11,10 +12,8 @@ class DataValidator:
             errors.append("Time Frame ID must be positive")
         if time_frame.time_frame_id in used_ids:
             errors.append("Time Frame ID must be unique")
-        try:
-            datetime.strptime(time_frame.finish_date, "%Y-%m-%d")
-        except ValueError:
-            errors.append("Invalid date format")
+        if not is_valid_internal_date(time_frame.finish_date):
+            errors.append("Invalid date format (should be dd/mm/yyyy)")
         if time_frame.width_proportion <= 0:
             errors.append("Width proportion must be positive")
         return errors
@@ -26,11 +25,10 @@ class DataValidator:
             errors.append("Task ID must be positive")
         if task.task_id in used_ids:
             errors.append("Task ID must be unique")
-        try:
-            datetime.strptime(task.start_date, "%Y-%m-%d")
-            datetime.strptime(task.finish_date, "%Y-%m-%d")
-        except ValueError:
-            errors.append("Invalid date format")
+        if not is_valid_internal_date(task.start_date):
+            errors.append("Invalid start date format (should be dd/mm/yyyy)")
+        if not is_valid_internal_date(task.finish_date):
+            errors.append("Invalid finish date format (should be dd/mm/yyyy)")
         if task.row_number <= 0:
             errors.append("Row number must be positive")
         if task.task_order <= 0:
@@ -40,10 +38,8 @@ class DataValidator:
     @staticmethod
     def validate_date_format(date_str: str) -> List[str]:
         errors = []
-        try:
-            datetime.strptime(date_str, "%Y-%m-%d")
-        except ValueError:
-            errors.append("Invalid date format (should be YYYY-MM-DD)")
+        if not is_valid_internal_date(date_str):
+            errors.append("Invalid date format (should be dd/mm/yyyy)")
         return errors
 
     @staticmethod

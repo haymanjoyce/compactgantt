@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Callable, Any, Tuple, Optional
 from PyQt5.QtCore import QDate
 import logging
+from utils.conversion import internal_to_display_date, display_to_internal_date, is_valid_display_date
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -114,7 +115,9 @@ class AppConfig:
             try:
                 max_time_frame_id = context.get("max_time_frame_id", 0)
                 time_frame_id = max_time_frame_id + 1
-                finish_date = QDate.currentDate().addDays(7 * (row_idx + 1)).toString("yyyy-MM-dd")
+                # Generate date in yyyy-mm-dd format first, then convert to display format
+                internal_date = QDate.currentDate().addDays(7 * (row_idx + 1)).toString("yyyy-MM-dd")
+                finish_date = internal_to_display_date(internal_date)
                 width = int(round(100.0 / max(1, row_idx + 2)))
                 return [
                     False,  # Checkbox state (unchecked by default)
@@ -127,19 +130,22 @@ class AppConfig:
                 return [
                     False,  # Checkbox state (unchecked by default)
                     str(max_time_frame_id + 1),
-                    QDate.currentDate().toString("yyyy-MM-dd"),
+                    internal_to_display_date(QDate.currentDate().toString("yyyy-MM-dd")),
                     "50.0"
                 ]
 
         def tasks_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
             task_id = context.get("max_task_id", 0) + 1
             task_order = context.get("max_task_order", 0) + 1
+            # Generate dates in yyyy-mm-dd format first, then convert to display format
+            internal_start = QDate.currentDate().toString("yyyy-MM-dd")
+            internal_finish = QDate.currentDate().toString("yyyy-MM-dd")
             return [
                 str(task_id), 
                 str(task_order), 
                 "New Task",
-                QDate.currentDate().toString("yyyy-MM-dd"),
-                QDate.currentDate().toString("yyyy-MM-dd"), 
+                internal_to_display_date(internal_start),
+                internal_to_display_date(internal_finish), 
                 "1",
                 "Inside",  # Default for Label Placement
                 "No", 
@@ -156,16 +162,25 @@ class AppConfig:
             return ["1", "2", f"Swimlane {row_idx + 1}", "lightblue"]
 
         def pipes_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
-            return [QDate.currentDate().toString("yyyy-MM-dd"), "red"]
+            internal_date = QDate.currentDate().toString("yyyy-MM-dd")
+            return [internal_to_display_date(internal_date), "red"]
 
         def curtains_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
+            internal_date = QDate.currentDate().toString("yyyy-MM-dd")
             return [
-                QDate.currentDate().toString("yyyy-MM-dd"),
-                QDate.currentDate().toString("yyyy-MM-dd"), "gray"
+                internal_to_display_date(internal_date),
+                internal_to_display_date(internal_date), "gray"
             ]
 
         def text_boxes_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
             return [f"Text {row_idx + 1}", "100", "100", "black"]
+
+        # Define robust date validator function
+        def validate_display_date(x):
+            """Validate date in dd/mm/yyyy format."""
+            if not x or not str(x).strip():
+                return False
+            return is_valid_display_date(str(x).strip())
 
         # Define table configurations
         self.tables = {
@@ -179,7 +194,7 @@ class AppConfig:
                     ),
                     TableColumnConfig(
                         name="Finish Date",
-                        validator=lambda x: bool(datetime.strptime(x, "%Y-%m-%d") if x else False)
+                        validator=validate_display_date
                     ),
                     TableColumnConfig(
                         name="Width (%)",
@@ -196,8 +211,8 @@ class AppConfig:
                     TableColumnConfig("Task ID", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Task Order", validator=lambda x: float(x) > 0 if x else False),
                     TableColumnConfig("Task Name"),
-                    TableColumnConfig("Start Date", validator=lambda x: bool(datetime.strptime(x, "%Y-%m-%d") if x else False)),
-                    TableColumnConfig("Finish Date", validator=lambda x: bool(datetime.strptime(x, "%Y-%m-%d") if x else False)),
+                    TableColumnConfig("Start Date", validator=validate_display_date),
+                    TableColumnConfig("Finish Date", validator=validate_display_date),
                     TableColumnConfig("Row Number", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Label Placement", widget_type="combo", combo_items=["Inside", "To left", "To right", "Above", "Below"]),
                     TableColumnConfig("Label Hide", default_value="No"),
@@ -235,7 +250,7 @@ class AppConfig:
                 key="pipes",
                 columns=[
                     TableColumnConfig("Select", widget_type="checkbox"),
-                    TableColumnConfig("Date", validator=lambda x: bool(datetime.strptime(x, "%Y-%m-%d") if x else False)),
+                    TableColumnConfig("Date", validator=validate_display_date),
                     TableColumnConfig("Colour")
                 ],
                 min_rows=0,
@@ -245,8 +260,8 @@ class AppConfig:
                 key="curtains",
                 columns=[
                     TableColumnConfig("Select", widget_type="checkbox"),
-                    TableColumnConfig("From Date", validator=lambda x: bool(datetime.strptime(x, "%Y-%m-%d") if x else False)),
-                    TableColumnConfig("To Date", validator=lambda x: bool(datetime.strptime(x, "%Y-%m-%d") if x else False)),
+                    TableColumnConfig("From Date", validator=validate_display_date),
+                    TableColumnConfig("To Date", validator=validate_display_date),
                     TableColumnConfig("Colour")
                 ],
                 min_rows=0,
