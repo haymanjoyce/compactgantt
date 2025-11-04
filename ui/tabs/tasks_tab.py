@@ -75,13 +75,17 @@ class TasksTab(BaseTab):
                         combo.setCurrentText(str(value) or col_config.combo_items[0])
                         self.tasks_table.setCellWidget(row_idx, col_idx, combo)
                     else:
-                        item = (NumericTableWidgetItem(str(value)) 
-                               if col_idx in (1, 2) else QTableWidgetItem(str(value)))
+                        # Columns 1 (ID), 2 (Order), and 3 (Row) are numeric    
+                        item = (NumericTableWidgetItem(str(value))
+                               if col_idx in (1, 2, 3) else QTableWidgetItem(str(value)))                                                                       
+
                         if col_idx == 1:  # Task ID read-only
                             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                             item.setData(Qt.UserRole, int(value) if str(value).isdigit() else 0)
                         elif col_idx == 2:  # Task Order numeric
                             item.setData(Qt.UserRole, float(value) if value else 0.0)
+                        elif col_idx == 3:  # Row number numeric
+                            item.setData(Qt.UserRole, int(value) if str(value).isdigit() else 1)
                         self.tasks_table.setItem(row_idx, col_idx, item)
             else:
                 context = {
@@ -98,13 +102,16 @@ class TasksTab(BaseTab):
                         combo.setCurrentText(str(default))
                         self.tasks_table.setCellWidget(row_idx, col_idx, combo)
                     else:
+                        # Columns 1 (ID), 2 (Order), and 3 (Row) are numeric
                         item = (NumericTableWidgetItem(str(default)) 
-                               if col_idx in (1, 2) else QTableWidgetItem(str(default)))
+                               if col_idx in (1, 2, 3) else QTableWidgetItem(str(default)))
                         if col_idx == 1:  # Task ID read-only
                             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                             item.setData(Qt.UserRole, int(default) if str(default).isdigit() else 0)
                         elif col_idx == 2:  # Task Order numeric
                             item.setData(Qt.UserRole, float(default) if default else 0.0)
+                        elif col_idx == 3:  # Row number numeric
+                            item.setData(Qt.UserRole, int(default) if str(default).isdigit() else 1)
                         self.tasks_table.setItem(row_idx, col_idx, item)
 
         renumber_task_orders(self.tasks_table)

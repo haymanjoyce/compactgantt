@@ -126,32 +126,34 @@ class AppConfig:
                     str(width)  # Always use str for consistency
                 ]
             except Exception as e:
-                logging.error(f"Error in time_frames_default: {e}", exc_info=True)
+                logging.error(f"Error in time_frames_default: {e}", exc_info=True)                                                                              
                 return [
                     False,  # Checkbox state (unchecked by default)
                     str(max_time_frame_id + 1),
-                    internal_to_display_date(QDate.currentDate().toString("yyyy-MM-dd")),
+                    internal_to_display_date(QDate.currentDate().toString("yyyy-MM-dd")),                                                                       
                     "50.0"
                 ]
 
-        def tasks_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
+        def tasks_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:  
             task_id = context.get("max_task_id", 0) + 1
             task_order = context.get("max_task_order", 0) + 1
-            # Generate dates in yyyy-mm-dd format first, then convert to display format
+            # Row number is 1-based (row_idx is 0-based, so add 1)
+            row_number = str(row_idx + 1)
+            # Generate dates in yyyy-mm-dd format first, then convert to display format                                                                         
             internal_start = QDate.currentDate().toString("yyyy-MM-dd")
-            internal_finish = QDate.currentDate().toString("yyyy-MM-dd")
+            internal_finish = QDate.currentDate().toString("yyyy-MM-dd")        
             return [
-                str(task_id), 
-                str(task_order), 
-                "1",  # Row number
+                str(task_id),
+                str(task_order),
+                row_number,  # Row number (1-based)
                 "New Task",
                 internal_to_display_date(internal_start),
-                internal_to_display_date(internal_finish), 
+                internal_to_display_date(internal_finish),
                 "Inside",  # Default for Label Placement
-                "No", 
+                "No",
                 "Left",    # Default for Label Alignment
-                "1.0", 
-                "0.5", 
+                "1.0",
+                "0.5",
                 "black"
             ]
 
