@@ -42,7 +42,11 @@ class ProjectData:
     @classmethod
     def from_json(cls, data: Dict[str, Any]) -> 'ProjectData':
         project = cls()
-        project.frame_config = FrameConfig(**data.get("frame_config", {}))
+        frame_config_data = data.get("frame_config", {})
+        # Convert margins list back to tuple (JSON converts tuples to lists)
+        if "margins" in frame_config_data and isinstance(frame_config_data["margins"], list):
+            frame_config_data["margins"] = tuple(frame_config_data["margins"])
+        project.frame_config = FrameConfig(**frame_config_data)
         
         # Load time frames
         for tf_data in data.get("time_frames", []):
