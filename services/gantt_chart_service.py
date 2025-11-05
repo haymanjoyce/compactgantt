@@ -167,7 +167,6 @@ class GanttChartService(QObject):
             label_hide = task.get("label_hide", "No") == "Yes"
             label_alignment = task.get("label_alignment", "Left")
             label_horizontal_offset = float(task.get("label_horizontal_offset", self.config.general.leader_line_horizontal_default))
-            label_vertical_offset = float(task.get("label_vertical_offset", self.config.general.leader_line_vertical_default))
             task_name = task.get("task_name", "Unnamed")
             if not start_date_str and not finish_date_str:
                 continue
@@ -229,23 +228,6 @@ class GanttChartService(QObject):
                         self.dwg.add(self.dwg.text(task_name, insert=(label_x, label_y), font_size="10",
                                                    font_family="Arial", fill="black", text_anchor="start"))
                         self.dwg.add(self.dwg.line(leader_start, leader_end, stroke="black", stroke_width=1))
-                    elif label_placement == "Above":
-                        label_x = center_x if label_alignment == "Centre" else center_x - label_width if label_alignment == "Left" else center_x + label_width
-                        label_y = center_y - half_size - label_vertical_offset * row_height + font_size * self.config.general.label_vertical_offset_factor
-                        anchor = "middle" if label_alignment == "Centre" else "start" if label_alignment == "Left" else "end"
-                        self.dwg.add(self.dwg.text(task_name, insert=(label_x, label_y), font_size="10", fill="black",
-                                                   text_anchor=anchor))
-                        self.dwg.add(
-                            self.dwg.line((center_x, label_y + 1), (center_x, center_y - half_size), stroke="black",
-                                          stroke_width=1))
-                    elif label_placement == "Below":
-                        label_x = center_x if label_alignment == "Centre" else center_x - label_width if label_alignment == "Left" else center_x + label_width
-                        label_y = center_y + half_size + label_vertical_offset * row_height + font_size * self.config.general.label_vertical_offset_factor
-                        anchor = "middle" if label_alignment == "Centre" else "start" if label_alignment == "Left" else "end"
-                        self.dwg.add(self.dwg.text(task_name, insert=(label_x, label_y), font_size="10", fill="black",
-                                                   text_anchor=anchor))
-                        self.dwg.add(self.dwg.line((center_x, label_y - font_size), (center_x, center_y + half_size),
-                                                   stroke="black", stroke_width=1))
                 self.dwg.add(self.dwg.polygon(points=points, fill="red", stroke="black", stroke_width=1))
             else:
                 if x_start < x + width:
@@ -305,30 +287,6 @@ class GanttChartService(QObject):
                             self.dwg.add(
                                 self.dwg.line((label_x, rect_y + task_height / 2), (x_end, rect_y + task_height / 2),
                                               stroke="black", stroke_width=1))
-                        elif label_placement == "Above":
-                            label_x = (x_start + width_task / 2) if label_alignment == "Centre" else (
-                                        x_start + width_task / 2 - label_width) if label_alignment == "Left" else (
-                                        x_start + width_task / 2 + label_width)
-                            label_y = rect_y - label_vertical_offset * row_height + font_size * self.config.general.label_vertical_offset_factor
-                            anchor = "middle" if label_alignment == "Centre" else "start" if label_alignment == "Left" else "end"
-                            self.dwg.add(
-                                self.dwg.text(task_name, insert=(label_x, label_y), font_size="10", fill="black",
-                                              text_anchor=anchor))
-                            self.dwg.add(self.dwg.line((x_start + width_task / 2, label_y + 1),
-                                                       (x_start + width_task / 2, rect_y), stroke="black",
-                                                       stroke_width=1))
-                        elif label_placement == "Below":
-                            label_x = (x_start + width_task / 2) if label_alignment == "Centre" else (
-                                        x_start + width_task / 2 - label_width) if label_alignment == "Left" else (
-                                        x_start + width_task / 2 + label_width)
-                            label_y = rect_y + task_height + label_vertical_offset * row_height + font_size * self.config.general.label_vertical_offset_factor
-                            anchor = "middle" if label_alignment == "Centre" else "start" if label_alignment == "Left" else "end"
-                            self.dwg.add(
-                                self.dwg.text(task_name, insert=(label_x, label_y), font_size="10", fill="black",
-                                              text_anchor=anchor))
-                            self.dwg.add(self.dwg.line((x_start + width_task / 2, label_y - font_size),
-                                                       (x_start + width_task / 2, rect_y + task_height), stroke="black",
-                                                       stroke_width=1))
 
     def render_scales_and_rows(self, x, y, width, height, start_date, end_date):
         logging.debug(f"Rendering scales and rows from {start_date} to {end_date}")

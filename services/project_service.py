@@ -57,7 +57,7 @@ class ProjectService:
                 for row_idx, row in enumerate(data, 1):
                     try:
                         # extract_table_data already skips checkbox column, so data is 0-indexed
-                        # Column order: ID, Order, Row, Name, Start Date, Finish Date, Label Placement, ...
+                        # Column order: ID, Order, Row, Name, Start Date, Finish Date, Label Placement, Label Hide, Label Alignment, Horiz Offset, Label Colour
                         # Convert display format to internal format for dates
                         start_date_internal = display_to_internal_date(row[4])  # Start Date is at index 4
                         finish_date_internal = display_to_internal_date(row[5])  # Finish Date is at index 5
@@ -72,8 +72,7 @@ class ProjectService:
                             label_hide=row[7],  # Label Hide is at index 7
                             label_alignment=row[8],  # Label Alignment is at index 8
                             label_horizontal_offset=safe_float(row[9], 1.0),  # Horiz Offset is at index 9
-                            label_vertical_offset=safe_float(row[10], 0.5),  # Vert Offset is at index 10
-                            label_text_colour=row[11]  # Label Colour is at index 11
+                            label_text_colour=row[10]  # Label Colour is at index 10
                         )
                         row_errors = self.validator.validate_task(task, used_ids)
                         if not row_errors:
@@ -98,7 +97,7 @@ class ProjectService:
                     internal_to_display_date(t.start_date),  # Convert to display format
                     internal_to_display_date(t.finish_date),  # Convert to display format
                     t.label_placement, t.label_hide, t.label_alignment,
-                    str(t.label_horizontal_offset), str(t.label_vertical_offset), t.label_text_colour]
+                    str(t.label_horizontal_offset), t.label_text_colour]
                    for t in project_data.tasks]
         elif key == "time_frames":
             print("DEBUG: project_data.time_frames =", project_data.time_frames)

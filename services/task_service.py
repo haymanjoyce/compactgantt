@@ -10,7 +10,7 @@ class TaskService:
                 finish_date: str, row_number: int, is_milestone: bool = False, 
                 label_placement: str = "Inside", label_hide: str = "No", 
                 label_alignment: str = "Left", label_horizontal_offset: float = 1.0, 
-                label_vertical_offset: float = 0.5, label_text_colour: str = "black", 
+                label_text_colour: str = "black", 
                 task_order: float = 1.0) -> List[str]:
         """
         Add a new task to the project data.
@@ -28,7 +28,6 @@ class TaskService:
             label_hide=label_hide,
             label_alignment=label_alignment,
             label_horizontal_offset=label_horizontal_offset,
-            label_vertical_offset=label_vertical_offset,
             label_text_colour=label_text_colour
         )
         used_ids = {t.task_id for t in project_data.tasks}

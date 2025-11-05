@@ -15,7 +15,6 @@ class Task:
     label_hide: str = "No"
     label_alignment: str = "Left"
     label_horizontal_offset: float = 1.0
-    label_vertical_offset: float = 0.5
     label_text_colour: str = "black"
 
     @classmethod
@@ -32,6 +31,5 @@ class Task:
             label_hide=data.get("label_hide", "No"),
             label_alignment=data.get("label_alignment", "Left"),
             label_horizontal_offset=data.get("label_horizontal_offset", 1.0),
-            label_vertical_offset=data.get("label_vertical_offset", 0.5),
             label_text_colour=data.get("label_text_colour", "black")
         ) 
