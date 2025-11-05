@@ -57,7 +57,7 @@ class ProjectService:
                 for row_idx, row in enumerate(data, 1):
                     try:
                         # extract_table_data already skips checkbox column, so data is 0-indexed
-                        # Column order: ID, Order, Row, Name, Start Date, Finish Date, Label Placement, Label Hide, Label Alignment, Horiz Offset, Label Colour
+                        # Column order: ID, Order, Row, Name, Start Date, Finish Date, Label Hide, Label Placement, Label Alignment, Horiz Offset, Label Colour
                         # Convert display format to internal format for dates
                         start_date_internal = display_to_internal_date(row[4])  # Start Date is at index 4
                         finish_date_internal = display_to_internal_date(row[5])  # Finish Date is at index 5
@@ -68,8 +68,8 @@ class ProjectService:
                             task_name=row[3],  # Name is at index 3
                             start_date=start_date_internal,  # Store in internal format
                             finish_date=finish_date_internal,  # Store in internal format
-                            label_placement=row[6],  # Label Placement is at index 6
-                            label_hide=row[7],  # Label Hide is at index 7
+                            label_hide=row[6],  # Label Hide is at index 6
+                            label_placement=row[7],  # Label Placement is at index 7
                             label_alignment=row[8],  # Label Alignment is at index 8
                             label_horizontal_offset=safe_float(row[9], 1.0),  # Horiz Offset is at index 9
                             label_text_colour=row[10]  # Label Colour is at index 10
@@ -96,7 +96,7 @@ class ProjectService:
             return [[str(t.task_id), str(t.task_order), str(t.row_number), t.task_name, 
                     internal_to_display_date(t.start_date),  # Convert to display format
                     internal_to_display_date(t.finish_date),  # Convert to display format
-                    t.label_placement, t.label_hide, t.label_alignment,
+                    t.label_hide, t.label_placement, t.label_alignment,
                     str(t.label_horizontal_offset), t.label_text_colour]
                    for t in project_data.tasks]
         elif key == "time_frames":
