@@ -149,7 +149,7 @@ class AppConfig:
                 "New Task",
                 internal_to_display_date(internal_start),
                 internal_to_display_date(internal_finish),
-                "No",      # Default for Label Hide
+                "Yes",     # Default for Label (No = Hide, Yes = Show)
                 "Inside",  # Default for Label Placement
                 "Left",    # Default for Label Alignment
                 "1.0",
@@ -215,7 +215,7 @@ class AppConfig:
                     TableColumnConfig("Name"),
                     TableColumnConfig("Start Date", validator=validate_display_date),
                     TableColumnConfig("Finish Date", validator=validate_display_date),
-                    TableColumnConfig("Label Hide", widget_type="combo", combo_items=["No", "Yes"], default_value="No"),
+                    TableColumnConfig("Label", widget_type="combo", combo_items=["No", "Yes"], default_value="Yes"),
                     TableColumnConfig("Label Placement", widget_type="combo", combo_items=["Inside", "To left", "To right"]),
                     TableColumnConfig("Label Alignment", widget_type="combo", combo_items=["Left", "Centre", "Right"]),
                     TableColumnConfig("Horiz Offset", validator=lambda x: float(x) >= 0 if x else False),

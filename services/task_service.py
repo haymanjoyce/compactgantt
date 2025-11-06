@@ -8,7 +8,7 @@ class TaskService:
 
     def add_task(self, project_data, task_id: int, task_name: str, start_date: str, 
                 finish_date: str, row_number: int, is_milestone: bool = False, 
-                label_placement: str = "Inside", label_hide: str = "No", 
+                label_placement: str = "Inside", label_hide: str = "Yes", 
                 label_alignment: str = "Left", label_horizontal_offset: float = 1.0, 
                 label_text_colour: str = "black", 
                 task_order: float = 1.0) -> List[str]:

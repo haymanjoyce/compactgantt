@@ -57,7 +57,7 @@ class ProjectService:
                 for row_idx, row in enumerate(data, 1):
                     try:
                         # extract_table_data already skips checkbox column, so data is 0-indexed
-                        # Column order: ID, Order, Row, Name, Start Date, Finish Date, Label Hide, Label Placement, Label Alignment, Horiz Offset, Label Colour
+                        # Column order: ID, Order, Row, Name, Start Date, Finish Date, Label, Label Placement, Label Alignment, Horiz Offset, Label Colour
                         # Convert display format to internal format for dates
                         start_date_internal = display_to_internal_date(row[4])  # Start Date is at index 4
                         finish_date_internal = display_to_internal_date(row[5])  # Finish Date is at index 5
@@ -68,7 +68,7 @@ class ProjectService:
                             task_name=row[3],  # Name is at index 3
                             start_date=start_date_internal,  # Store in internal format
                             finish_date=finish_date_internal,  # Store in internal format
-                            label_hide=row[6],  # Label Hide is at index 6
+                            label_hide=row[6],  # Label is at index 6 (No = Hide, Yes = Show)
                             label_placement=row[7],  # Label Placement is at index 7
                             label_alignment=row[8],  # Label Alignment is at index 8
                             label_horizontal_offset=safe_float(row[9], 1.0),  # Horiz Offset is at index 9

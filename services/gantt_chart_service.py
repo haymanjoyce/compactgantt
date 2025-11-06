@@ -164,7 +164,7 @@ class GanttChartService(QObject):
             # A task is a milestone if explicitly marked or if start_date equals finish_date
             is_milestone = task.get("is_milestone", False) or (start_date_str and finish_date_str and start_date_str == finish_date_str)
             label_placement = task.get("label_placement", "Inside")
-            label_hide = task.get("label_hide", "No") == "Yes"
+            label_hide = task.get("label_hide", "Yes") == "No"
             label_alignment = task.get("label_alignment", "Left")
             label_horizontal_offset = float(task.get("label_horizontal_offset", self.config.general.leader_line_horizontal_default))
             task_name = task.get("task_name", "Unnamed")
