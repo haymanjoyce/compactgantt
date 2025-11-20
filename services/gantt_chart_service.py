@@ -344,7 +344,7 @@ class GanttChartService(QObject):
                                            stroke="black", stroke_width=1))
             if prev_x < x + width and x_pos > x:
                 label_x = (max(x, prev_x) + min(x + width, x_pos)) / 2
-                label_y = y + height / 2
+                label_y = y + height * self.config.general.scale_label_vertical_alignment_factor
                 label = ""
                 if interval == "years":
                     if interval_width >= self.config.general.full_label_width:

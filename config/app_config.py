@@ -58,6 +58,7 @@ class GeneralConfig:
     label_vertical_offset_factor: float = 0.3
     label_horizontal_offset_factor: float = 0.0
     label_text_width_factor: float = 0.55
+    scale_label_vertical_alignment_factor: float = 0.7  # Vertical position within scale interval (0.0=top, 0.5=center, 1.0=bottom)
 
     def __post_init__(self):
         # Validate positive integers
@@ -83,7 +84,7 @@ class GeneralConfig:
                           "scale_proportion_weeks", "scale_proportion_days",
                           "leader_line_vertical_default", "leader_line_horizontal_default",
                           "label_vertical_offset_factor", "label_horizontal_offset_factor",
-                          "label_text_width_factor"]:
+                          "label_text_width_factor", "scale_label_vertical_alignment_factor"]:
             value = getattr(self, field_name)
             if not isinstance(value, float) or value < 0:
                 raise ValueError(f"{field_name} must be a non-negative float")
