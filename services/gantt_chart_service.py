@@ -176,10 +176,10 @@ class GanttChartService(QObject):
                                    text_anchor="middle"))
 
     def _render_outside_label(self, task_name: str, attachment_x: float, attachment_y: float,
-                             label_y_base: float, tf_time_scale: float):
+                             label_y_base: float):
         """Render a label outside a task/milestone with a leader line to the right."""
         label_horizontal_offset = self.config.general.leader_line_horizontal_default
-        label_x = attachment_x + label_horizontal_offset * tf_time_scale
+        label_x = attachment_x + label_horizontal_offset  # Fixed pixel offset, no time scaling
         self.dwg.add(self.dwg.text(task_name, insert=(label_x, label_y_base), 
                                    font_size="10", font_family="Arial", fill="black",
                                    text_anchor="start"))
@@ -245,7 +245,7 @@ class GanttChartService(QObject):
                 if not label_hide and label_placement == "Outside":
                     label_y_base = center_y + font_size * self.config.general.label_vertical_offset_factor
                     milestone_right = center_x + half_size
-                    self._render_outside_label(task_name, milestone_right, center_y, label_y_base, tf_time_scale)
+                    self._render_outside_label(task_name, milestone_right, center_y, label_y_base)
             else:
                 if x_start < x + width:
                     y_offset = (row_height - task_height) / 2
@@ -258,7 +258,7 @@ class GanttChartService(QObject):
                             self._render_inside_label(task_name, x_start, width_task, label_y_base)
                         elif label_placement == "Outside":
                             self._render_outside_label(task_name, x_end, rect_y + task_height / 2, 
-                                                      label_y_base, tf_time_scale)
+                                                      label_y_base)
 
     def render_scales_and_rows(self, x, y, width, height, start_date, end_date):
         logging.debug(f"Rendering scales and rows from {start_date} to {end_date}")
