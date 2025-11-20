@@ -22,6 +22,8 @@ class GanttChartService(QObject):
         self.start_date = None
         self.font = QFont("Arial", 10)
         self.font_metrics = QFontMetrics(self.font)
+        self._rendered_inside_labels = set()  # Track tasks that have had inside labels rendered
+        self._time_frame_info = []  # Store time frame positions and date ranges for span calculation
         logging.debug("GanttChartService initialized")
 
     def _get_frame_config(self, key: str, default):
@@ -136,9 +138,7 @@ class GanttChartService(QObject):
         inner_y = margins[0] + header_height
         inner_width = outer_width - margins[1] - margins[3]
         inner_height = outer_height - header_height - footer_height - margins[0] - margins[2]
-        x_offset = margins[3]
         chart_start = datetime.strptime(self.data["frame_config"]["chart_start_date"], "%Y-%m-%d")
-        prev_end = chart_start
 
         # Sort time frames by finish_date to ensure chronological rendering
         time_frames = self.data.get("time_frames", [])
@@ -148,14 +148,71 @@ class GanttChartService(QObject):
         )
         logging.debug(f"Sorted time frames by finish_date: {[tf['finish_date'] for tf in sorted_time_frames]}")
 
+        # ========================================================================
+        # PASS 1: Pre-calculate all time frame positions
+        # ========================================================================
+        # This pass calculates and stores the x position and date range for each time frame
+        # BEFORE we start rendering. This is critical because:
+        # - Tasks can span multiple time frames
+        # - Inside labels need to be centered on the TOTAL task span across all time frames
+        # - When render_tasks() is called, it needs access to ALL time frame info to calculate
+        #   the total span correctly, not just the current time frame being rendered
+        # Without this pre-calculation, labels would only center relative to the first time frame
+        # segment, not the complete task length in pixels across all segments.
+        # ========================================================================
+        x_offset = margins[3]
+        prev_end = chart_start
+        
         for tf in sorted_time_frames:
             tf_width = inner_width * tf.get("width_proportion", 1.0)
             tf_end = datetime.strptime(tf["finish_date"], "%Y-%m-%d")
-            self.dwg.add(self.dwg.rect(insert=(x_offset, inner_y), size=(tf_width, inner_height),
-                                       fill="none", stroke="red", stroke_width=1))
-            self.render_scales_and_rows(x_offset, inner_y, tf_width, inner_height, prev_end, tf_end)
+            
+            # Store time frame info: absolute x position, width, and date range
+            # This info will be used by _calculate_total_task_span() to compute
+            # the total pixel span of tasks that cross multiple time frames
+            self._time_frame_info.append({
+                "x": x_offset,
+                "width": tf_width,
+                "start_date": prev_end,
+                "end_date": tf_end
+            })
+            
             x_offset += tf_width
             prev_end = tf_end + timedelta(days=1)
+
+        # ========================================================================
+        # PASS 2: Render each time frame
+        # ========================================================================
+        # Now that all time frame positions are known, we can render each time frame.
+        # When render_tasks() is called for a time frame, it can access the complete
+        # _time_frame_info list to calculate total task spans for proper label centering.
+        #
+        # IMPORTANT: Inside labels for multi-time-frame tasks are rendered only in the
+        # LAST time frame segment where the task appears. This ensures:
+        # - All task bar segments are rendered first (so labels appear on top)
+        # - Labels are centered correctly on the total task span
+        # - Labels appear only once (not duplicated in each segment)
+        # ========================================================================
+        x_offset = margins[3]
+        prev_end = chart_start
+        
+        for tf in sorted_time_frames:
+            tf_width = inner_width * tf.get("width_proportion", 1.0)
+            tf_end = datetime.strptime(tf["finish_date"], "%Y-%m-%d")
+            
+            # Draw the time frame border
+            self.dwg.add(self.dwg.rect(insert=(x_offset, inner_y), size=(tf_width, inner_height),
+                                       fill="none", stroke="red", stroke_width=1))
+            
+            # Render scales, rows, and tasks for this time frame
+            # Note: render_tasks() will use the pre-calculated _time_frame_info to
+            # center inside labels on the total task span across all time frames.
+            # Labels are rendered only in the last time frame segment where each task appears.
+            self.render_scales_and_rows(x_offset, inner_y, tf_width, inner_height, prev_end, tf_end)
+            
+            x_offset += tf_width
+            prev_end = tf_end + timedelta(days=1)
+            
         logging.debug("render_time_frames completed")
 
     def _truncate_text_to_fit(self, text: str, max_width: float) -> str:
@@ -176,12 +233,103 @@ class GanttChartService(QObject):
 
     def _render_inside_label(self, task_name: str, x_start: float, width_task: float, 
                              label_y_base: float):
-        """Render a label inside a task bar, with truncation if needed."""
+        """Render a label inside a task bar, with truncation if needed.
+        
+        This method renders white text centered horizontally within the specified task width.
+        The text is automatically truncated with ellipsis if it doesn't fit within the width.
+        
+        Args:
+            task_name: The full task name (will be truncated if needed)
+            x_start: The absolute x position where the task starts (in pixels)
+            width_task: The total width of the task in pixels (for centering and truncation)
+            label_y_base: The y position for the label baseline (in pixels)
+        """
         task_name_display = self._truncate_text_to_fit(task_name, width_task)
         label_x = x_start + width_task / 2
+        logging.debug(f"_render_inside_label: text='{task_name_display}', x={label_x}, y={label_y_base}, width={width_task}, original_text='{task_name}'")
         self.dwg.add(self.dwg.text(task_name_display, insert=(label_x, label_y_base),
                                    font_size="10", font_family="Arial", fill="white",
                                    text_anchor="middle"))
+        logging.debug(f"  Text element added to SVG at position ({label_x}, {label_y_base})")
+
+    def _calculate_total_task_span(self, task_start: datetime, task_finish: datetime) -> tuple:
+        """Calculate the total task span across all time frames in absolute pixel coordinates.
+        
+        This method is used when a task spans multiple time frames and has an "Inside" label.
+        It calculates where the task starts and ends in absolute pixel coordinates across
+        all time frames, so the label can be centered on the complete task length.
+        
+        The calculation accounts for different time scales (pixels per day) in each time frame,
+        ensuring accurate pixel positioning even when time frames have different widths or
+        date ranges.
+        
+        Args:
+            task_start: The task's start date (datetime object)
+            task_finish: The task's finish date (datetime object)
+            
+        Returns:
+            Tuple of (total_x_start, total_width) in absolute pixel coordinates, where:
+            - total_x_start: The absolute x position where the task starts (leftmost point)
+            - total_width: The total pixel width of the task across all time frames
+            Returns None if the task doesn't overlap with any time frames.
+            
+        Note:
+            This method relies on _time_frame_info being pre-populated by render_time_frames()
+            in its first pass. Without complete time frame info, labels would only center
+            relative to the first time frame segment, not the total task span.
+            
+            The calculation matches the exact logic used in render_tasks() for consistency,
+            ensuring that label positions align perfectly with task bar segments.
+        """
+        total_x_start = None
+        total_x_end = None
+        
+        logging.debug(f"_calculate_total_task_span called for task {task_start} to {task_finish}, time_frame_info count: {len(self._time_frame_info)}")
+        
+        # Iterate through all time frames to find where the task appears
+        for idx, tf_info in enumerate(self._time_frame_info):
+            tf_start = tf_info["start_date"]
+            tf_end = tf_info["end_date"]
+            tf_x = tf_info["x"]  # Absolute x position of this time frame
+            tf_width = tf_info["width"]  # Width of this time frame in pixels
+            
+            # Skip time frames that don't overlap with the task
+            if task_finish < tf_start or task_start > tf_end:
+                logging.debug(f"  Time frame {idx}: {tf_start} to {tf_end} - no overlap (task: {task_start} to {task_finish})")
+                continue
+            
+            logging.debug(f"  Time frame {idx}: {tf_start} to {tf_end} - OVERLAPS")
+            
+            # Calculate the task segment within this time frame
+            # Each time frame may have a different time scale (pixels per day)
+            tf_total_days = max((tf_end - tf_start).days, 1)
+            tf_time_scale = tf_width / tf_total_days if tf_total_days > 0 else tf_width
+            
+            # Find the actual date range of the task segment in this time frame
+            segment_start_date = max(task_start, tf_start)
+            segment_end_date = min(task_finish, tf_end)
+            
+            # Calculate the pixel positions of this segment within the time frame
+            # Match the exact logic used in render_tasks() for consistency:
+            # - Calculate from time frame start date, not segment start
+            # - Use min() to cap at time frame width (same as render_tasks uses total_days)
+            segment_x_start = tf_x + max((segment_start_date - tf_start).days, 0) * tf_time_scale
+            segment_x_end = tf_x + min((segment_end_date - tf_start).days + 1, tf_total_days) * tf_time_scale
+            
+            logging.debug(f"    Segment: {segment_start_date} to {segment_end_date}, x={segment_x_start} to {segment_x_end}, width={segment_x_end - segment_x_start}")
+            
+            # Track the leftmost and rightmost positions across all time frames
+            if total_x_start is None:
+                total_x_start = segment_x_start  # First segment's start
+            total_x_end = segment_x_end  # Keep updating to the last segment's end
+        
+        if total_x_start is not None and total_x_end is not None:
+            total_width = total_x_end - total_x_start
+            logging.debug(f"Calculated total span: start={total_x_start}, end={total_x_end}, width={total_width} for task {task_start} to {task_finish}")
+            return (total_x_start, total_width)
+        
+        logging.debug(f"No total span calculated for task {task_start} to {task_finish} (no overlapping time frames)")
+        return None
 
     def _render_outside_label(self, task_name: str, attachment_x: float, attachment_y: float,
                              label_y_base: float):
@@ -195,6 +343,26 @@ class GanttChartService(QObject):
                                    stroke="black", stroke_width=1))
 
     def render_tasks(self, x, y, width, height, start_date, end_date, num_rows):
+        """Render all tasks that overlap with the current time frame.
+        
+        This method is called once per time frame during Pass 2 of render_time_frames().
+        It renders task bars (rectangles) and labels for all tasks that overlap with
+        the current time frame's date range.
+        
+        For tasks that span multiple time frames:
+        - Task bar segments are rendered in each overlapping time frame
+        - Inside labels are rendered ONLY in the LAST time frame segment (to appear on top)
+        - Outside labels are rendered in each time frame segment (to the right of each segment)
+        
+        Args:
+            x: The absolute x position of the current time frame (in pixels)
+            y: The absolute y position of the current time frame (in pixels)
+            width: The width of the current time frame (in pixels)
+            height: The height of the current time frame (in pixels)
+            start_date: The start date of the current time frame (datetime)
+            end_date: The end date of the current time frame (datetime)
+            num_rows: The number of rows in the Gantt chart
+        """
         logging.debug(f"Rendering tasks from {start_date} to {end_date}")
         total_days = max((end_date - start_date).days, 1)
         tf_time_scale = width / total_days if total_days > 0 else width
@@ -258,12 +426,73 @@ class GanttChartService(QObject):
                 if x_start < x + width:
                     y_offset = (row_height - task_height) / 2
                     rect_y = y_task + y_offset
+                    logging.debug(f"Rendering task bar for '{task_name}': x={x_start}, y={rect_y}, width={width_task}, height={task_height}, row={row_num}, y_task={y_task}")
                     self.dwg.add(self.dwg.rect(insert=(x_start, rect_y), size=(width_task, task_height), fill="blue"))
                     
                     if not label_hide:
+                        # Calculate label_y_base based on row position (same for all time frames for this task)
+                        # This ensures the label appears at the correct vertical position regardless of which
+                        # time frame segment we're rendering
                         label_y_base = rect_y + task_height / 2 + font_size * self.config.general.label_vertical_offset_factor
+                        logging.debug(f"  Calculated label_y_base={label_y_base} for task '{task_name}' (rect_y={rect_y}, task_height={task_height}, font_size={font_size}, offset_factor={self.config.general.label_vertical_offset_factor})")
+                        
                         if label_placement == "Inside":
-                            self._render_inside_label(task_name, x_start, width_task, label_y_base)
+                            # ========================================================================
+                            # INSIDE LABEL RENDERING LOGIC FOR MULTI-TIME-FRAME TASKS
+                            # ========================================================================
+                            # When a task spans multiple time frames, the inside label must:
+                            # 1. Appear only ONCE (not duplicated in each time frame segment)
+                            # 2. Be centered on the TOTAL task span in pixels across all time frames
+                            # 3. Be rendered AFTER all task bar segments (to appear on top)
+                            #
+                            # Strategy: Render the label only when we're processing the LAST time frame
+                            # segment where the task appears. This ensures:
+                            # - All task bar segments are already rendered (so label appears on top)
+                            # - The label is centered correctly on the total span
+                            # - The label appears only once
+                            #
+                            # Detection of last segment: Check if task_finish is within or at the end
+                            # of the current time frame (end_date). If so, this is the last segment.
+                            # ========================================================================
+                            task_id = task.get("task_id")
+                            
+                            # Check if task_id is present (required for tracking rendered labels)
+                            if task_id is None:
+                                logging.warning(f"Task '{task_name}' has no task_id, cannot track label rendering. Rendering in current time frame.")
+                                # Fallback: render in current time frame segment
+                                self._render_inside_label(task_name, x_start, width_task, label_y_base)
+                            elif task_id not in self._rendered_inside_labels:
+                                # Calculate the total task span across all time frames in absolute pixel coordinates
+                                # This uses the pre-calculated _time_frame_info from render_time_frames() pass 1
+                                total_span = self._calculate_total_task_span(task_start, task_finish)
+                                
+                                if total_span:
+                                    # Task spans multiple time frames: need to determine if this is the last segment
+                                    # The last segment is where the task finishes (task_finish is within or at end_date)
+                                    # We add 1 day to end_date to account for inclusive end dates
+                                    is_last_segment = task_finish <= end_date
+                                    
+                                    if is_last_segment:
+                                        # This is the last time frame segment where the task appears
+                                        # Render the label now, centered on the total span across all segments
+                                        # This ensures the label appears on top of all task bar segments
+                                        total_x_start, total_width = total_span
+                                        logging.debug(f"Rendering inside label for task {task_id} '{task_name}' at total span (last segment): x={total_x_start}, width={total_width}, y={label_y_base}")
+                                        self._render_inside_label(task_name, total_x_start, total_width, label_y_base)
+                                        # Mark as rendered to prevent duplicate labels
+                                        self._rendered_inside_labels.add(task_id)
+                                    else:
+                                        # Not the last segment yet - skip label rendering for now
+                                        # It will be rendered when we process the last segment
+                                        logging.debug(f"Skipping label for task {task_id} '{task_name}' - not in last segment (task_finish={task_finish}, end_date={end_date})")
+                                else:
+                                    # Fallback: either task is in single time frame or calculation failed
+                                    # For single time frame tasks, render immediately (this IS the last segment)
+                                    logging.warning(f"Could not calculate total span for task {task_id} '{task_name}', rendering in current time frame. Time frame info count: {len(self._time_frame_info)}")
+                                    self._render_inside_label(task_name, x_start, width_task, label_y_base)
+                                    # Mark as rendered to prevent duplicate labels
+                                    self._rendered_inside_labels.add(task_id)
+                            # If label already rendered, skip (prevents duplicate labels in each time frame segment)
                         elif label_placement == "Outside":
                             self._render_outside_label(task_name, x_end, rect_y + task_height / 2, 
                                                       label_y_base)
@@ -378,6 +607,8 @@ class GanttChartService(QObject):
         logging.debug("Starting render")
         os.makedirs(self.output_folder, exist_ok=True)
         self.start_date = self._set_time_scale()
+        self._rendered_inside_labels.clear()  # Reset tracking for new render
+        self._time_frame_info.clear()  # Reset time frame info
         self.render_outer_frame()
         self.render_header()
         self.render_footer()
