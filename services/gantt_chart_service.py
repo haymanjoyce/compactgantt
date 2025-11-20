@@ -170,7 +170,8 @@ class GanttChartService(QObject):
             label_hide = task.get("label_hide", "Yes") == "No"
             # Inside labels are always centre-aligned
             label_alignment = "Centre" if label_placement == "Inside" else "Left"
-            label_horizontal_offset = float(task.get("label_horizontal_offset", self.config.general.leader_line_horizontal_default))
+            # Use horizontal offset from config (no longer per-task setting)
+            label_horizontal_offset = self.config.general.leader_line_horizontal_default
             task_name = task.get("task_name", "Unnamed")
             if not start_date_str and not finish_date_str:
                 continue
@@ -197,9 +198,8 @@ class GanttChartService(QObject):
 
             label_width = len(task_name) * font_size * self.config.general.label_text_width_factor
 
-            label_horizontal_offset = float(task.get("label_horizontal_offset", self.config.general.leader_line_horizontal_default))
-            if label_horizontal_offset < 0:
-                label_horizontal_offset = self.config.general.leader_line_horizontal_default
+            # Use horizontal offset from config (no longer per-task setting)
+            label_horizontal_offset = self.config.general.leader_line_horizontal_default
 
             if is_milestone:
                 half_size = task_height / 2

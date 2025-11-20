@@ -54,7 +54,7 @@ class GeneralConfig:
     # Default colors and label settings
     default_curtain_color: str = "red"
     leader_line_vertical_default: float = 0.5
-    leader_line_horizontal_default: float = 1.0
+    leader_line_horizontal_default: float = 10.0
     label_vertical_offset_factor: float = 0.3
     label_horizontal_offset_factor: float = 0.0
     label_text_width_factor: float = 0.55
@@ -150,8 +150,7 @@ class AppConfig:
                 internal_to_display_date(internal_start),
                 internal_to_display_date(internal_finish),
                 "Yes",     # Default for Label (No = Hide, Yes = Show)
-                "Outside",  # Default for Placement
-                "1.0"
+                "Outside"  # Default for Placement
             ]
 
         def connectors_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
@@ -214,8 +213,7 @@ class AppConfig:
                     TableColumnConfig("Start Date", validator=validate_display_date),
                     TableColumnConfig("Finish Date", validator=validate_display_date),
                     TableColumnConfig("Label", widget_type="combo", combo_items=["No", "Yes"], default_value="Yes"),
-                    TableColumnConfig("Placement", widget_type="combo", combo_items=["Inside", "Outside"]),
-                    TableColumnConfig("Horiz Offset", validator=lambda x: float(x) >= 0 if x else False)
+                    TableColumnConfig("Placement", widget_type="combo", combo_items=["Inside", "Outside"])
                 ],
                 min_rows=1,
                 default_generator=lambda row_idx, context: [False] + tasks_default(row_idx, context)
