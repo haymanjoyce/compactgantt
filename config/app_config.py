@@ -155,24 +155,52 @@ class AppConfig:
                     "50.0"
                 ]
 
-        def tasks_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:  
-            task_id = context.get("max_task_id", 0) + 1
-            task_order = context.get("max_task_order", 0) + 1
-            # Row number is 1-based (row_idx is 0-based, so add 1)
-            row_number = str(row_idx + 1)
-            # Generate dates in yyyy-mm-dd format first, then convert to display format                                                                         
-            internal_start = QDate.currentDate().toString("yyyy-MM-dd")
-            internal_finish = QDate.currentDate().toString("yyyy-MM-dd")        
-            return [
-                str(task_id),
-                str(task_order),
-                row_number,  # Row number (1-based)
-                "New Task",
-                internal_to_display_date(internal_start),
-                internal_to_display_date(internal_finish),
-                "Yes",     # Default for Label (No = Hide, Yes = Show)
-                "Outside"  # Default for Placement
+        def tasks_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
+            # Default tasks:
+            # #1 - Row 1, Design, 5 Jan 25, 5 Mar 25, Inside
+            # #2 - Row 2, Tender, 6 Mar 25, 15 May 25, Inside
+            # #3 - Row 2, Contract Award, 7 Mar 25, 7 Mar 25, Outside (milestone)
+            # #4 - Row 3, Construct, 8 Mar 25, 15 Aug 25, Inside
+            # #5 - Row 4, Planned Completion, 16 Aug 25, 16 Aug 25, Outside (milestone)
+            defaults = [
+                {"name": "Design", "start": "2025-01-01", "finish": "2025-03-05", "row": 1, "placement": "Inside"},
+                {"name": "Tender", "start": "2025-03-06", "finish": "2025-05-15", "row": 2, "placement": "Inside"},
+                {"name": "Contract Award", "start": "2025-05-16", "finish": "2025-05-16", "row": 2, "placement": "Outside"},
+                {"name": "Construct", "start": "2025-05-17", "finish": "2025-06-15", "row": 3, "placement": "Inside"},
+                {"name": "Planned Completion", "start": "2025-06-16", "finish": "2025-06-16", "row": 4, "placement": "Outside"}
             ]
+            
+            if row_idx < len(defaults):
+                default = defaults[row_idx]
+                task_id = context.get("max_task_id", 0) + row_idx + 1
+                task_order = context.get("max_task_order", 0) + row_idx + 1
+                return [
+                    str(task_id),
+                    str(task_order),
+                    str(default["row"]),
+                    default["name"],
+                    internal_to_display_date(default["start"]),
+                    internal_to_display_date(default["finish"]),
+                    "Yes",  # Label shown
+                    default["placement"]
+                ]
+            else:
+                # Fallback for additional rows beyond the 5 defaults
+                task_id = context.get("max_task_id", 0) + 1
+                task_order = context.get("max_task_order", 0) + 1
+                row_number = str(row_idx + 1)
+                internal_start = QDate.currentDate().toString("yyyy-MM-dd")
+                internal_finish = QDate.currentDate().toString("yyyy-MM-dd")
+                return [
+                    str(task_id),
+                    str(task_order),
+                    row_number,
+                    "New Task",
+                    internal_to_display_date(internal_start),
+                    internal_to_display_date(internal_finish),
+                    "Yes",
+                    "Outside"
+                ]
 
         def connectors_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
             return ["1", "2"]
@@ -236,7 +264,7 @@ class AppConfig:
                     TableColumnConfig("Label", widget_type="combo", combo_items=["No", "Yes"], default_value="Yes"),
                     TableColumnConfig("Placement", widget_type="combo", combo_items=["Inside", "Outside"])
                 ],
-                min_rows=1,
+                min_rows=5,
                 default_generator=lambda row_idx, context: [False] + tasks_default(row_idx, context)
             ),
             "connectors": TableConfig(
