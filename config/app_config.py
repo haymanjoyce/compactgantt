@@ -47,7 +47,7 @@ class GeneralConfig:
     min_interval_width: int = 5
 
     # Default table row counts
-    tasks_rows: int = 5         # Default number of rows for new charts
+    tasks_rows: int = 20         # Default number of rows for new charts
     pipes_rows: int = 3
     curtains_rows: int = 3
 
