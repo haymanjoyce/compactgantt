@@ -5,7 +5,6 @@ import logging
 from config.app_config import AppConfig
 from .tabs.layout_tab import LayoutTab
 from .tabs.tasks_tab import TasksTab
-from .tabs.time_frames_tab import TimeFramesTab
 from .tabs.placeholder_tab import PlaceholderTab
 from repositories.project_repository import JsonProjectRepository
 from models.project import ProjectData  # Import here to avoid circular import
@@ -89,7 +88,6 @@ class DataEntryWindow(QMainWindow):
         self.titles_tab = TitlesTab(self.project_data, self.app_config)
         self.scales_tab = ScalesTab(self.project_data, self.app_config)
         self.grid_tab = GridTab(self.project_data, self.app_config)
-        self.time_frames_tab = TimeFramesTab(self.project_data, self.app_config)
         self.tasks_tab = TasksTab(self.project_data, self.app_config)
         self.connectors_tab = PlaceholderTab(self.project_data, self.app_config, "Connectors")
         self.swimlanes_tab = SwimlanesTab(self.project_data, self.app_config)
@@ -103,7 +101,6 @@ class DataEntryWindow(QMainWindow):
         self.tab_widget.addTab(self.titles_tab, "Titles")
         self.tab_widget.addTab(self.scales_tab, "Scales")
         self.tab_widget.addTab(self.grid_tab, "Grid")
-        self.tab_widget.addTab(self.time_frames_tab, "Time Frames")
         self.tab_widget.addTab(self.tasks_tab, "Tasks")
         self.tab_widget.addTab(self.connectors_tab, "Connectors")
         self.tab_widget.addTab(self.swimlanes_tab, "Swimlanes")
@@ -153,8 +150,6 @@ class DataEntryWindow(QMainWindow):
                 self.scales_tab._sync_data()
             if hasattr(self.grid_tab, '_sync_data'):
                 self.grid_tab._sync_data()
-            if hasattr(self.time_frames_tab, '_sync_data'):
-                self.time_frames_tab._sync_data()
             if hasattr(self.tasks_tab, '_sync_data'):
                 self.tasks_tab._sync_data()
             if hasattr(self.swimlanes_tab, '_sync_data'):

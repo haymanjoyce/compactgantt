@@ -1,9 +1,8 @@
 from typing import List, Dict, Any, Optional, Set
-from models import FrameConfig, TimeFrame, Task
+from models import FrameConfig, Task
 from validators import DataValidator
 import logging
 from services.project_service import ProjectService
-from services.time_frame_service import TimeFrameService
 from services.task_service import TaskService
 from config.app_config import AppConfig
 
@@ -13,7 +12,6 @@ class ProjectData:
     def __init__(self):
         app_config = AppConfig()
         self.frame_config = FrameConfig(num_rows=app_config.general.tasks_rows)
-        self.time_frames: List[TimeFrame] = []
         self.tasks: List[Task] = []
         self.connectors: List[List[str]] = []
         self.swimlanes: List[List[str]] = []
@@ -22,7 +20,6 @@ class ProjectData:
         self.text_boxes: List[List[str]] = []
         self.validator = DataValidator()
         self.project_service = ProjectService()
-        self.time_frame_service = TimeFrameService()
         self.task_service = TaskService()
 
     def to_json(self) -> Dict[str, Any]:
@@ -30,7 +27,6 @@ class ProjectData:
             assert hasattr(t, "__dict__"), f"Non-class instance in self.tasks: {t} ({type(t)})"
         return {
             "frame_config": vars(self.frame_config),
-            "time_frames": [tf.to_dict() for tf in sorted(self.time_frames, key=lambda x: x.time_frame_id)],
             "tasks": [vars(task) for task in self.tasks],
             "connectors": self.connectors,
             "swimlanes": self.swimlanes,
@@ -47,10 +43,6 @@ class ProjectData:
         if "margins" in frame_config_data and isinstance(frame_config_data["margins"], list):
             frame_config_data["margins"] = tuple(frame_config_data["margins"])
         project.frame_config = FrameConfig(**frame_config_data)
-        
-        # Load time frames
-        for tf_data in data.get("time_frames", []):
-            project.time_frames.append(TimeFrame.from_dict(tf_data))
         
         # Load tasks
         for task_data in data.get("tasks", []):

@@ -1,23 +1,10 @@
 from typing import List, Set, Dict, Any
 from datetime import datetime
-from models import TimeFrame, Task
+from models import Task
 from utils.conversion import is_valid_internal_date
 
 
 class DataValidator:
-    @staticmethod
-    def validate_time_frame(time_frame: TimeFrame, used_ids: Set[int]) -> List[str]:
-        errors = []
-        if time_frame.time_frame_id <= 0:
-            errors.append("Time Frame ID must be positive")
-        if time_frame.time_frame_id in used_ids:
-            errors.append("Time Frame ID must be unique")
-        if not is_valid_internal_date(time_frame.finish_date):
-            errors.append("Invalid date format (should be dd/mm/yyyy)")
-        if time_frame.width_proportion <= 0:
-            errors.append("Width proportion must be positive")
-        return errors
-
     @staticmethod
     def validate_task(task: Task, used_ids: Set[int]) -> List[str]:
         errors = []

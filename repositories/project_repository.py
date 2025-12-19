@@ -1,7 +1,6 @@
 import json
 from typing import Any, Type
 from models.frame import FrameConfig
-from models.time_frame import TimeFrame
 from models.task import Task
 from repositories.interfaces.repository import ProjectRepository
 
