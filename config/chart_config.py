@@ -35,10 +35,16 @@ class ChartConfig:
     label_text_width_factor: float = 0.55
     scale_label_vertical_alignment_factor: float = 0.7  # Vertical position within scale interval (0.0=top, 0.5=center, 1.0=bottom)
 
+    # Font sizes
+    task_font_size: int = 10  # Font size for task labels
+    scale_font_size: int = 10  # Font size for scale labels
+    header_footer_font_size: int = 14  # Font size for header and footer text
+
     def __post_init__(self):
         # Validate positive integers
         for field_name in ["outer_width", "outer_height", "full_label_width", 
-                          "short_label_width", "tasks_rows", "pipes_rows", "curtains_rows"]:
+                          "short_label_width", "tasks_rows", "pipes_rows", "curtains_rows",
+                          "task_font_size", "scale_font_size", "header_footer_font_size"]:
             value = getattr(self, field_name)
             if not isinstance(value, int) or value < 0:
                 raise ValueError(f"{field_name} must be a non-negative integer")

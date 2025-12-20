@@ -20,7 +20,7 @@ class GanttChartService(QObject):
         self.dwg = None
         self.data = {"frame_config": {}, "tasks": []}
         self.start_date = None
-        self.font = QFont("Arial", 10)
+        self.font = QFont("Arial", self.config.general.task_font_size)
         self.font_metrics = QFontMetrics(self.font)
         logging.debug("GanttChartService initialized")
 
@@ -103,7 +103,7 @@ class GanttChartService(QObject):
             header_y = margins[0] + height * self.config.general.scale_label_vertical_alignment_factor
             self.dwg.add(self.dwg.text(header_text,
                                        insert=(margins[3] + width / 2, header_y),
-                                       text_anchor="middle", font_size="14", dominant_baseline="middle"))
+                                       text_anchor="middle", font_size=str(self.config.general.header_footer_font_size), dominant_baseline="middle"))
         logging.debug("Header rendered")
 
     def render_footer(self):
@@ -118,7 +118,7 @@ class GanttChartService(QObject):
             footer_y = y + height * self.config.general.scale_label_vertical_alignment_factor
             self.dwg.add(self.dwg.text(footer_text,
                                        insert=(margins[3] + width / 2, footer_y),
-                                       text_anchor="middle", font_size="14", dominant_baseline="middle"))
+                                       text_anchor="middle", font_size=str(self.config.general.header_footer_font_size), dominant_baseline="middle"))
         logging.debug("Footer rendered")
 
     def render_inner_frame(self):
@@ -187,7 +187,7 @@ class GanttChartService(QObject):
         label_x = x_start + width_task / 2
         logging.debug(f"_render_inside_label: text='{task_name_display}', x={label_x}, y={label_y_base}, width={width_task}, original_text='{task_name}'")
         self.dwg.add(self.dwg.text(task_name_display, insert=(label_x, label_y_base),
-                                   font_size="10", font_family="Arial", fill="white",
+                                   font_size=str(self.config.general.task_font_size), font_family="Arial", fill="white",
                                    text_anchor="middle", dominant_baseline="middle"))
         logging.debug(f"  Text element added to SVG at position ({label_x}, {label_y_base})")
 
@@ -198,7 +198,7 @@ class GanttChartService(QObject):
         label_horizontal_offset = self.config.general.leader_line_horizontal_default
         label_x = attachment_x + label_horizontal_offset  # Fixed pixel offset, no time scaling
         self.dwg.add(self.dwg.text(task_name, insert=(label_x, label_y_base), 
-                                   font_size="10", font_family="Arial", fill="black",
+                                   font_size=str(self.config.general.task_font_size), font_family="Arial", fill="black",
                                    text_anchor="start", dominant_baseline="middle"))
         self.dwg.add(self.dwg.line((label_x, attachment_y), (attachment_x, attachment_y),
                                    stroke="black", stroke_width=1))
@@ -220,7 +220,7 @@ class GanttChartService(QObject):
         time_scale = width / total_days if total_days > 0 else width
         row_height = height / num_rows if num_rows > 0 else height
         task_height = row_height * 0.8
-        font_size = 10
+        font_size = self.config.general.task_font_size
 
         for task in self.data.get("tasks", []):
             start_date_str = task.get("start_date", "")
@@ -394,7 +394,7 @@ class GanttChartService(QObject):
                         label = current_date.strftime("%a")[0]
                 if label:
                     self.dwg.add(self.dwg.text(label, insert=(label_x, label_y), text_anchor="middle",
-                                               font_size="10", dominant_baseline="middle"))
+                                               font_size=str(self.config.general.scale_font_size), dominant_baseline="middle"))
             prev_x = x_pos
             current_date = next_date
 

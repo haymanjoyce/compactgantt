@@ -163,6 +163,18 @@ class GeneralConfig:
     def scale_label_vertical_alignment_factor(self) -> float:
         return self.chart.scale_label_vertical_alignment_factor
 
+    @property
+    def task_font_size(self) -> int:
+        return self.chart.task_font_size
+
+    @property
+    def scale_font_size(self) -> int:
+        return self.chart.scale_font_size
+
+    @property
+    def header_footer_font_size(self) -> int:
+        return self.chart.header_footer_font_size
+
 @dataclass
 class TableColumnConfig:
     name: str
