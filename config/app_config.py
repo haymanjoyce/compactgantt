@@ -36,33 +36,65 @@ class GeneralConfig:
     def data_entry_screen(self) -> int:
         return self.window.data_entry_screen
 
+    @data_entry_screen.setter
+    def data_entry_screen(self, value: int):
+        self.window.data_entry_screen = value
+
     @property
     def data_entry_position(self) -> str:
         return self.window.data_entry_position
+
+    @data_entry_position.setter
+    def data_entry_position(self, value: str):
+        self.window.data_entry_position = value
 
     @property
     def data_entry_x(self) -> int:
         return self.window.data_entry_x
 
+    @data_entry_x.setter
+    def data_entry_x(self, value: int):
+        self.window.data_entry_x = value
+
     @property
     def data_entry_y(self) -> int:
         return self.window.data_entry_y
+
+    @data_entry_y.setter
+    def data_entry_y(self, value: int):
+        self.window.data_entry_y = value
 
     @property
     def svg_display_screen(self) -> int:
         return self.window.svg_display_screen
 
+    @svg_display_screen.setter
+    def svg_display_screen(self, value: int):
+        self.window.svg_display_screen = value
+
     @property
     def svg_display_position(self) -> str:
         return self.window.svg_display_position
+
+    @svg_display_position.setter
+    def svg_display_position(self, value: str):
+        self.window.svg_display_position = value
 
     @property
     def svg_display_x(self) -> int:
         return self.window.svg_display_x
 
+    @svg_display_x.setter
+    def svg_display_x(self, value: int):
+        self.window.svg_display_x = value
+
     @property
     def svg_display_y(self) -> int:
         return self.window.svg_display_y
+
+    @svg_display_y.setter
+    def svg_display_y(self, value: int):
+        self.window.svg_display_y = value
 
     @property
     def outer_width(self) -> int:
