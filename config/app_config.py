@@ -148,10 +148,6 @@ class GeneralConfig:
         return self.chart.leader_line_horizontal_default
 
     @property
-    def label_vertical_offset_factor(self) -> float:
-        return self.chart.label_vertical_offset_factor
-
-    @property
     def label_horizontal_offset_factor(self) -> float:
         return self.chart.label_horizontal_offset_factor
 
@@ -160,8 +156,8 @@ class GeneralConfig:
         return self.chart.label_text_width_factor
 
     @property
-    def scale_label_vertical_alignment_factor(self) -> float:
-        return self.chart.scale_label_vertical_alignment_factor
+    def text_vertical_alignment_factor(self) -> float:
+        return self.chart.text_vertical_alignment_factor
 
     @property
     def task_font_size(self) -> int:

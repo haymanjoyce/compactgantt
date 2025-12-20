@@ -30,10 +30,9 @@ class ChartConfig:
     default_curtain_color: str = "red"
     leader_line_vertical_default: float = 0.5
     leader_line_horizontal_default: float = 10.0  # Fixed pixel offset for outside labels
-    label_vertical_offset_factor: float = 0.3
     label_horizontal_offset_factor: float = 0.0
     label_text_width_factor: float = 0.55
-    scale_label_vertical_alignment_factor: float = 0.7  # Vertical position within scale interval (0.0=top, 0.5=center, 1.0=bottom)
+    text_vertical_alignment_factor: float = 0.7  # Vertical position for all text (0.0=top, 0.5=center, 1.0=bottom). Used for header, footer, scales, and task labels.
 
     # Font sizes
     task_font_size: int = 10  # Font size for task labels
@@ -53,8 +52,8 @@ class ChartConfig:
         for field_name in ["scale_proportion_years", "scale_proportion_months",
                           "scale_proportion_weeks", "scale_proportion_days",
                           "leader_line_vertical_default", "leader_line_horizontal_default",
-                          "label_vertical_offset_factor", "label_horizontal_offset_factor",
-                          "label_text_width_factor", "scale_label_vertical_alignment_factor"]:
+                          "label_horizontal_offset_factor",
+                          "label_text_width_factor", "text_vertical_alignment_factor"]:
             value = getattr(self, field_name)
             if not isinstance(value, float) or value < 0:
                 raise ValueError(f"{field_name} must be a non-negative float")

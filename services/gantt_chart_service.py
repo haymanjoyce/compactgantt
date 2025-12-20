@@ -100,7 +100,7 @@ class GanttChartService(QObject):
                                    fill="lightgray", stroke="black", stroke_width=1))
         header_text = self._get_frame_config("header_text", "")
         if header_text:
-            header_y = margins[0] + height * self.config.general.scale_label_vertical_alignment_factor
+            header_y = margins[0] + height * self.config.general.text_vertical_alignment_factor
             self.dwg.add(self.dwg.text(header_text,
                                        insert=(margins[3] + width / 2, header_y),
                                        text_anchor="middle", font_size=str(self.config.general.header_footer_font_size), dominant_baseline="middle"))
@@ -115,7 +115,7 @@ class GanttChartService(QObject):
                                    fill="lightgray", stroke="black", stroke_width=1))
         footer_text = self._get_frame_config("footer_text", "")
         if footer_text:
-            footer_y = y + height * self.config.general.scale_label_vertical_alignment_factor
+            footer_y = y + height * self.config.general.text_vertical_alignment_factor
             self.dwg.add(self.dwg.text(footer_text,
                                        insert=(margins[3] + width / 2, footer_y),
                                        text_anchor="middle", font_size=str(self.config.general.header_footer_font_size), dominant_baseline="middle"))
@@ -271,7 +271,8 @@ class GanttChartService(QObject):
                 self.dwg.add(self.dwg.polygon(points=points, fill="red", stroke="black", stroke_width=1))
                 
                 if not label_hide and label_placement == "Outside":
-                    label_y_base = center_y + font_size * self.config.general.label_vertical_offset_factor
+                    # Use proportional positioning: center_y is at row_height * 0.5, apply factor to row_height
+                    label_y_base = y_task + row_height * self.config.general.text_vertical_alignment_factor
                     milestone_right = center_x + half_size
                     self._render_outside_label(task_name, milestone_right, center_y, label_y_base)
             else:
@@ -282,8 +283,9 @@ class GanttChartService(QObject):
                     self.dwg.add(self.dwg.rect(insert=(x_start, rect_y), size=(width_task, task_height), fill="blue"))
                     
                     if not label_hide:
-                        label_y_base = rect_y + task_height / 2 + font_size * self.config.general.label_vertical_offset_factor
-                        logging.debug(f"  Calculated label_y_base={label_y_base} for task '{task_name}' (rect_y={rect_y}, task_height={task_height}, font_size={font_size}, offset_factor={self.config.general.label_vertical_offset_factor})")
+                        # Use proportional positioning within task bar
+                        label_y_base = rect_y + task_height * self.config.general.text_vertical_alignment_factor
+                        logging.debug(f"  Calculated label_y_base={label_y_base} for task '{task_name}' (rect_y={rect_y}, task_height={task_height}, alignment_factor={self.config.general.text_vertical_alignment_factor})")
                         
                         if label_placement == "Inside":
                             # Simple inside label rendering - no multi-time-frame logic needed
@@ -371,7 +373,7 @@ class GanttChartService(QObject):
                                            stroke="black", stroke_width=1))
             if prev_x < x + width and x_pos > x:
                 label_x = (max(x, prev_x) + min(x + width, x_pos)) / 2
-                label_y = y + height * self.config.general.scale_label_vertical_alignment_factor
+                label_y = y + height * self.config.general.text_vertical_alignment_factor
                 label = ""
                 if interval == "years":
                     if interval_width >= self.config.general.full_label_width:
