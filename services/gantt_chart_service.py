@@ -331,7 +331,7 @@ class GanttChartService(QObject):
                 while current_date <= end_date:
                     x_pos = x + (current_date - start_date).days * time_scale
                     interval_width = x_pos - prev_x if x_pos <= x + width else (x + width) - prev_x
-                    if x <= x_pos <= x + width and interval_width >= self.config.general.min_interval_width:
+                    if x <= x_pos <= x + width:
                         self.dwg.add(self.dwg.line((x_pos, row_y), (x_pos, row_y + row_frame_height),
                                                    stroke="gray", stroke_width=1))
                     prev_x = x_pos
@@ -364,7 +364,7 @@ class GanttChartService(QObject):
             next_date = self.next_period(current_date, interval)
             x_pos = x + (next_date - start_date).days * time_scale
             interval_width = x_pos - prev_x if x_pos <= x + width else (x + width) - prev_x
-            if x <= x_pos <= x + width and interval_width >= self.config.general.min_interval_width:
+            if x <= x_pos <= x + width:
                 self.dwg.add(self.dwg.line((x_pos, y), (x_pos, y + height),
                                            stroke="black", stroke_width=1))
             if prev_x < x + width and x_pos > x:

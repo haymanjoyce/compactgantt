@@ -44,7 +44,6 @@ class GeneralConfig:
     # Scale label thresholds
     full_label_width: int = 50
     short_label_width: int = 20
-    min_interval_width: int = 5
 
     # Default table row counts
     tasks_rows: int = 20         # Default number of rows for new charts
@@ -64,7 +63,7 @@ class GeneralConfig:
         # Validate positive integers
         for field_name in ["data_entry_width", "data_entry_height", "svg_display_width",
                           "svg_display_height", "outer_width", "outer_height",
-                          "full_label_width", "short_label_width", "min_interval_width",
+                          "full_label_width", "short_label_width",
                           "tasks_rows", "pipes_rows", "curtains_rows", "data_entry_screen",
                           "data_entry_x", "data_entry_y", "svg_display_screen",
                           "svg_display_x", "svg_display_y"]:
