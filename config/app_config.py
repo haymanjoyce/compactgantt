@@ -3,6 +3,9 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Callable, Any, Tuple, Optional
 from PyQt5.QtCore import QDate
 import logging
+import json
+import os
+from pathlib import Path
 from utils.conversion import internal_to_display_date, display_to_internal_date, is_valid_display_date
 from config.window_config import WindowConfig
 from config.chart_config import ChartConfig
@@ -181,6 +184,9 @@ class AppConfig:
     tables: Dict[str, TableConfig] = field(default_factory=dict)
 
     def __post_init__(self):
+        # Load settings first, before initializing tables
+        self._load_settings()
+        
         # Define default value generators
         def tasks_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
             # Default tasks:
@@ -333,3 +339,47 @@ class AppConfig:
 
     def get_table_config(self, key: str) -> TableConfig:
         return self.tables.get(key, None)
+
+    def _get_settings_file(self) -> str:
+        """Get path to settings file."""
+        if os.name == 'nt':  # Windows
+            config_dir = Path(os.getenv('APPDATA', '')) / 'compact_gantt'
+        else:  # Linux/Mac
+            config_dir = Path.home() / '.config' / 'compact_gantt'
+        config_dir.mkdir(parents=True, exist_ok=True)
+        return str(config_dir / 'settings.json')
+
+    def _load_settings(self):
+        """Load window settings from file if it exists."""
+        settings_file = self._get_settings_file()
+        if os.path.exists(settings_file):
+            try:
+                with open(settings_file, 'r') as f:
+                    data = json.load(f)
+                    if 'window' in data:
+                        self.general.window = WindowConfig(**data['window'])
+            except Exception as e:
+                logging.warning(f"Failed to load settings: {e}")
+
+    def save_settings(self):
+        """Save window settings to file."""
+        settings_file = self._get_settings_file()
+        try:
+            data = {
+                'window': {
+                    'data_entry_width': self.general.window.data_entry_width,
+                    'data_entry_height': self.general.window.data_entry_height,
+                    'data_entry_screen': self.general.window.data_entry_screen,
+                    'data_entry_x': self.general.window.data_entry_x,
+                    'data_entry_y': self.general.window.data_entry_y,
+                    'svg_display_width': self.general.window.svg_display_width,
+                    'svg_display_height': self.general.window.svg_display_height,
+                    'svg_display_screen': self.general.window.svg_display_screen,
+                    'svg_display_x': self.general.window.svg_display_x,
+                    'svg_display_y': self.general.window.svg_display_y,
+                }
+            }
+            with open(settings_file, 'w') as f:
+                json.dump(data, f, indent=4)
+        except Exception as e:
+            logging.error(f"Failed to save settings: {e}")

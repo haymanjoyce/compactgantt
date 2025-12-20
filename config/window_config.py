@@ -13,7 +13,7 @@ class WindowConfig:
     # SVG display window settings
     svg_display_width: int = 800
     svg_display_height: int = 600
-    svg_display_screen: int = 1  # Which screen to display on (1 = secondary screen if available)
+    svg_display_screen: int = 0  # Which screen to display on (0 = primary screen)
     svg_display_x: int = 100  # X position in pixels
     svg_display_y: int = 100  # Y position in pixels
 

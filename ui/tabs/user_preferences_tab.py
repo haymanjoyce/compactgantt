@@ -42,16 +42,10 @@ class UserPreferencesTab(BaseTab):
         screen_label = QLabel("Screen:")
         screen_label.setFixedWidth(label_width)
         screen_spinbox = QSpinBox()
-        screen_spinbox.setMinimum(0)
+        screen_spinbox.setMinimum(1)  # 1-based indexing (Microsoft style)
         screen_spinbox.setMaximum(10)
-        screen_spinbox.setToolTip("Screen number (0 = primary screen)")
+        screen_spinbox.setToolTip("Screen number (1 = primary screen)")
         setattr(self, f"{prefix}_screen_spinbox", screen_spinbox)
-
-        # Screen specification label
-        screen_spec_label = QLabel()
-        screen_spec_label.setWordWrap(True)
-        screen_spec_label.setStyleSheet("color: #666; font-size: 10px;")
-        setattr(self, f"{prefix}_screen_spec_label", screen_spec_label)
 
         # X position
         x_label = QLabel("X Position:")
@@ -73,13 +67,12 @@ class UserPreferencesTab(BaseTab):
 
         layout.addWidget(screen_label, 0, 0)
         layout.addWidget(screen_spinbox, 0, 1)
-        layout.addWidget(screen_spec_label, 1, 1)
-        layout.addWidget(x_label, 2, 0)
-        layout.addWidget(custom_x, 2, 1)
-        layout.addWidget(y_label, 3, 0)
-        layout.addWidget(custom_y, 3, 1)
+        layout.addWidget(x_label, 1, 0)
+        layout.addWidget(custom_x, 1, 1)
+        layout.addWidget(y_label, 2, 0)
+        layout.addWidget(custom_y, 2, 1)
         layout.setColumnStretch(1, 1)
-        layout.setRowStretch(4, 1)  # Add row stretch after the last field
+        layout.setRowStretch(3, 1)  # Add row stretch after the last field
         group.setLayout(layout)
         return group
 
@@ -133,7 +126,6 @@ class UserPreferencesTab(BaseTab):
             custom_y = getattr(self, f"{prefix}_custom_y")
             
             screen_spinbox.valueChanged.connect(self._sync_data_if_not_initializing)
-            screen_spinbox.valueChanged.connect(self._update_screen_specifications)
             custom_x.valueChanged.connect(self._sync_data_if_not_initializing)
             custom_y.valueChanged.connect(self._sync_data_if_not_initializing)
 
@@ -144,12 +136,11 @@ class UserPreferencesTab(BaseTab):
             custom_x = getattr(self, f"{prefix}_custom_x")
             custom_y = getattr(self, f"{prefix}_custom_y")
             
-            screen_spinbox.setValue(getattr(self.app_config.general, f"{prefix}_screen"))
+            # Convert from 0-based (internal) to 1-based (display)
+            screen_value = getattr(self.app_config.general, f"{prefix}_screen") + 1
+            screen_spinbox.setValue(screen_value)
             custom_x.setValue(getattr(self.app_config.general, f"{prefix}_x"))
             custom_y.setValue(getattr(self.app_config.general, f"{prefix}_y"))
-        
-        # Update screen specifications after loading data
-        self._update_screen_specifications()
 
     def _sync_data_impl(self):
         # Update app config for both positioning groups
@@ -158,9 +149,14 @@ class UserPreferencesTab(BaseTab):
             custom_x = getattr(self, f"{prefix}_custom_x")
             custom_y = getattr(self, f"{prefix}_custom_y")
             
-            setattr(self.app_config.general, f"{prefix}_screen", screen_spinbox.value())
+            # Convert from 1-based (display) to 0-based (internal)
+            screen_value = screen_spinbox.value() - 1
+            setattr(self.app_config.general, f"{prefix}_screen", screen_value)
             setattr(self.app_config.general, f"{prefix}_x", custom_x.value())
             setattr(self.app_config.general, f"{prefix}_y", custom_y.value())
+
+        # Save settings to persist between sessions
+        self.app_config.save_settings()
 
         # Emit data updated signal
         self.data_updated.emit({
