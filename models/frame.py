@@ -13,7 +13,10 @@ class FrameConfig:
     header_text: str = ""
     footer_text: str = ""
     horizontal_gridlines: bool = True
-    vertical_gridlines: bool = True
+    vertical_gridline_years: bool = True
+    vertical_gridline_months: bool = True
+    vertical_gridline_weeks: bool = False
+    vertical_gridline_days: bool = False
     chart_start_date: str = "2024-12-30"
     show_years: bool = True
     show_months: bool = True

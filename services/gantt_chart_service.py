@@ -339,19 +339,44 @@ class GanttChartService(QObject):
                 y_pos = row_y + i * (row_frame_height / num_rows)
                 self.dwg.add(self.dwg.line((x, y_pos), (x + width, y_pos), stroke="gray", stroke_width=1))
 
-        if self._get_frame_config("vertical_gridlines", False):
-            # Use the filtered scale_configs for vertical gridlines
-            for interval, _ in scale_configs:
-                current_date = self.next_period(start_date, interval)
-                prev_x = x
-                while current_date <= end_date:
-                    x_pos = x + (current_date - start_date).days * time_scale
-                    interval_width = x_pos - prev_x if x_pos <= x + width else (x + width) - prev_x
-                    if x <= x_pos <= x + width:
-                        self.dwg.add(self.dwg.line((x_pos, row_y), (x_pos, row_y + row_frame_height),
-                                                   stroke="gray", stroke_width=1))
-                    prev_x = x_pos
-                    current_date = self.next_period(current_date, interval)
+        # Render vertical gridlines based on individual interval settings
+        # Define line weights for visual hierarchy: larger intervals = thicker lines
+        interval_line_weights = {
+            "years": 3.0,
+            "months": 2.0,
+            "weeks": 1.5,
+            "days": 1.0
+        }
+        
+        # Check which intervals should have gridlines (independent of scale visibility)
+        vertical_gridline_intervals = []
+        if self._get_frame_config("vertical_gridline_years", False):
+            vertical_gridline_intervals.append("years")
+        if self._get_frame_config("vertical_gridline_months", False):
+            vertical_gridline_intervals.append("months")
+        if self._get_frame_config("vertical_gridline_weeks", False):
+            vertical_gridline_intervals.append("weeks")
+        if self._get_frame_config("vertical_gridline_days", False):
+            vertical_gridline_intervals.append("days")
+        
+        # Handle backward compatibility: if old vertical_gridlines flag exists, use all visible scales
+        if not vertical_gridline_intervals and self._get_frame_config("vertical_gridlines", False):
+            # Old format - use all visible scale intervals
+            vertical_gridline_intervals = [interval for interval, _ in scale_configs]
+        
+        # Render gridlines for each enabled interval
+        for interval in vertical_gridline_intervals:
+            line_weight = interval_line_weights.get(interval, 1.0)
+            current_date = self.next_period(start_date, interval)
+            prev_x = x
+            while current_date <= end_date:
+                x_pos = x + (current_date - start_date).days * time_scale
+                interval_width = x_pos - prev_x if x_pos <= x + width else (x + width) - prev_x
+                if x <= x_pos <= x + width:
+                    self.dwg.add(self.dwg.line((x_pos, row_y), (x_pos, row_y + row_frame_height),
+                                               stroke="gray", stroke_width=line_weight))
+                prev_x = x_pos
+                current_date = self.next_period(current_date, interval)
 
         self.render_tasks(x, row_y, width, row_frame_height, start_date, end_date, num_rows)
 
