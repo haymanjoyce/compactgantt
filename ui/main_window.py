@@ -20,7 +20,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, project_data, svg_display=None):
         super().__init__()
-        self.setWindowTitle("Compact Gantt")
+        self.setWindowTitle("Compact Gantt | Data")
         self.setWindowIcon(QIcon("assets/logo.png"))  # Add window icon
         self.setMinimumSize(600, 700)
         self.project_data = project_data  # Use passed project_data instance
