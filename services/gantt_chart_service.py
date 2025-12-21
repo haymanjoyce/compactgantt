@@ -63,15 +63,23 @@ class GanttChartService(QObject):
     def render_outer_frame(self):
         width = self._get_frame_config("outer_width", self.config.general.outer_width)
         height = self._get_frame_config("outer_height", self.config.general.outer_height)
-        self.dwg.add(self.dwg.rect(insert=(0, 0), size=(width, height), fill="white", stroke="black", stroke_width=2))
+        # Render background first
+        self.dwg.add(self.dwg.rect(insert=(0, 0), size=(width, height), fill="white", stroke="none"))
         logging.debug("Outer frame rendered")
+
+    def render_outer_frame_border(self):
+        """Render outer frame border last so it appears on top of all other elements."""
+        width = self._get_frame_config("outer_width", self.config.general.outer_width)
+        height = self._get_frame_config("outer_height", self.config.general.outer_height)
+        self.dwg.add(self.dwg.rect(insert=(0, 0), size=(width, height), fill="none", stroke="black", stroke_width=2))
+        logging.debug("Outer frame border rendered")
 
     def render_header(self):
         margins = self._get_frame_config("margins", (10, 10, 10, 10))
         width = self._get_frame_config("outer_width", self.config.general.outer_width) - margins[1] - margins[3]
         height = self._get_frame_config("header_height", 20)
         self.dwg.add(self.dwg.rect(insert=(margins[3], margins[0]), size=(width, height),
-                                   fill="lightgray", stroke="black", stroke_width=1))
+                                   fill="lightgray", stroke="grey", stroke_width=1))
         header_text = self._get_frame_config("header_text", "")
         if header_text:
             header_y = margins[0] + height * self.config.general.text_vertical_alignment_factor
@@ -86,7 +94,7 @@ class GanttChartService(QObject):
         height = self._get_frame_config("footer_height", 20)
         y = self._get_frame_config("outer_height", self.config.general.outer_height) - margins[2] - height
         self.dwg.add(self.dwg.rect(insert=(margins[3], y), size=(width, height),
-                                   fill="lightgray", stroke="black", stroke_width=1))
+                                   fill="lightgray", stroke="grey", stroke_width=1))
         footer_text = self._get_frame_config("footer_text", "")
         if footer_text:
             footer_y = y + height * self.config.general.text_vertical_alignment_factor
@@ -103,8 +111,9 @@ class GanttChartService(QObject):
         y = margins[0] + header_height
         height = (self._get_frame_config("outer_height", self.config.general.outer_height) -
                   header_height - footer_height - margins[0] - margins[2])
-        self.dwg.add(self.dwg.rect(insert=(margins[3], y), size=(width, height),
-                                   fill="none", stroke="blue", stroke_width=1, stroke_dasharray="4"))
+        # Removed inner frame border - was used for layout debugging
+        # self.dwg.add(self.dwg.rect(insert=(margins[3], y), size=(width, height),
+        #                            fill="none", stroke="blue", stroke_width=1, stroke_dasharray="4"))
         logging.debug("Inner frame rendered")
 
     def render_single_timeline(self):
@@ -311,17 +320,17 @@ class GanttChartService(QObject):
         current_y = y
         for interval, scale_height in scale_heights:
             self.dwg.add(self.dwg.rect(insert=(x, current_y), size=(width, scale_height),
-                                       fill="lightgrey", stroke="black", stroke_width=1))
+                                       fill="lightgrey", stroke="grey", stroke_width=1))
             self.render_scale_interval(x, current_y, width, scale_height, start_date, end_date, interval, time_scale)
             current_y += scale_height
 
         row_y = current_y
         num_rows = self._get_frame_config("num_rows", 1)
         self.dwg.add(self.dwg.rect(insert=(x, row_y), size=(width, row_frame_height),
-                                   fill="none", stroke="purple", stroke_width=1))
+                                   fill="none", stroke="grey", stroke_width=1))
 
         if self._get_frame_config("horizontal_gridlines", False):
-            for i in range(num_rows + 1):
+            for i in range(1, num_rows):  # Exclude first and last to avoid overlapping row frame border
                 y_pos = row_y + i * (row_frame_height / num_rows)
                 self.dwg.add(self.dwg.line((x, y_pos), (x + width, y_pos), stroke="gray", stroke_width=1))
 
@@ -391,9 +400,10 @@ class GanttChartService(QObject):
             next_date = self.next_period(current_date, interval)
             x_pos = x + (next_date - start_date).days * time_scale
             interval_width = x_pos - prev_x if x_pos <= x + width else (x + width) - prev_x
-            if x <= x_pos <= x + width:
+            # Draw increment border only if it doesn't align with scale border edges
+            if x < x_pos < x + width:
                 self.dwg.add(self.dwg.line((x_pos, y), (x_pos, y + height),
-                                           stroke="black", stroke_width=1))
+                                           stroke="gray", stroke_width=0.5))
             if prev_x < x + width and x_pos > x:
                 label_x = (max(x, prev_x) + min(x + width, x_pos)) / 2
                 label_y = y + height * self.config.general.text_vertical_alignment_factor
@@ -426,10 +436,11 @@ class GanttChartService(QObject):
     def render(self):
         logging.debug("Starting render")
         os.makedirs(self.output_folder, exist_ok=True)
-        self.render_outer_frame()
+        self.render_outer_frame()  # Background only
         self.render_header()
         self.render_footer()
         self.render_inner_frame()
         self.render_single_timeline()
+        self.render_outer_frame_border()  # Border rendered last
         self.dwg.save()
         logging.debug("Render completed")
