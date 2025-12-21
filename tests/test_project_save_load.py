@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Test script to verify that all FrameConfig fields are correctly saved and loaded.
-This ensures that project files capture all frame configuration data.
+Standalone test script to verify that all FrameConfig fields are correctly saved and loaded.
+This test can run without pytest or PyQt5 dependencies.
 """
 
 import sys
@@ -9,17 +9,31 @@ import json
 import tempfile
 import os
 from pathlib import Path
-import pytest
-from models.project import ProjectData
-from models.frame import FrameConfig
-from repositories.project_repository import ProjectRepository
 
 # Ensure project root is in sys.path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Mock PyQt5 for testing without GUI dependencies
+class MockQDate:
+    @staticmethod
+    def currentDate():
+        class MockDate:
+            def toString(self, format_str):
+                return "2025-01-01"
+        return MockDate()
+
+sys.modules['PyQt5'] = type(sys)('PyQt5')
+sys.modules['PyQt5.QtCore'] = type(sys)('PyQt5.QtCore')
+sys.modules['PyQt5.QtCore'].QDate = MockQDate
+
+from models.project import ProjectData
+from models.frame import FrameConfig
+from repositories.project_repository import ProjectRepository
+
 
 def test_frame_config_all_fields_saved():
     """Test that all FrameConfig fields are saved to JSON."""
+    print("Testing: All FrameConfig fields are saved to JSON...")
     project = ProjectData()
     
     # Set all FrameConfig fields to non-default values
@@ -49,7 +63,7 @@ def test_frame_config_all_fields_saved():
         "outer_height": 800,
         "header_height": 30,
         "footer_height": 25,
-        "margins": [15, 20, 25, 30],  # JSON converts tuples to lists
+        "margins": (15, 20, 25, 30),  # vars() preserves tuple type
         "num_rows": 5,
         "header_text": "Test Header Text",
         "footer_text": "Test Footer Text",
@@ -60,12 +74,25 @@ def test_frame_config_all_fields_saved():
     
     for field_name, expected_value in expected_fields.items():
         assert field_name in frame_config_data, f"Field '{field_name}' should be in saved frame_config"
-        assert frame_config_data[field_name] == expected_value, \
-            f"Field '{field_name}' should be {expected_value}, got {frame_config_data[field_name]}"
+        # For margins, check that it's a tuple (vars preserves it) or can be converted
+        if field_name == "margins":
+            margins_value = frame_config_data[field_name]
+            if isinstance(margins_value, list):
+                margins_value = tuple(margins_value)
+            assert margins_value == expected_value, \
+                f"Field '{field_name}' should be {expected_value}, got {frame_config_data[field_name]}"
+        else:
+            assert frame_config_data[field_name] == expected_value, \
+                f"Field '{field_name}' should be {expected_value}, got {frame_config_data[field_name]}"
+    
+    print("  [PASSED]")
+    return True
 
 
 def test_frame_config_all_fields_loaded():
     """Test that all FrameConfig fields are correctly loaded from JSON."""
+    print("Testing: All FrameConfig fields are loaded from JSON...")
+    
     # Create test data with all fields
     test_data = {
         "frame_config": {
@@ -104,10 +131,15 @@ def test_frame_config_all_fields_loaded():
     assert loaded_project.frame_config.horizontal_gridlines == True
     assert loaded_project.frame_config.vertical_gridlines == False
     assert loaded_project.frame_config.chart_start_date == "2025-02-20"
+    
+    print("  [PASSED]")
+    return True
 
 
 def test_frame_config_save_and_load_roundtrip():
     """Test that saving and loading preserves all FrameConfig fields."""
+    print("Testing: Save and load roundtrip preserves all fields...")
+    
     repository = ProjectRepository()
     
     # Create project with custom FrameConfig
@@ -147,6 +179,9 @@ def test_frame_config_save_and_load_roundtrip():
         assert loaded_project.frame_config.vertical_gridlines == original_project.frame_config.vertical_gridlines
         assert loaded_project.frame_config.chart_start_date == original_project.frame_config.chart_start_date
         
+        print("  [PASSED]")
+        return True
+        
     finally:
         # Clean up temporary file
         if os.path.exists(temp_file):
@@ -155,6 +190,8 @@ def test_frame_config_save_and_load_roundtrip():
 
 def test_frame_config_defaults_on_missing_fields():
     """Test that missing fields in JSON use FrameConfig defaults."""
+    print("Testing: Missing fields use FrameConfig defaults...")
+    
     # Create test data with only some fields
     test_data = {
         "frame_config": {
@@ -185,10 +222,15 @@ def test_frame_config_defaults_on_missing_fields():
     assert loaded_project.frame_config.horizontal_gridlines == True  # Default
     assert loaded_project.frame_config.vertical_gridlines == True  # Default
     assert loaded_project.frame_config.chart_start_date == "2024-12-30"  # Default
+    
+    print("  [PASSED]")
+    return True
 
 
 def test_frame_config_margins_tuple_conversion():
     """Test that margins are correctly converted from list (JSON) to tuple."""
+    print("Testing: Margins tuple conversion...")
+    
     # JSON stores tuples as lists
     test_data = {
         "frame_config": {
@@ -208,10 +250,15 @@ def test_frame_config_margins_tuple_conversion():
     assert isinstance(loaded_project.frame_config.margins, tuple), \
         "margins should be converted to tuple"
     assert loaded_project.frame_config.margins == (5, 10, 15, 20)
+    
+    print("  [PASSED]")
+    return True
 
 
 def test_frame_config_backward_compatibility():
     """Test that old project files with header_height=50 still load correctly."""
+    print("Testing: Backward compatibility with old defaults...")
+    
     # Simulate an old project file with old default header_height
     test_data = {
         "frame_config": {
@@ -233,8 +280,59 @@ def test_frame_config_backward_compatibility():
     # Should preserve old values, not use new defaults
     assert loaded_project.frame_config.header_height == 50
     assert loaded_project.frame_config.footer_height == 50
+    
+    print("  [PASSED]")
+    return True
+
+
+def main():
+    """Run all tests."""
+    print("=" * 60)
+    print("Testing Project Save/Load Functionality")
+    print("=" * 60)
+    print()
+    
+    tests = [
+        ("All fields saved", test_frame_config_all_fields_saved),
+        ("All fields loaded", test_frame_config_all_fields_loaded),
+        ("Save/load roundtrip", test_frame_config_save_and_load_roundtrip),
+        ("Defaults on missing fields", test_frame_config_defaults_on_missing_fields),
+        ("Margins tuple conversion", test_frame_config_margins_tuple_conversion),
+        ("Backward compatibility", test_frame_config_backward_compatibility),
+    ]
+    
+    passed = 0
+    failed = 0
+    
+    for test_name, test_func in tests:
+        try:
+            if test_func():
+                passed += 1
+            else:
+                failed += 1
+                print(f"  [FAILED]")
+        except AssertionError as e:
+            failed += 1
+            print(f"  [FAILED]: {e}")
+        except Exception as e:
+            failed += 1
+            print(f"  [ERROR]: {e}")
+            import traceback
+            traceback.print_exc()
+        print()
+    
+    print("=" * 60)
+    print(f"Test Results: {passed} passed, {failed} failed")
+    print("=" * 60)
+    
+    if failed == 0:
+        print("[SUCCESS] All tests passed!")
+        return 0
+    else:
+        print("[FAILURE] Some tests failed.")
+        return 1
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    sys.exit(main())
 
