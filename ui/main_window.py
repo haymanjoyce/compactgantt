@@ -20,7 +20,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, project_data, svg_display=None):
         super().__init__()
-        self.setWindowTitle("Compact Gantt | Data")
+        self.setWindowTitle("Compact Gantt | Chart Data Window")
         self.setWindowIcon(QIcon("assets/logo.png"))  # Add window icon
         self.setMinimumSize(600, 700)
         self.project_data = project_data  # Use passed project_data instance
@@ -60,7 +60,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.tab_widget)
 
         # Create Update Image button at the bottom
-        self.update_image_button = QPushButton("Update Image")
+        self.update_image_button = QPushButton("Update Chart")
         self.update_image_button.setStyleSheet("""
             QPushButton {
                 padding: 8px;

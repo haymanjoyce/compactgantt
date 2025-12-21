@@ -15,7 +15,7 @@ class WindowsTab(BaseTab):
 
         # Data Entry Window Positioning Group
         data_entry_group = self._create_positioning_group(
-            "Data Entry Window Positioning", 
+            "Chart Data Window Positioning", 
             "data_entry", 
             LABEL_WIDTH
         )
@@ -23,7 +23,7 @@ class WindowsTab(BaseTab):
 
         # SVG Display Window Positioning Group
         svg_display_group = self._create_positioning_group(
-            "SVG Display Window Positioning", 
+            "Chart Display Window Positioning", 
             "svg_display", 
             LABEL_WIDTH
         )
