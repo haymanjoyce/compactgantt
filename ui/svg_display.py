@@ -78,8 +78,8 @@ class SvgDisplay(QMainWindow):
         # Create central widget
         central_widget = QWidget()
         self.layout = QVBoxLayout(central_widget)
-        self.layout.addLayout(btn_layout)
-        self.layout.addWidget(self.scroll_area)
+        self.layout.addWidget(self.scroll_area)  # Graphic first
+        self.layout.addLayout(btn_layout)  # Buttons below the graphic
         self.setCentralWidget(central_widget)
         
         # Create status bar using reserved area (like MainWindow)
