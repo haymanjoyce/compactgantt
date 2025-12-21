@@ -265,16 +265,3 @@ class SvgDisplay(QMainWindow):
                 QMessageBox.critical(self, "Error", f"Failed to save image to {file_path}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error saving image: {str(e)}")
-
-# --- Example usage (uncomment for standalone test) ---
-# if __name__ == "__main__":
-#     import sys
-#     class DummyConfig:
-#         class General:
-#             svg_display_width = 1200
-#             svg_display_height = 800
-#         general = General()
-#     app = QApplication(sys.argv)
-#     win = SvgDisplay(DummyConfig(), initial_path="svg/gantt_chart.svg")
-#     win.show()
-#     sys.exit(app.exec_())
