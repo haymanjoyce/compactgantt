@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QScrollArea, QPushButton, QHBoxLayout, QLabel, QApplication
+    QDialog, QVBoxLayout, QScrollArea, QPushButton, QHBoxLayout, QLabel, QApplication, QStatusBar
 )
 from PyQt5.QtSvg import QSvgRenderer
 from PyQt5.QtGui import QIcon, QPixmap, QPainter, QPalette
@@ -54,22 +54,18 @@ class SvgDisplay(QDialog):
         self.zoom_out_btn.clicked.connect(self.zoom_out)
         self.fit_btn.clicked.connect(self.fit_to_window)
         
-        # Style buttons to match main window
+        # Style buttons to match Update Image button in main window
         button_style = """
             QPushButton {
-                padding: 6px 12px;
-                min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #E0E0E0;
-            }
-            QPushButton:pressed {
-                background-color: #D0D0D0;
+                padding: 8px;
             }
         """
         self.zoom_in_btn.setStyleSheet(button_style)
         self.zoom_out_btn.setStyleSheet(button_style)
         self.fit_btn.setStyleSheet(button_style)
+        
+        # Store button style for reuse
+        self._button_style = button_style
         
         # Create button layout with spacing
         btn_layout = QHBoxLayout()
@@ -78,16 +74,22 @@ class SvgDisplay(QDialog):
         btn_layout.addWidget(self.zoom_in_btn)
         btn_layout.addWidget(self.zoom_out_btn)
         btn_layout.addWidget(self.fit_btn)
-        btn_layout.addStretch()  # Push buttons to the left
-        
-        # Add zoom level label
-        self.zoom_label = QLabel("100%")
-        self.zoom_label.setStyleSheet("padding: 6px; color: #666;")
-        btn_layout.addWidget(self.zoom_label)
+
+        # Create status bar
+        self.status_bar = QStatusBar()
+        self.status_bar.setStyleSheet("""
+            QStatusBar {
+                border-top: 1px solid #D3D3D3;
+                padding: 3px;
+                background: #F8F9FA;
+            }
+        """)
+        self.status_bar.showMessage("100%")
 
         self.layout = QVBoxLayout()
         self.layout.addLayout(btn_layout)
         self.layout.addWidget(self.scroll_area)
+        self.layout.addWidget(self.status_bar)  # Add status bar at the bottom
         self.setLayout(self.layout)
 
         self._zoom = 1.0
@@ -176,37 +178,12 @@ class SvgDisplay(QDialog):
     
     def _update_button_states(self):
         """Update button appearance based on current state."""
-        if self._fit_to_window:
-            self.fit_btn.setStyleSheet("""
-                QPushButton {
-                    padding: 6px 12px;
-                    min-width: 80px;
-                    background-color: #D0E0F0;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    background-color: #C0D0E0;
-                }
-                QPushButton:pressed {
-                    background-color: #B0C0D0;
-                }
-            """)
-        else:
-            self.fit_btn.setStyleSheet("""
-                QPushButton {
-                    padding: 6px 12px;
-                    min-width: 80px;
-                }
-                QPushButton:hover {
-                    background-color: #E0E0E0;
-                }
-                QPushButton:pressed {
-                    background-color: #D0D0D0;
-                }
-            """)
+        # All buttons use the same style regardless of state
+        # Use the stored button style to maintain consistency
+        self.fit_btn.setStyleSheet(self._button_style)
     
     def _update_zoom_label(self):
-        """Update zoom percentage display."""
+        """Update zoom percentage display in status bar."""
         if self._fit_to_window:
             # Calculate actual scale when fitting
             area_size = self.scroll_area.viewport().size()
@@ -216,11 +193,11 @@ class SvgDisplay(QDialog):
                     area_size.height() / self._svg_size.height(),
                     1.0
                 )
-                self.zoom_label.setText(f"{int(scale * 100)}% (Fit)")
+                self.status_bar.showMessage(f"{int(scale * 100)}% (Fit)")
             else:
-                self.zoom_label.setText("Fit")
+                self.status_bar.showMessage("Fit")
         else:
-            self.zoom_label.setText(f"{int(self._zoom * 100)}%")
+            self.status_bar.showMessage(f"{int(self._zoom * 100)}%")
 
     def center_scroll_area_on_svg(self):
         area = self.scroll_area
