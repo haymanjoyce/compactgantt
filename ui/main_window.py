@@ -70,7 +70,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.update_image_button)
 
         self.setCentralWidget(central_widget)
-        # Create and style the status bar
+        # Create and style the status bar to match SVG display
         self.status_bar = self.statusBar()
         self.status_bar.setStyleSheet("""
             QStatusBar {

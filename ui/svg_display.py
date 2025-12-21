@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QScrollArea, QPushButton, QHBoxLayout, QLabel, QApplication, QStatusBar
+    QMainWindow, QVBoxLayout, QScrollArea, QPushButton, QHBoxLayout, QLabel, QApplication, QStatusBar, QWidget
 )
 from PyQt5.QtSvg import QSvgRenderer
 from PyQt5.QtGui import QIcon, QPixmap, QPainter, QPalette
@@ -9,7 +9,7 @@ from config.app_config import AppConfig
 from ui.window_utils import move_window_according_to_preferences
 
 # --- Main SVG Display Window ---
-class SvgDisplay(QDialog):
+class SvgDisplay(QMainWindow):
     def __init__(self, app_config, initial_path=None, reference_window=None):
         super().__init__()
         
@@ -75,8 +75,15 @@ class SvgDisplay(QDialog):
         btn_layout.addWidget(self.zoom_out_btn)
         btn_layout.addWidget(self.fit_btn)
 
-        # Create status bar
-        self.status_bar = QStatusBar()
+        # Create central widget
+        central_widget = QWidget()
+        self.layout = QVBoxLayout(central_widget)
+        self.layout.addLayout(btn_layout)
+        self.layout.addWidget(self.scroll_area)
+        self.setCentralWidget(central_widget)
+        
+        # Create status bar using reserved area (like MainWindow)
+        self.status_bar = self.statusBar()
         self.status_bar.setStyleSheet("""
             QStatusBar {
                 border-top: 1px solid #D3D3D3;
@@ -85,12 +92,6 @@ class SvgDisplay(QDialog):
             }
         """)
         self.status_bar.showMessage("100%")
-
-        self.layout = QVBoxLayout()
-        self.layout.addLayout(btn_layout)
-        self.layout.addWidget(self.scroll_area)
-        self.layout.addWidget(self.status_bar)  # Add status bar at the bottom
-        self.setLayout(self.layout)
 
         self._zoom = 1.0
         self._fit_to_window = True
