@@ -88,10 +88,16 @@ class SvgDisplay(QMainWindow):
         # Create menu bar
         self.menu_bar = self.menuBar()
         file_menu = self.menu_bar.addMenu("File")
-        self.save_as_action = QAction("Save As...", self)
-        self.save_as_action.setShortcut("Ctrl+Shift+S")
-        self.save_as_action.triggered.connect(self.save_as_raster)
-        file_menu.addAction(self.save_as_action)
+        
+        self.save_png_action = QAction("Save Image (PNG)", self)
+        self.save_png_action.setShortcut("Ctrl+Shift+S")
+        self.save_png_action.triggered.connect(lambda: self.save_as_raster("PNG"))
+        file_menu.addAction(self.save_png_action)
+        
+        self.save_jpeg_action = QAction("Save Image (JPEG)", self)
+        self.save_jpeg_action.setShortcut("Ctrl+Shift+J")
+        self.save_jpeg_action.triggered.connect(lambda: self.save_as_raster("JPEG"))
+        file_menu.addAction(self.save_jpeg_action)
         
         # Create status bar using reserved area (like MainWindow)
         self.status_bar = self.statusBar()
@@ -242,29 +248,34 @@ class SvgDisplay(QMainWindow):
         h_bar.setValue(widget_center_x - viewport_width // 2)
         v_bar.setValue(widget_center_y - viewport_height // 2)
 
-    def save_as_raster(self):
-        """Save the SVG as a raster image (PNG, JPEG, etc.)."""
+    def save_as_raster(self, format_type="PNG"):
+        """Save the SVG as a raster image (PNG or JPEG)."""
         if not self._svg_path or not self.svg_renderer.isValid():
             QMessageBox.warning(self, "No Image", "No SVG image loaded to save.")
             return
         
+        # Determine file extension and filter based on format
+        if format_type == "JPEG":
+            default_ext = ".jpg"
+            file_filter = "JPEG Images (*.jpg *.jpeg)"
+        else:  # PNG
+            default_ext = ".png"
+            file_filter = "PNG Images (*.png)"
+        
         # Show file dialog for saving
-        file_path, selected_filter = QFileDialog.getSaveFileName(
+        file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save Image As",
+            f"Save Image As {format_type}",
             "",
-            "PNG Images (*.png);;JPEG Images (*.jpg *.jpeg);;All Files (*)"
+            file_filter
         )
         
         if not file_path:
             return
         
-        # Determine format from file extension
-        file_ext = os.path.splitext(file_path)[1].lower()
-        if file_ext in ['.jpg', '.jpeg']:
-            format_type = 'JPEG'
-        else:
-            format_type = 'PNG'  # Default to PNG
+        # Ensure correct extension
+        if not file_path.endswith(default_ext):
+            file_path += default_ext
         
         try:
             # Render SVG at native size for high quality
