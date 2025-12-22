@@ -332,7 +332,7 @@ class GanttChartService(QObject):
         if self._get_frame_config("horizontal_gridlines", False):
             for i in range(1, num_rows):  # Exclude first and last to avoid overlapping row frame border
                 y_pos = row_y + i * (row_frame_height / num_rows)
-                self.dwg.add(self.dwg.line((x, y_pos), (x + width, y_pos), stroke="gray", stroke_width=1))
+                self.dwg.add(self.dwg.line((x, y_pos), (x + width, y_pos), stroke="#d3d3d3", stroke_width=1))
 
         # Render vertical gridlines based on individual interval settings
         # Define line weights for visual hierarchy: larger intervals = thicker lines
@@ -369,7 +369,7 @@ class GanttChartService(QObject):
                 interval_width = x_pos - prev_x if x_pos <= x + width else (x + width) - prev_x
                 if x <= x_pos <= x + width:
                     self.dwg.add(self.dwg.line((x_pos, row_y), (x_pos, row_y + row_frame_height),
-                                               stroke="gray", stroke_width=line_weight))
+                                               stroke="#d3d3d3", stroke_width=line_weight))
                 prev_x = x_pos
                 current_date = self.next_period(current_date, interval)
 
