@@ -13,9 +13,9 @@ class DataValidator:
         if task.task_id in used_ids:
             errors.append("Task ID must be unique")
         if not is_valid_internal_date(task.start_date):
-            errors.append("Invalid start date format (should be dd/mm/yyyy)")
+            errors.append("Invalid start date format (should be yyyy-mm-dd)")
         if not is_valid_internal_date(task.finish_date):
-            errors.append("Invalid finish date format (should be dd/mm/yyyy)")
+            errors.append("Invalid finish date format (should be yyyy-mm-dd)")
         if task.row_number <= 0:
             errors.append("Row number must be positive")
         if task.task_order <= 0:
@@ -26,7 +26,7 @@ class DataValidator:
     def validate_date_format(date_str: str) -> List[str]:
         errors = []
         if not is_valid_internal_date(date_str):
-            errors.append("Invalid date format (should be dd/mm/yyyy)")
+            errors.append("Invalid date format (should be yyyy-mm-dd)")
         return errors
 
     @staticmethod

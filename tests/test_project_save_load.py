@@ -46,7 +46,10 @@ def test_frame_config_all_fields_saved():
     project.frame_config.header_text = "Test Header Text"
     project.frame_config.footer_text = "Test Footer Text"
     project.frame_config.horizontal_gridlines = False
-    project.frame_config.vertical_gridlines = False
+    project.frame_config.vertical_gridline_years = False
+    project.frame_config.vertical_gridline_months = False
+    project.frame_config.vertical_gridline_weeks = True
+    project.frame_config.vertical_gridline_days = True
     project.frame_config.chart_start_date = "2025-01-15"
     
     # Convert to JSON
@@ -68,7 +71,10 @@ def test_frame_config_all_fields_saved():
         "header_text": "Test Header Text",
         "footer_text": "Test Footer Text",
         "horizontal_gridlines": False,
-        "vertical_gridlines": False,
+        "vertical_gridline_years": False,
+        "vertical_gridline_months": False,
+        "vertical_gridline_weeks": True,
+        "vertical_gridline_days": True,
         "chart_start_date": "2025-01-15"
     }
     
@@ -105,7 +111,10 @@ def test_frame_config_all_fields_loaded():
             "header_text": "Loaded Header",
             "footer_text": "Loaded Footer",
             "horizontal_gridlines": True,
-            "vertical_gridlines": False,
+            "vertical_gridline_years": False,
+            "vertical_gridline_months": False,
+            "vertical_gridline_weeks": True,
+            "vertical_gridline_days": False,
             "chart_start_date": "2025-02-20"
         },
         "tasks": [],
@@ -129,7 +138,10 @@ def test_frame_config_all_fields_loaded():
     assert loaded_project.frame_config.header_text == "Loaded Header"
     assert loaded_project.frame_config.footer_text == "Loaded Footer"
     assert loaded_project.frame_config.horizontal_gridlines == True
-    assert loaded_project.frame_config.vertical_gridlines == False
+    assert loaded_project.frame_config.vertical_gridline_years == False
+    assert loaded_project.frame_config.vertical_gridline_months == False
+    assert loaded_project.frame_config.vertical_gridline_weeks == True
+    assert loaded_project.frame_config.vertical_gridline_days == False
     assert loaded_project.frame_config.chart_start_date == "2025-02-20"
     
     print("  [PASSED]")
@@ -153,7 +165,10 @@ def test_frame_config_save_and_load_roundtrip():
     original_project.frame_config.header_text = "Roundtrip Header"
     original_project.frame_config.footer_text = "Roundtrip Footer"
     original_project.frame_config.horizontal_gridlines = False
-    original_project.frame_config.vertical_gridlines = True
+    original_project.frame_config.vertical_gridline_years = True
+    original_project.frame_config.vertical_gridline_months = False
+    original_project.frame_config.vertical_gridline_weeks = True
+    original_project.frame_config.vertical_gridline_days = False
     original_project.frame_config.chart_start_date = "2025-03-01"
     
     # Save to temporary file
@@ -176,7 +191,10 @@ def test_frame_config_save_and_load_roundtrip():
         assert loaded_project.frame_config.header_text == original_project.frame_config.header_text
         assert loaded_project.frame_config.footer_text == original_project.frame_config.footer_text
         assert loaded_project.frame_config.horizontal_gridlines == original_project.frame_config.horizontal_gridlines
-        assert loaded_project.frame_config.vertical_gridlines == original_project.frame_config.vertical_gridlines
+        assert loaded_project.frame_config.vertical_gridline_years == original_project.frame_config.vertical_gridline_years
+        assert loaded_project.frame_config.vertical_gridline_months == original_project.frame_config.vertical_gridline_months
+        assert loaded_project.frame_config.vertical_gridline_weeks == original_project.frame_config.vertical_gridline_weeks
+        assert loaded_project.frame_config.vertical_gridline_days == original_project.frame_config.vertical_gridline_days
         assert loaded_project.frame_config.chart_start_date == original_project.frame_config.chart_start_date
         
         print("  [PASSED]")
@@ -220,7 +238,10 @@ def test_frame_config_defaults_on_missing_fields():
     assert loaded_project.frame_config.header_text == ""  # Default
     assert loaded_project.frame_config.footer_text == ""  # Default
     assert loaded_project.frame_config.horizontal_gridlines == True  # Default
-    assert loaded_project.frame_config.vertical_gridlines == True  # Default
+    assert loaded_project.frame_config.vertical_gridline_years == True  # Default
+    assert loaded_project.frame_config.vertical_gridline_months == True  # Default
+    assert loaded_project.frame_config.vertical_gridline_weeks == False  # Default
+    assert loaded_project.frame_config.vertical_gridline_days == False  # Default
     assert loaded_project.frame_config.chart_start_date == "2024-12-30"  # Default
     
     print("  [PASSED]")
@@ -256,16 +277,17 @@ def test_frame_config_margins_tuple_conversion():
 
 
 def test_frame_config_backward_compatibility():
-    """Test that old project files with header_height=50 still load correctly."""
+    """Test that old project files with header_height=50 and vertical_gridlines still load correctly."""
     print("Testing: Backward compatibility with old defaults...")
     
-    # Simulate an old project file with old default header_height
+    # Simulate an old project file with old default header_height and old vertical_gridlines format
     test_data = {
         "frame_config": {
             "header_height": 50,  # Old default
             "footer_height": 50,  # Old default
             "header_text": "",
-            "footer_text": ""
+            "footer_text": "",
+            "vertical_gridlines": True  # Old format - should be migrated to individual flags
         },
         "tasks": [],
         "connectors": [],
@@ -280,6 +302,12 @@ def test_frame_config_backward_compatibility():
     # Should preserve old values, not use new defaults
     assert loaded_project.frame_config.header_height == 50
     assert loaded_project.frame_config.footer_height == 50
+    
+    # Old vertical_gridlines=True should be migrated to all individual flags being True
+    assert loaded_project.frame_config.vertical_gridline_years == True
+    assert loaded_project.frame_config.vertical_gridline_months == True
+    assert loaded_project.frame_config.vertical_gridline_weeks == True
+    assert loaded_project.frame_config.vertical_gridline_days == True
     
     print("  [PASSED]")
     return True

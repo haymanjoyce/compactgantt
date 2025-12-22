@@ -295,54 +295,55 @@ class TasksTab(BaseTab):
                             value = ""
                     else:
                         value = ""
-                        
-                        if col_config.widget_type == "combo":
-                            combo = QComboBox()
-                            combo.addItems(col_config.combo_items)
-                            combo.setCurrentText(str(value) or col_config.combo_items[0])
-                            combo.currentTextChanged.connect(self._sync_data_if_not_initializing)
-                            self.tasks_table.setCellWidget(row_idx, vis_col_idx, combo)
-                        else:
-                            # Handle text and numeric columns
-                            if col_name in ["Start Date", "Finish Date"]:
-                                # Date columns - use DateTableWidgetItem for chronological sorting
-                                item = DateTableWidgetItem(str(value))
-                                # Set UserRole with datetime object for sorting
-                                try:
-                                    if value and str(value).strip():
-                                        # Convert from display format (dd/mm/yyyy) to datetime
-                                        date_obj = datetime.strptime(str(value).strip(), "%d/%m/%Y")
-                                        item.setData(Qt.UserRole, date_obj)
-                                    else:
-                                        item.setData(Qt.UserRole, None)
-                                except (ValueError, AttributeError):
+                    
+                    # Create widget/item for this column (regardless of whether it was in the map)
+                    if col_config.widget_type == "combo":
+                        combo = QComboBox()
+                        combo.addItems(col_config.combo_items)
+                        combo.setCurrentText(str(value) or col_config.combo_items[0])
+                        combo.currentTextChanged.connect(self._sync_data_if_not_initializing)
+                        self.tasks_table.setCellWidget(row_idx, vis_col_idx, combo)
+                    else:
+                        # Handle text and numeric columns
+                        if col_name in ["Start Date", "Finish Date"]:
+                            # Date columns - use DateTableWidgetItem for chronological sorting
+                            item = DateTableWidgetItem(str(value))
+                            # Set UserRole with datetime object for sorting
+                            try:
+                                if value and str(value).strip():
+                                    # Convert from display format (dd/mm/yyyy) to datetime
+                                    date_obj = datetime.strptime(str(value).strip(), "%d/%m/%Y")
+                                    item.setData(Qt.UserRole, date_obj)
+                                else:
                                     item.setData(Qt.UserRole, None)
-                            elif actual_col_idx in (1, 2, 3):  # ID, Order, Row are numeric
-                                item = NumericTableWidgetItem(str(value))
-                            else:
-                                item = QTableWidgetItem(str(value))
-                            
-                            if actual_col_idx == 1:  # Task ID read-only
-                                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                                # Ensure UserRole is set for numeric sorting
-                                try:
-                                    item.setData(Qt.UserRole, int(str(value).strip()) if str(value).strip() else 0)
-                                except (ValueError, AttributeError):
-                                    item.setData(Qt.UserRole, 0)
-                            elif actual_col_idx == 2:  # Task Order numeric
-                                # Ensure UserRole is set for numeric sorting
-                                try:
-                                    item.setData(Qt.UserRole, float(str(value).strip()) if str(value).strip() else 0.0)
-                                except (ValueError, AttributeError):
-                                    item.setData(Qt.UserRole, 0.0)
-                            elif actual_col_idx == 3:  # Row number numeric
-                                # Ensure UserRole is set for numeric sorting
-                                try:
-                                    item.setData(Qt.UserRole, int(str(value).strip()) if str(value).strip() else 1)
-                                except (ValueError, AttributeError):
-                                    item.setData(Qt.UserRole, 1)
-                            
-                            self.tasks_table.setItem(row_idx, vis_col_idx, item)
+                            except (ValueError, AttributeError):
+                                item.setData(Qt.UserRole, None)
+                        elif actual_col_idx in (1, 2, 3):  # ID, Order, Row are numeric
+                            item = NumericTableWidgetItem(str(value))
+                        else:
+                            item = QTableWidgetItem(str(value))
+                        
+                        if actual_col_idx == 1:  # Task ID read-only
+                            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                            # Ensure UserRole is set for numeric sorting
+                            try:
+                                item.setData(Qt.UserRole, int(str(value).strip()) if str(value).strip() else 0)
+                            except (ValueError, AttributeError):
+                                item.setData(Qt.UserRole, 0)
+                        elif actual_col_idx == 2:  # Task Order numeric
+                            # Ensure UserRole is set for numeric sorting
+                            try:
+                                item.setData(Qt.UserRole, float(str(value).strip()) if str(value).strip() else 0.0)
+                            except (ValueError, AttributeError):
+                                item.setData(Qt.UserRole, 0.0)
+                        elif actual_col_idx == 3:  # Row number numeric
+                            # Ensure UserRole is set for numeric sorting
+                            try:
+                                item.setData(Qt.UserRole, int(str(value).strip()) if str(value).strip() else 1)
+                            except (ValueError, AttributeError):
+                                item.setData(Qt.UserRole, 1)
+                        
+                        self.tasks_table.setItem(row_idx, vis_col_idx, item)
             else:
                 # New row - use defaults
                 context = {
