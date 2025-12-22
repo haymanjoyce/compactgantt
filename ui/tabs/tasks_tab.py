@@ -653,6 +653,17 @@ class TasksTab(BaseTab):
                     else:
                         value = ""
                     
+                    # Format Order value to remove .0 if it's a whole number
+                    if actual_col_idx == 2:  # Task Order
+                        try:
+                            order_float = float(str(value).strip()) if str(value).strip() else 0.0
+                            if order_float == int(order_float):
+                                value = str(int(order_float))
+                            else:
+                                value = str(order_float)
+                        except (ValueError, AttributeError):
+                            pass  # Keep original value if conversion fails
+                    
                     # Create widget/item for this column
                     if col_config.widget_type == "combo":
                         combo = QComboBox()
