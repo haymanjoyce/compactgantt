@@ -230,8 +230,8 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
 
             # Use default from generator if available, else empty string
             default = ""
-            if defaults and (col_idx - 1) < len(defaults):
-                default = defaults[col_idx - 1]  # Adjust for missing checkbox in defaults
+            if defaults and col_idx < len(defaults):
+                default = defaults[col_idx]  # defaults already includes checkbox at index 0
 
             # Set ID column - use NumericTableWidgetItem for numeric sorting
             if col_idx == id_column:
