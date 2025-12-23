@@ -23,7 +23,8 @@ class MainWindow(QMainWindow):
     def __init__(self, project_data, svg_display=None):
         super().__init__()
         self.setWindowTitle("Compact Gantt | Chart Data Window")
-        self.setWindowIcon(QIcon("assets/logo.png"))  # Add window icon
+        # Use ICO so Windows title bar matches taskbar icon
+        self.setWindowIcon(QIcon("assets/favicon.ico"))
         self.setMinimumSize(600, 700)
         self.project_data = project_data  # Use passed project_data instance
         self.app_config = AppConfig()  # Initialize centralized config

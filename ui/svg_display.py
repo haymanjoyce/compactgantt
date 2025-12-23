@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtSvg import QSvgRenderer
 from PyQt5.QtGui import QIcon, QPixmap, QPainter, QPalette
+from pathlib import Path
 from PyQt5.QtCore import Qt, QSize
 import os
 from config.app_config import AppConfig
@@ -18,7 +19,8 @@ class SvgDisplay(QMainWindow):
                            Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint)
         
         self.setWindowTitle("Compact Gantt | Chart Display Window")
-        self.setWindowIcon(QIcon("assets/logo.png"))
+        icon_path = Path(__file__).resolve().parent.parent / "assets" / "favicon.ico"
+        self.setWindowIcon(QIcon(str(icon_path)))
 
         width = app_config.general.svg_display_width
         height = app_config.general.svg_display_height

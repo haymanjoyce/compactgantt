@@ -1,5 +1,8 @@
 import sys
 from PyQt5.QtWidgets import QApplication
+from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import Qt
+from pathlib import Path
 from ui.main_window import MainWindow
 from models.project import ProjectData
 from services.gantt_chart_service import GanttChartService
@@ -8,7 +11,11 @@ from ui.svg_display import SvgDisplay
 
 
 def main():
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
     app = QApplication(sys.argv)
+    # Use ICO so Windows taskbar shows the custom logo
+    icon_path = Path(__file__).parent / "assets" / "favicon.ico"
+    app.setWindowIcon(QIcon(str(icon_path)))
     app_config = AppConfig()  # Single instance
     project_data = ProjectData()
     gantt_chart_service = GanttChartService()
