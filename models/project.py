@@ -100,7 +100,7 @@ class ProjectData:
                 for row_idx, row in enumerate(data, 1):
                     try:
                         # Skip validation for empty rows (ID is empty or 0, or row is too short)
-                        if not row or len(row) < 8:
+                        if not row or len(row) < 7:
                             continue
                         
                         # Check if ID field is empty - skip this row
@@ -176,6 +176,10 @@ class ProjectData:
                         errors.append(f"Row {row_idx}: {str(e)}")
                 if not errors:
                     self.tasks = new_tasks
+                    logging.debug(f"Updated tasks: {len(new_tasks)} tasks saved")
+                else:
+                    logging.warning(f"Validation errors prevented task update: {errors}")
+                    logging.debug(f"Would have saved {len(new_tasks)} tasks but validation failed")
             elif key == "links":
                 # Validate links: check Finish-to-Start constraint and set Valid field
                 new_links = []

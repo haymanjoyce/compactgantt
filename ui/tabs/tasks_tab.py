@@ -441,13 +441,12 @@ class TasksTab(BaseTab):
         # Create mapping from column name to index in get_table_data result
         row_data_column_map = {
             "ID": 0,
-            "Order": 1,
-            "Row": 2,
-            "Name": 3,
-            "Start Date": 4,
-            "Finish Date": 5,
-            "Label": 6,
-            "Placement": 7
+            "Row": 1,
+            "Name": 2,
+            "Start Date": 3,
+            "Finish Date": 4,
+            "Label": 5,
+            "Placement": 6
         }
         
         for row in range(self.tasks_table.rowCount()):
@@ -502,15 +501,15 @@ class TasksTab(BaseTab):
                             }
                             defaults = self.table_config.default_generator(row, context)
                             # defaults structure: [False, ID, Row, Name, Start Date, Finish Date, Label, Placement]
-                            # defaults[0] is checkbox, so Label is at defaults[7], Placement is at defaults[8]
+                            # defaults[0] is checkbox, so Label is at defaults[6], Placement is at defaults[7]
                             if col_name == "Label":
-                                if len(defaults) > 7:
-                                    full_row.append(str(defaults[7]))
+                                if len(defaults) > 6:
+                                    full_row.append(str(defaults[6]))
                                 else:
                                     full_row.append("Yes")
                             elif col_name == "Placement":
-                                if len(defaults) > 8:
-                                    full_row.append(str(defaults[8]))
+                                if len(defaults) > 7:
+                                    full_row.append(str(defaults[7]))
                                 else:
                                     full_row.append("Inside")
                             else:
@@ -595,13 +594,12 @@ class TasksTab(BaseTab):
         # Create mapping from column name to index in get_table_data result
         row_data_column_map = {
             "ID": 0,
-            "Order": 1,
-            "Row": 2,
-            "Name": 3,
-            "Start Date": 4,
-            "Finish Date": 5,
-            "Label": 6,
-            "Placement": 7
+            "Row": 1,
+            "Name": 2,
+            "Start Date": 3,
+            "Finish Date": 4,
+            "Label": 5,
+            "Placement": 6
         }
         
         # Disable sorting and block signals during duplication
@@ -623,7 +621,7 @@ class TasksTab(BaseTab):
                     # Row not in stored data, extract from table
                     orig_row_data = self._extract_row_data_from_table(orig_row_idx)
                 
-                if not orig_row_data or len(orig_row_data) < 8:
+                if not orig_row_data or len(orig_row_data) < 7:
                     continue
                 
                 # Create new row data with new ID
@@ -726,13 +724,12 @@ class TasksTab(BaseTab):
         headers = [col.name for col in self.table_config.columns]
         row_data_column_map = {
             "ID": 0,
-            "Order": 1,
-            "Row": 2,
-            "Name": 3,
-            "Start Date": 4,
-            "Finish Date": 5,
-            "Label": 6,
-            "Placement": 7
+            "Row": 1,
+            "Name": 2,
+            "Start Date": 3,
+            "Finish Date": 4,
+            "Label": 5,
+            "Placement": 6
         }
         
         full_row = []

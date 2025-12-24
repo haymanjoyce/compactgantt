@@ -36,6 +36,10 @@ class GanttChartService(QObject):
             return
         try:
             self.data = data
+            logging.debug(f"Data keys: {list(data.keys())}")
+            logging.debug(f"Number of tasks in incoming data: {len(data.get('tasks', []))}")
+            if data.get('tasks'):
+                logging.debug(f"First task sample: {data['tasks'][0] if len(data['tasks']) > 0 else 'N/A'}")
             width = data["frame_config"].get("outer_width", self.config.general.outer_width)
             height = data["frame_config"].get("outer_height", self.config.general.outer_height)
             self.dwg = svgwrite.Drawing(
@@ -212,14 +216,18 @@ class GanttChartService(QObject):
             end_date: The end date of the timeline (datetime)
             num_rows: The number of rows in the Gantt chart
         """
-        logging.debug(f"Rendering tasks from {start_date} to {end_date}")
+        logging.debug(f"render_tasks called: Rendering tasks from {start_date} to {end_date}")
+        tasks = self.data.get("tasks", [])
+        logging.debug(f"Number of tasks in data: {len(tasks)}")
+        if not tasks:
+            logging.warning("No tasks found in data! Tasks list is empty.")
         total_days = max((end_date - start_date).days, 1)
         time_scale = width / total_days if total_days > 0 else width
         row_height = height / num_rows if num_rows > 0 else height
         task_height = row_height * 0.8
         font_size = self.config.general.task_font_size
 
-        for task in self.data.get("tasks", []):
+        for task in tasks:
             start_date_str = task.get("start_date", "")
             finish_date_str = task.get("finish_date", "")
             # A task is a milestone if explicitly marked or if start_date equals finish_date
