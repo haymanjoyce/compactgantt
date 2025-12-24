@@ -29,7 +29,6 @@ class ProjectData:
         for task in self.tasks:
             task_dict = {
                 "task_id": task.task_id,
-                "task_order": task.task_order,
                 "task_name": task.task_name,
                 "start_date": task.start_date,
                 "finish_date": task.finish_date,
@@ -110,23 +109,51 @@ class ProjectData:
                             continue
                         
                         # extract_table_data already skips checkbox column, so data is 0-indexed
-                        # Column order: ID, Order, Row, Name, Start Date, Finish Date, Label, Placement
+                        # Column order: ID, Row, Name, Start Date, Finish Date, Label, Placement
+                        # Handle backward compatibility: check if row has Order column (old format)
+                        # If row[1] is numeric and row[2] is also numeric, assume old format with Order
+                        has_order = False
+                        if len(row) > 2:
+                            try:
+                                float(row[1])
+                                int(row[2])
+                                has_order = True  # Old format with Order column
+                            except (ValueError, TypeError):
+                                pass
+                        
+                        # Adjust indices based on whether Order column exists
+                        if has_order:
+                            # Old format: [ID, Order, Row, Name, Start Date, Finish Date, Label, Placement]
+                            row_idx = 2
+                            name_idx = 3
+                            start_date_idx = 4
+                            finish_date_idx = 5
+                            label_idx = 6
+                            placement_idx = 7
+                        else:
+                            # New format: [ID, Row, Name, Start Date, Finish Date, Label, Placement]
+                            row_idx = 1
+                            name_idx = 2
+                            start_date_idx = 3
+                            finish_date_idx = 4
+                            label_idx = 5
+                            placement_idx = 6
+                        
                         # Convert display format to internal format for dates (handles empty strings)
-                        start_date_internal = display_to_internal_date(row[4]) if len(row) > 4 and row[4].strip() else ""
-                        finish_date_internal = display_to_internal_date(row[5]) if len(row) > 5 and row[5].strip() else ""
+                        start_date_internal = display_to_internal_date(row[start_date_idx]) if len(row) > start_date_idx and row[start_date_idx].strip() else ""
+                        finish_date_internal = display_to_internal_date(row[finish_date_idx]) if len(row) > finish_date_idx and row[finish_date_idx].strip() else ""
                         # Convert old placement values to new ones for backward compatibility
-                        placement_value = row[7] if len(row) > 7 else "Outside"
+                        placement_value = row[placement_idx] if len(row) > placement_idx else "Outside"
                         if placement_value in ["To left", "To right"]:
                             placement_value = "Outside"
                         task = Task(
                             task_id=safe_int(row[0]),  # ID is at index 0
-                            task_order=safe_float(row[1]),  # Order is at index 1
-                            row_number=safe_int(row[2], 1),  # Row is at index 2
-                            task_name=row[3] if len(row) > 3 else "",  # Name is at index 3
+                            row_number=safe_int(row[row_idx], 1),  # Row
+                            task_name=row[name_idx] if len(row) > name_idx else "",  # Name
                             start_date=start_date_internal,  # Store in internal format
                             finish_date=finish_date_internal,  # Store in internal format
-                            label_hide=row[6] if len(row) > 6 else "Yes",  # Label is at index 6 (No = Hide, Yes = Show)
-                            label_placement=placement_value,  # Placement is at index 7
+                            label_hide=row[label_idx] if len(row) > label_idx else "Yes",  # Label (No = Hide, Yes = Show)
+                            label_placement=placement_value,  # Placement
                             label_alignment="Centre",  # Always use Centre for inside labels (backward compatibility)
                             label_horizontal_offset=1.0,  # Default value (backward compatibility - now uses config value)
                             label_text_colour="black"  # Default color (backward compatibility - not used in rendering)
@@ -247,7 +274,7 @@ class ProjectData:
     def get_table_data(self, key: str) -> List[List[str]]:
         """Get table data for a given key. Returns list of rows."""
         if key == "tasks":
-            return [[str(t.task_id), str(t.task_order), str(t.row_number), t.task_name, 
+            return [[str(t.task_id), str(t.row_number), t.task_name, 
                     internal_to_display_date(t.start_date),  # Convert to display format
                     internal_to_display_date(t.finish_date),  # Convert to display format
                     t.label_hide, t.label_placement]

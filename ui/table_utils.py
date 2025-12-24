@@ -275,17 +275,14 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
                 except (ValueError, AttributeError):
                     item.setData(Qt.UserRole, None)
                 table.setItem(row_index, col_idx, item)
-            # Numeric column - check by column name for tasks table (ID, Order, Row)
-            elif header_text in ["ID", "Order", "Row"]:
+            # Numeric column - check by column name for tasks table (ID, Row)
+            elif header_text in ["ID", "Row"]:
                 item = NumericTableWidgetItem(str(default))
                 # Set UserRole for numeric sorting
                 try:
-                    if header_text == "Order":
-                        item.setData(Qt.UserRole, float(str(default).strip()) if str(default).strip() else 0.0)
-                    else:  # ID or Row
-                        item.setData(Qt.UserRole, int(str(default).strip()) if str(default).strip() else (0 if header_text == "ID" else 1))
+                    item.setData(Qt.UserRole, int(str(default).strip()) if str(default).strip() else (0 if header_text == "ID" else 1))
                 except (ValueError, AttributeError):
-                    item.setData(Qt.UserRole, 0.0 if header_text == "Order" else (0 if header_text == "ID" else 1))
+                    item.setData(Qt.UserRole, 0 if header_text == "ID" else 1)
                 table.setItem(row_index, col_idx, item)
             # Numeric column for links (From Task ID, To Task ID) - both should be editable
             elif is_links_table and header_text in ["From Task ID", "To Task ID"]:
@@ -362,44 +359,4 @@ def remove_row(table, table_key, table_configs, parent):
                               f"Cannot remove all selected rows. Table must have at least {table_config.min_rows} row(s).")
     except Exception as e:
         logging.error(f"Error in remove_row: {e}", exc_info=True)
-        raise
-
-def renumber_task_orders(table):
-    logging.debug("Starting renumber_task_orders")
-    try:
-        was_sorting = table.isSortingEnabled()
-        table.setSortingEnabled(False)
-        table.blockSignals(True)
-        
-        # Find the Task Order column index
-        order_column = None
-        for i in range(table.columnCount()):
-            if table.horizontalHeaderItem(i).text() == "Order":
-                order_column = i
-                break
-        
-        if order_column is None:
-            logging.error("Could not find Order column")
-            return
-            
-        task_orders = []
-        for row in range(table.rowCount()):
-            item = table.item(row, order_column)  # Task Order column
-            try:
-                task_orders.append((row, float(item.text()) if item and item.text() else 0.0))
-            except ValueError:
-                task_orders.append((row, 0.0))
-        task_orders.sort(key=lambda x: x[1])
-        for new_order, (row, _) in enumerate(task_orders, 1):
-            item = table.item(row, order_column)
-            if not item:
-                item = NumericTableWidgetItem()
-                table.setItem(row, order_column, item)
-            item.setText(str(new_order))
-            item.setData(Qt.UserRole, float(new_order))
-        table.blockSignals(False)
-        table.setSortingEnabled(was_sorting)
-        logging.debug("renumber_task_orders completed")
-    except Exception as e:
-        logging.error(f"Error in renumber_task_orders: {e}", exc_info=True)
         raise

@@ -18,8 +18,6 @@ class DataValidator:
             errors.append("Invalid finish date format (should be yyyy-mm-dd)")
         if task.row_number <= 0:
             errors.append("Row number must be positive")
-        if task.task_order <= 0:
-            errors.append("Task order must be positive")
         return errors
 
     @staticmethod

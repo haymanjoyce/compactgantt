@@ -199,7 +199,7 @@ class AppConfig:
         def tasks_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
             """
             Generate default task data for a given row index.
-            Returns: [ID, Order, Row, Name, Start Date, Finish Date, Label, Placement]
+            Returns: [ID, Row, Name, Start Date, Finish Date, Label, Placement]
             """
             # Default tasks configuration
             # Format: name, start date, finish date, row, placement, label
@@ -214,11 +214,9 @@ class AppConfig:
             if row_idx < len(defaults):
                 default = defaults[row_idx]
                 task_id = context.get("max_task_id", 0) + row_idx + 1
-                task_order = context.get("max_task_order", 0) + row_idx + 1
-                # Return format: [ID, Order, Row, Name, Start Date, Finish Date, Label, Placement]
+                # Return format: [ID, Row, Name, Start Date, Finish Date, Label, Placement]
                 return [
                     str(task_id),                                    # ID
-                    str(task_order),                                 # Order
                     str(default["row"]),                            # Row
                     default["name"],                                 # Name
                     internal_to_display_date(default["start"]),      # Start Date (converted to dd/mm/yyyy)
@@ -229,14 +227,12 @@ class AppConfig:
             else:
                 # Fallback for additional rows beyond the 5 defaults
                 task_id = context.get("max_task_id", 0) + 1
-                task_order = context.get("max_task_order", 0) + 1
                 row_number = str(row_idx + 1)
                 internal_start = QDate.currentDate().toString("yyyy-MM-dd")
                 internal_finish = QDate.currentDate().toString("yyyy-MM-dd")
-                # Return format: [ID, Order, Row, Name, Start Date, Finish Date, Label, Placement]
+                # Return format: [ID, Row, Name, Start Date, Finish Date, Label, Placement]
                 return [
                     str(task_id),                                    # ID
-                    str(task_order),                                 # Order
                     row_number,                                      # Row
                     "New Task",                                      # Name
                     internal_to_display_date(internal_start),       # Start Date (converted to dd/mm/yyyy)
@@ -281,7 +277,6 @@ class AppConfig:
                 columns=[
                     TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("ID", validator=lambda x: int(x) > 0 if x else False),
-                    TableColumnConfig("Order", validator=lambda x: float(x) > 0 if x else False),
                     TableColumnConfig("Row", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Name"),
                     TableColumnConfig("Start Date", validator=validate_display_date),

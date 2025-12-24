@@ -181,7 +181,7 @@ class ExcelRepository:
         ws = wb.create_sheet("Tasks")
         
         # Headers
-        headers = ["ID", "Order", "Row", "Name", "Start Date", "Finish Date", "Label", "Placement", 
+        headers = ["ID", "Row", "Name", "Start Date", "Finish Date", "Label", "Placement", 
                    "Is Milestone", "Label Alignment", "Label Horizontal Offset", "Label Text Colour"]
         ws.append(headers)
         self._format_header_row(ws, 1)
@@ -190,7 +190,6 @@ class ExcelRepository:
         for task in tasks:
             row = [
                 task.task_id,
-                task.task_order if task.task_order == int(task.task_order) else task.task_order,  # Format as int if whole number
                 task.row_number,
                 task.task_name,
                 internal_to_display_date(task.start_date),
@@ -413,8 +412,6 @@ class ExcelRepository:
                     # Map Excel headers to task fields
                     if header == "ID":
                         task_data["task_id"] = int(value) if value is not None else 0
-                    elif header == "Order":
-                        task_data["task_order"] = float(value) if value is not None else 0.0
                     elif header == "Row":
                         task_data["row_number"] = int(value) if value is not None else 1
                     elif header == "Name":

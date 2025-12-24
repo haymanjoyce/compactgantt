@@ -9,7 +9,7 @@ import logging
 
 # Read-only cell background color (light gray)
 READ_ONLY_BG = QColor(240, 240, 240)
-from ui.table_utils import NumericTableWidgetItem, DateTableWidgetItem, add_row, remove_row, renumber_task_orders, CheckBoxWidget, highlight_table_errors, extract_table_data
+from ui.table_utils import NumericTableWidgetItem, DateTableWidgetItem, add_row, remove_row, CheckBoxWidget, highlight_table_errors, extract_table_data
 from .base_tab import BaseTab
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -59,9 +59,9 @@ class TasksTab(BaseTab):
         table_group_layout.setSpacing(5)
         table_group_layout.setContentsMargins(5, 10, 5, 5)
         
-        # Create table - show: Select, ID, Order, Row, Name, Start Date, Finish Date
+        # Create table - show: Select, ID, Row, Name, Start Date, Finish Date
         headers = [col.name for col in self.table_config.columns]
-        visible_columns = ["Select", "ID", "Order", "Row", "Name", "Start Date", "Finish Date"]
+        visible_columns = ["Select", "ID", "Row", "Name", "Start Date", "Finish Date"]
         visible_indices = [headers.index(col) for col in visible_columns if col in headers]
         
         self.tasks_table = QTableWidget(0, len(visible_indices))
@@ -95,13 +95,11 @@ class TasksTab(BaseTab):
         self.tasks_table.setColumnWidth(0, 50)
         header.setSectionResizeMode(1, QHeaderView.Fixed)  # ID
         self.tasks_table.setColumnWidth(1, 50)
-        header.setSectionResizeMode(2, QHeaderView.Fixed)  # Order
-        self.tasks_table.setColumnWidth(2, 60)
-        header.setSectionResizeMode(3, QHeaderView.Fixed)  # Row
-        self.tasks_table.setColumnWidth(3, 50)
-        header.setSectionResizeMode(4, QHeaderView.Stretch)  # Name
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Start Date
-        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Finish Date
+        header.setSectionResizeMode(2, QHeaderView.Fixed)  # Row
+        self.tasks_table.setColumnWidth(2, 50)
+        header.setSectionResizeMode(3, QHeaderView.Stretch)  # Name
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Start Date
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Finish Date
         
         # Enable horizontal scroll bar
         self.tasks_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -183,10 +181,10 @@ class TasksTab(BaseTab):
             table_data = self.project_data.get_table_data("tasks")
             if row < len(table_data):
                 row_data = table_data[row]
-                # row_data structure: [ID, Order, Row, Name, Start Date, Finish Date, Label, Placement]
-                if len(row_data) >= 8:
-                    self.detail_label.setCurrentText(str(row_data[6]) if row_data[6] else "Yes")
-                    self.detail_placement.setCurrentText(str(row_data[7]) if row_data[7] else "Inside")
+                # row_data structure: [ID, Row, Name, Start Date, Finish Date, Label, Placement]
+                if len(row_data) >= 7:
+                    self.detail_label.setCurrentText(str(row_data[5]) if row_data[5] else "Yes")
+                    self.detail_placement.setCurrentText(str(row_data[6]) if row_data[6] else "Inside")
         finally:
             self._updating_form = False
 
@@ -242,7 +240,7 @@ class TasksTab(BaseTab):
                     item.setData(Qt.UserRole, None)
             except (ValueError, AttributeError):
                 item.setData(Qt.UserRole, None)
-        # Update UserRole for numeric columns (ID, Order, Row)
+        # Update UserRole for numeric columns (ID, Row)
         elif actual_col_idx == 1:  # Task ID
             # Ensure Task ID is read-only with gray background
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
@@ -252,13 +250,7 @@ class TasksTab(BaseTab):
                 item.setData(Qt.UserRole, int(val_str) if val_str else 0)
             except (ValueError, AttributeError):
                 item.setData(Qt.UserRole, 0)
-        elif actual_col_idx == 2:  # Task Order
-            try:
-                val_str = item.text().strip()
-                item.setData(Qt.UserRole, float(val_str) if val_str else 0.0)
-            except (ValueError, AttributeError):
-                item.setData(Qt.UserRole, 0.0)
-        elif actual_col_idx == 3:  # Row number
+        elif actual_col_idx == 2:  # Row number
             try:
                 val_str = item.text().strip()
                 item.setData(Qt.UserRole, int(val_str) if val_str else 1)
@@ -280,16 +272,15 @@ class TasksTab(BaseTab):
         headers = [col.name for col in self.table_config.columns]
         
         # Create a mapping from column name to index in row_data from get_table_data
-        # row_data structure: [ID, Order, Row, Name, Start Date, Finish Date, Label, Placement]
+        # row_data structure: [ID, Row, Name, Start Date, Finish Date, Label, Placement]
         row_data_column_map = {
             "ID": 0,
-            "Order": 1,
-            "Row": 2,
-            "Name": 3,
-            "Start Date": 4,
-            "Finish Date": 5,
-            "Label": 6,
-            "Placement": 7
+            "Row": 1,
+            "Name": 2,
+            "Start Date": 3,
+            "Finish Date": 4,
+            "Label": 5,
+            "Placement": 6
         }
         
         for row_idx in range(row_count):
@@ -340,7 +331,7 @@ class TasksTab(BaseTab):
                                     item.setData(Qt.UserRole, None)
                             except (ValueError, AttributeError):
                                 item.setData(Qt.UserRole, None)
-                        elif actual_col_idx in (1, 2, 3):  # ID, Order, Row are numeric
+                        elif actual_col_idx in (1, 2):  # ID, Row are numeric
                             item = NumericTableWidgetItem(str(value))
                         else:
                             item = QTableWidgetItem(str(value))
@@ -353,13 +344,7 @@ class TasksTab(BaseTab):
                                 item.setData(Qt.UserRole, int(str(value).strip()) if str(value).strip() else 0)
                             except (ValueError, AttributeError):
                                 item.setData(Qt.UserRole, 0)
-                        elif actual_col_idx == 2:  # Task Order numeric
-                            # Ensure UserRole is set for numeric sorting
-                            try:
-                                item.setData(Qt.UserRole, float(str(value).strip()) if str(value).strip() else 0.0)
-                            except (ValueError, AttributeError):
-                                item.setData(Qt.UserRole, 0.0)
-                        elif actual_col_idx == 3:  # Row number numeric
+                        elif actual_col_idx == 2:  # Row number numeric
                             # Ensure UserRole is set for numeric sorting
                             try:
                                 item.setData(Qt.UserRole, int(str(value).strip()) if str(value).strip() else 1)
@@ -370,11 +355,10 @@ class TasksTab(BaseTab):
             else:
                 # New row - use defaults
                 context = {
-                    "max_task_id": len(table_data),  # Maximum existing task ID, not len + row_idx
-                    "max_task_order": len(table_data)  # Maximum existing task order, not len + row_idx
+                    "max_task_id": len(table_data)  # Maximum existing task ID, not len + row_idx
                 }
                 defaults = self.table_config.default_generator(row_idx, context)
-                # defaults structure: [False, ID, Order, Row, Name, Start Date, Finish Date, Label, Placement]
+                # defaults structure: [False, ID, Row, Name, Start Date, Finish Date, Label, Placement]
                 # defaults[0] is checkbox, defaults[1] is ID (actual_col_idx 1), etc.
                 
                 for vis_col_idx, actual_col_idx in self._column_mapping.items():
@@ -420,13 +404,7 @@ class TasksTab(BaseTab):
                                     item.setData(Qt.UserRole, int(str(default).strip()) if str(default).strip() else 0)
                                 except (ValueError, AttributeError):
                                     item.setData(Qt.UserRole, 0)
-                            elif actual_col_idx == 2:  # Task Order numeric
-                                # Ensure UserRole is set for numeric sorting
-                                try:
-                                    item.setData(Qt.UserRole, float(str(default).strip()) if str(default).strip() else 0.0)
-                                except (ValueError, AttributeError):
-                                    item.setData(Qt.UserRole, 0.0)
-                            elif actual_col_idx == 3:  # Row number numeric
+                            elif actual_col_idx == 2:  # Row number numeric
                                 # Ensure UserRole is set for numeric sorting
                                 try:
                                     item.setData(Qt.UserRole, int(str(default).strip()) if str(default).strip() else 1)
@@ -435,7 +413,6 @@ class TasksTab(BaseTab):
                             
                             self.tasks_table.setItem(row_idx, vis_col_idx, item)
 
-        renumber_task_orders(self.tasks_table)
         # Find the ID column for sorting (default sort by ID)
         id_col_vis_idx = None
         for vis_idx, actual_idx in self._column_mapping.items():
@@ -477,7 +454,7 @@ class TasksTab(BaseTab):
             full_row = []
             
             # NOTE: update_from_table expects data WITHOUT checkbox column
-            # Column order expected: ID, Order, Row, Name, Start Date, Finish Date, Label, Placement
+            # Column order expected: ID, Row, Name, Start Date, Finish Date, Label, Placement
             
             # Reconstruct row data from visible columns (skip checkbox column)
             for actual_col_idx in range(1, len(headers)):  # Skip Select column (index 0)
@@ -522,10 +499,9 @@ class TasksTab(BaseTab):
                             # New row created from defaults - get Label and Placement from defaults
                             context = {
                                 "max_task_id": len(table_data) + row,
-                                "max_task_order": len(table_data) + row
                             }
                             defaults = self.table_config.default_generator(row, context)
-                            # defaults structure: [False, ID, Order, Row, Name, Start Date, Finish Date, Label, Placement]
+                            # defaults structure: [False, ID, Row, Name, Start Date, Finish Date, Label, Placement]
                             # defaults[0] is checkbox, so Label is at defaults[7], Placement is at defaults[8]
                             if col_name == "Label":
                                 if len(defaults) > 7:
@@ -719,7 +695,7 @@ class TasksTab(BaseTab):
                                     item.setData(Qt.UserRole, None)
                             except (ValueError, AttributeError):
                                 item.setData(Qt.UserRole, None)
-                        elif actual_col_idx in (1, 2, 3):  # ID, Order, Row are numeric
+                        elif actual_col_idx in (1, 2):  # ID, Row are numeric
                             item = NumericTableWidgetItem(str(value))
                         else:
                             item = QTableWidgetItem(str(value))
@@ -731,12 +707,7 @@ class TasksTab(BaseTab):
                                 item.setData(Qt.UserRole, int(str(value).strip()) if str(value).strip() else 0)
                             except (ValueError, AttributeError):
                                 item.setData(Qt.UserRole, 0)
-                        elif actual_col_idx == 2:  # Task Order numeric
-                            try:
-                                item.setData(Qt.UserRole, float(str(value).strip()) if str(value).strip() else 0.0)
-                            except (ValueError, AttributeError):
-                                item.setData(Qt.UserRole, 0.0)
-                        elif actual_col_idx == 3:  # Row number numeric
+                        elif actual_col_idx == 2:  # Row number numeric
                             try:
                                 item.setData(Qt.UserRole, int(str(value).strip()) if str(value).strip() else 1)
                             except (ValueError, AttributeError):

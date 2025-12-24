@@ -5,7 +5,6 @@ from typing import Dict, Any
 @dataclass
 class Task:
     task_id: int
-    task_order: float
     task_name: str
     start_date: str
     finish_date: str
@@ -21,7 +20,6 @@ class Task:
     def from_dict(cls, data: Dict[str, Any]) -> 'Task':
         return cls(
             task_id=data["task_id"],
-            task_order=data["task_order"],
             task_name=data["task_name"],
             start_date=data["start_date"],
             finish_date=data["finish_date"],
