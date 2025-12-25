@@ -142,45 +142,82 @@ class ProjectData:
                             placement_idx = 6
                             valid_idx = 7 if len(row) > 7 else None
                         
-                        # Convert display format to internal format for dates (handles empty strings)
-                        start_date_internal = display_to_internal_date(row[start_date_idx]) if len(row) > start_date_idx and row[start_date_idx].strip() else ""
-                        finish_date_internal = display_to_internal_date(row[finish_date_idx]) if len(row) > finish_date_idx and row[finish_date_idx].strip() else ""
+                        # Convert display format to internal format for dates (handles empty strings and invalid formats)
+                        start_date_internal = ""
+                        if len(row) > start_date_idx and row[start_date_idx].strip():
+                            try:
+                                start_date_internal = display_to_internal_date(row[start_date_idx])
+                            except ValueError:
+                                start_date_internal = ""  # Invalid date format - set to empty
+                        
+                        finish_date_internal = ""
+                        if len(row) > finish_date_idx and row[finish_date_idx].strip():
+                            try:
+                                finish_date_internal = display_to_internal_date(row[finish_date_idx])
+                            except ValueError:
+                                finish_date_internal = ""  # Invalid date format - set to empty
                         # Convert old placement values to new ones for backward compatibility
                         placement_value = row[placement_idx] if len(row) > placement_idx else "Outside"
                         if placement_value in ["To left", "To right"]:
                             placement_value = "Outside"
-                        task = Task(
-                            task_id=safe_int(row[0]),  # ID is at index 0
-                            row_number=safe_int(row[row_idx], 1),  # Row
-                            task_name=row[name_idx] if len(row) > name_idx else "",  # Name
-                            start_date=start_date_internal,  # Store in internal format
-                            finish_date=finish_date_internal,  # Store in internal format
-                            label_hide=row[label_idx] if len(row) > label_idx else "Yes",  # Label (No = Hide, Yes = Show)
-                            label_placement=placement_value,  # Placement
-                            label_alignment="Centre",  # Always use Centre for inside labels (backward compatibility)
-                            label_horizontal_offset=1.0,  # Default value (backward compatibility - now uses config value)
-                            label_text_colour="black"  # Default color (backward compatibility - not used in rendering)
-                        )
-                        # Validate task and set Valid field
-                        row_errors = self.validator.validate_task(task, used_ids)
-                        valid_status = "No" if row_errors else "Yes"
-                        
-                        # Ensure row has Valid field at the correct index
-                        if has_order:
-                            # Old format: ensure 9 elements [ID, Order, Row, Name, Start Date, Finish Date, Label, Placement, Valid]
-                            while len(row) < 9:
-                                row.append("")
-                            row[8] = valid_status
-                        else:
-                            # New format: ensure 8 elements [ID, Row, Name, Start Date, Finish Date, Label, Placement, Valid]
-                            while len(row) < 8:
-                                row.append("")
-                            row[7] = valid_status
-                        
-                        # Save task regardless of validity (like links)
-                        new_tasks.append(task)
-                        if not row_errors:
-                            used_ids.add(task.task_id)
+                        try:
+                            task = Task(
+                                task_id=safe_int(row[0]),  # ID is at index 0
+                                row_number=safe_int(row[row_idx], 1),  # Row
+                                task_name=row[name_idx] if len(row) > name_idx else "",  # Name
+                                start_date=start_date_internal,  # Store in internal format
+                                finish_date=finish_date_internal,  # Store in internal format
+                                label_hide=row[label_idx] if len(row) > label_idx else "Yes",  # Label (No = Hide, Yes = Show)
+                                label_placement=placement_value,  # Placement
+                                label_alignment="Centre",  # Always use Centre for inside labels (backward compatibility)
+                                label_horizontal_offset=1.0,  # Default value (backward compatibility - now uses config value)
+                                label_text_colour="black"  # Default color (backward compatibility - not used in rendering)
+                            )
+                            # Validate task and set Valid field
+                            row_errors = self.validator.validate_task(task, used_ids)
+                            valid_status = "No" if row_errors else "Yes"
+                            
+                            # Ensure row has Valid field at the correct index
+                            if has_order:
+                                # Old format: ensure 9 elements [ID, Order, Row, Name, Start Date, Finish Date, Label, Placement, Valid]
+                                while len(row) < 9:
+                                    row.append("")
+                                row[8] = valid_status
+                            else:
+                                # New format: ensure 8 elements [ID, Row, Name, Start Date, Finish Date, Label, Placement, Valid]
+                                while len(row) < 8:
+                                    row.append("")
+                                row[7] = valid_status
+                            
+                            # Save task regardless of validity (like links)
+                            new_tasks.append(task)
+                            if not row_errors:
+                                used_ids.add(task.task_id)
+                        except Exception as e:
+                            logging.warning(f"Error creating task in row {row_idx}: {e}")
+                            # Set Valid to "No" and try to save minimal task data
+                            if has_order:
+                                while len(row) < 9:
+                                    row.append("")
+                                row[8] = "No"
+                            else:
+                                while len(row) < 8:
+                                    row.append("")
+                                row[7] = "No"
+                            # Try to save task with minimal data
+                            try:
+                                task = Task(
+                                    task_id=safe_int(row[0], 0),
+                                    row_number=safe_int(row[row_idx] if has_order else row[1], 1),
+                                    task_name=row[name_idx] if len(row) > name_idx else "",
+                                    start_date="",
+                                    finish_date="",
+                                    label_hide=row[label_idx] if len(row) > label_idx else "Yes",
+                                    label_placement=row[placement_idx] if len(row) > placement_idx else "Outside"
+                                )
+                                new_tasks.append(task)
+                            except:
+                                pass  # Skip if we can't create task at all
                     except ValueError as e:
                         # Handle date conversion errors - set Valid to "No" but still try to save
                         error_msg = str(e)
