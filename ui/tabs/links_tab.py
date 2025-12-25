@@ -189,39 +189,61 @@ class LinksTab(BaseTab):
                             item = QTableWidgetItem(str(value))
                         self.links_table.setItem(row_idx, col_idx, item)
             else:
-                # New row - leave blank (don't use defaults)
-                for col_idx in range(1, len(headers)):  # Skip Select column
+                # New row - use defaults
+                context = {
+                    "max_id": len(table_data)  # Maximum existing link ID
+                }
+                defaults = self.table_config.default_generator(row_idx, context)
+                # defaults structure: [False, ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid]
+                # defaults[0] is checkbox, defaults[1] is ID (col_idx 1), etc.
+                
+                for col_idx in range(1, len(headers)):  # Skip Select column (index 0)
                     col_config = self.table_config.columns[col_idx]
                     col_name = col_config.name
+                    
+                    # defaults includes checkbox at 0, so col_idx maps to defaults[col_idx]
+                    default_idx = col_idx
+                    if default_idx < len(defaults):
+                        default = defaults[default_idx]
+                    else:
+                        default = ""
                     
                     if col_config.widget_type == "combo":
                         combo = QComboBox()
                         combo.addItems(col_config.combo_items)
+                        combo.setCurrentText(str(default))
                         combo.currentTextChanged.connect(self._sync_data_if_not_initializing)
                         self.links_table.setCellWidget(row_idx, col_idx, combo)
                     else:
-                        # ID column - will be set by add_row, but create placeholder
+                        # ID column - read-only numeric
                         if col_name == "ID":
-                            item = NumericTableWidgetItem("")
+                            item = NumericTableWidgetItem(str(default))
                             item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
                             item.setBackground(QBrush(self.READ_ONLY_BG))  # Gray background
-                            item.setData(Qt.UserRole, 0)
-                        # Numeric columns - create blank editable items
+                            try:
+                                item.setData(Qt.UserRole, int(str(default).strip()) if str(default).strip() else 0)
+                            except (ValueError, AttributeError):
+                                item.setData(Qt.UserRole, 0)
+                        # Numeric columns (From Task ID, To Task ID)
                         elif col_name in ["From Task ID", "To Task ID"]:
-                            item = NumericTableWidgetItem("")
-                            item.setData(Qt.UserRole, 0)
-                        # Name columns - read-only with empty text
+                            item = NumericTableWidgetItem(str(default))
+                            try:
+                                item.setData(Qt.UserRole, int(str(default).strip()) if str(default).strip() else 0)
+                            except (ValueError, AttributeError):
+                                item.setData(Qt.UserRole, 0)
+                        # Name columns (From Task Name, To Task Name) - read-only with truncation
                         elif col_name in ["From Task Name", "To Task Name"]:
-                            item = QTableWidgetItem("")
+                            item = QTableWidgetItem(self._truncate_text(str(default)))
                             item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
                             item.setBackground(QBrush(self.READ_ONLY_BG))  # Gray background
-                        # Valid column - read-only text with default "Yes"
+                            item.setToolTip(str(default))  # Show full text in tooltip
+                        # Valid column - read-only text
                         elif col_name == "Valid":
-                            item = QTableWidgetItem("Yes")
+                            item = QTableWidgetItem(str(default) if default else "Yes")
                             item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
                             item.setBackground(QBrush(self.READ_ONLY_BG))  # Gray background
                         else:
-                            item = QTableWidgetItem("")
+                            item = QTableWidgetItem(str(default))
                         self.links_table.setItem(row_idx, col_idx, item)
         
         # Sort by ID by default

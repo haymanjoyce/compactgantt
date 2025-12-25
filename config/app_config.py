@@ -199,16 +199,25 @@ class AppConfig:
         def tasks_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
             """
             Generate default task data for a given row index.
-            Returns: [ID, Row, Name, Start Date, Finish Date, Label, Placement]
+            Tasks are designed to demonstrate all link rendering scenarios.
+            Returns: [ID, Row, Name, Start Date, Finish Date, Label, Placement, Valid]
             """
-            # Default tasks configuration
+            # Default tasks configuration covering all linking scenarios
+            # Spread across 3 rows to demonstrate all link types including successor-above
             # Format: name, start date, finish date, row, placement, label
             defaults = [
-                {"name": "Design", "start": "2025-01-01", "finish": "2025-03-05", "row": 1, "placement": "Inside", "label": "Yes"},
-                {"name": "Tender", "start": "2025-03-06", "finish": "2025-05-15", "row": 2, "placement": "Inside", "label": "Yes"},
-                {"name": "Contract Award", "start": "2025-05-16", "finish": "2025-05-16", "row": 2, "placement": "Outside", "label": "Yes"},
-                {"name": "Construct", "start": "2025-05-17", "finish": "2025-06-15", "row": 3, "placement": "Inside", "label": "Yes"},
-                {"name": "Planned Completion", "start": "2025-06-16", "finish": "2025-06-16", "row": 4, "placement": "Outside", "label": "Yes"}
+                # Row 1: Tasks for same-row and successor-above scenarios (targets for row 2→row 1 links)
+                {"name": "Task A", "start": "2025-01-02", "finish": "2025-01-15", "row": 1, "placement": "Inside", "label": "Yes"},
+                {"name": "Task B", "start": "2025-01-15", "finish": "2025-01-28", "row": 1, "placement": "Inside", "label": "Yes"},  # Same row, no gap after A
+                {"name": "Task C", "start": "2025-02-01", "finish": "2025-02-14", "row": 1, "placement": "Inside", "label": "Yes"},  # Same row, gap after B
+                {"name": "Milestone M1", "start": "2025-03-14", "finish": "2025-03-14", "row": 1, "placement": "Outside", "label": "Yes"},  # Milestone, successor above row 2
+                # Row 2: Tasks for successor-below (from row 1), same-row, and successor-above (to row 1) scenarios
+                {"name": "Task D", "start": "2025-02-14", "finish": "2025-02-27", "row": 2, "placement": "Inside", "label": "Yes"},  # Below row 1, no gap after C
+                {"name": "Task E", "start": "2025-03-01", "finish": "2025-03-13", "row": 2, "placement": "Inside", "label": "Yes"},  # Below row 1, gap after D
+                {"name": "Milestone M2", "start": "2025-03-28", "finish": "2025-03-28", "row": 2, "placement": "Outside", "label": "Yes"},  # Milestone, successor above row 1, gap after F
+                # Row 3: Tasks for successor-below scenarios (from row 2)
+                {"name": "Task F", "start": "2025-03-15", "finish": "2025-03-28", "row": 3, "placement": "Inside", "label": "Yes"},  # Below row 2, gap after E
+                {"name": "Task G", "start": "2025-04-01", "finish": "2025-04-14", "row": 3, "placement": "Inside", "label": "Yes"},  # Below row 2, gap after F
             ]
             
             if row_idx < len(defaults):
@@ -226,7 +235,7 @@ class AppConfig:
                     "Yes"                                            # Valid (default to Yes)
                 ]
             else:
-                # Fallback for additional rows beyond the 5 defaults
+                # Fallback for additional rows beyond the 9 defaults
                 task_id = context.get("max_task_id", 0) + 1
                 row_number = str(row_idx + 1)
                 internal_start = QDate.currentDate().toString("yyyy-MM-dd")
@@ -244,9 +253,41 @@ class AppConfig:
                 ]
 
         def links_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
-            # Generate ID based on context
-            link_id = context.get("max_id", 0) + 1
-            return [str(link_id), "", "", "", "", "Yes"]  # ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid
+            """
+            Generate default link data for a given row index.
+            Links are designed to demonstrate all link rendering scenarios.
+            Returns: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid]
+            """
+            # Default links configuration covering all linking scenarios
+            # Links demonstrate: same row (no gap/gap), successor below (no gap/gap), 
+            # successor above (no gap/gap), milestone connections (regular↔milestone)
+            defaults = [
+                {"from_id": 1, "to_id": 2, "from_name": "Task A", "to_name": "Task B"},      # Same row, no gap (1a)
+                {"from_id": 2, "to_id": 3, "from_name": "Task B", "to_name": "Task C"},      # Same row, gap (1b)
+                {"from_id": 3, "to_id": 5, "from_name": "Task C", "to_name": "Task D"},      # Successor below, no gap (2a)
+                {"from_id": 5, "to_id": 6, "from_name": "Task D", "to_name": "Task E"},      # Same row, gap (1b) - row 2
+                {"from_id": 6, "to_id": 4, "from_name": "Task E", "to_name": "Milestone M1"}, # Successor above, no gap (3a) - row 2 to row 1, regular to milestone
+                {"from_id": 4, "to_id": 5, "from_name": "Milestone M1", "to_name": "Task D"}, # Successor below, no gap (2a) - row 1 to row 2, milestone to regular
+                {"from_id": 6, "to_id": 8, "from_name": "Task E", "to_name": "Task F"},      # Successor below, gap (2b) - row 2 to row 3
+                {"from_id": 8, "to_id": 7, "from_name": "Task F", "to_name": "Milestone M2"}, # Successor above, gap (3b) - row 3 to row 2, regular to milestone
+                {"from_id": 7, "to_id": 1, "from_name": "Milestone M2", "to_name": "Task A"}, # Successor above, gap (3b) - row 2 to row 1, milestone to regular
+            ]
+            
+            if row_idx < len(defaults):
+                default = defaults[row_idx]
+                link_id = context.get("max_id", 0) + row_idx + 1
+                return [
+                    str(link_id),                                    # ID
+                    str(default["from_id"]),                         # From Task ID
+                    default["from_name"],                             # From Task Name
+                    str(default["to_id"]),                           # To Task ID
+                    default["to_name"],                               # To Task Name
+                    "Yes"                                            # Valid (default to Yes)
+                ]
+            else:
+                # Fallback for additional links beyond the defaults
+                link_id = context.get("max_id", 0) + 1
+                return [str(link_id), "", "", "", "", "Yes"]  # ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid
 
         def swimlanes_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
             return ["1", "2", f"Swimlane {row_idx + 1}", "lightblue"]
@@ -287,7 +328,7 @@ class AppConfig:
                     TableColumnConfig("Placement", widget_type="combo", combo_items=["Inside", "Outside"]),
                     TableColumnConfig("Valid", widget_type="text", default_value="Yes")
                 ],
-                min_rows=5,
+                min_rows=9,  # Updated to match new default task count
                 default_generator=lambda row_idx, context: [False] + tasks_default(row_idx, context)
             ),
             "links": TableConfig(
@@ -301,7 +342,7 @@ class AppConfig:
                     TableColumnConfig("To Task Name", widget_type="text"),
                     TableColumnConfig("Valid", widget_type="text", default_value="Yes")
                 ],
-                min_rows=0,
+                min_rows=9,  # Updated to match new default link count
                 default_generator=lambda row_idx, context: [False] + links_default(row_idx, context)
             ),
             "swimlanes": TableConfig(
