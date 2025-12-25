@@ -273,7 +273,7 @@ class GanttChartService(QObject):
                     (center_x, center_y + half_size),
                     (center_x - half_size, center_y)
                 ]
-                self.dwg.add(self.dwg.polygon(points=points, fill="red", stroke="black", stroke_width=1))
+                self.dwg.add(self.dwg.polygon(points=points, fill="red", stroke="black", stroke_width=0.5))
                 
                 if not label_hide and label_placement == "Outside":
                     # Use proportional positioning: center_y is at row_height * 0.5, apply factor to row_height
@@ -285,7 +285,7 @@ class GanttChartService(QObject):
                     y_offset = (row_height - task_height) / 2
                     rect_y = y_task + y_offset
                     logging.debug(f"Rendering task bar for '{task_name}': x={x_start}, y={rect_y}, width={width_task}, height={task_height}, row={row_num}, y_task={y_task}")
-                    self.dwg.add(self.dwg.rect(insert=(x_start, rect_y), size=(width_task, task_height), fill="blue"))
+                    self.dwg.add(self.dwg.rect(insert=(x_start, rect_y), size=(width_task, task_height), fill="blue", stroke="black", stroke_width=0.5))
                     
                     if not label_hide:
                         # Use proportional positioning within task bar
@@ -466,18 +466,9 @@ class GanttChartService(QObject):
             if same_row:
                 # Case 1: Same Row
                 if same_date:
-                    # 1a. No Gap (Bars Touch or Nearly Touch)
-                    if abs(origin_x - term_x) < 5.0:
-                        # Points coincide or very close - minimal horizontal extension
-                        extended_x = origin_x + 10.0  # 10 pixel extension
-                        self.dwg.add(self.dwg.line((origin_x, origin_y), (extended_x, origin_y),
-                                                  stroke="black", stroke_width=1.5))
-                        self._render_arrowhead(extended_x, origin_y, "left", 5)
-                    else:
-                        # Straight horizontal line
-                        self.dwg.add(self.dwg.line((origin_x, origin_y), (term_x, term_y),
-                                                  stroke="black", stroke_width=1.5))
-                        self._render_arrowhead(term_x, term_y, "left", 5)
+                    # 1a. No Gap (Bars Touch) - Skip rendering (no line/arrow needed)
+                    # Tasks/milestones are delineated by their 0.5px borders instead
+                    continue
                 else:
                     # 1b. Positive Gap/Lag (Bars Separated)
                     self.dwg.add(self.dwg.line((origin_x, origin_y), (term_x, term_y),

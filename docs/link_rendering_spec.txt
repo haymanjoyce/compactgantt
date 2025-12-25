@@ -35,10 +35,8 @@ Rendering Cases
 
 1a. No Gap (Bars Touch or Nearly Touch)
 - Condition: Same row AND same date (x-coordinates align within 1 pixel)
-- Rendering: 
-  - If points coincide or very close (< 5 pixels): Minimal horizontal extension (5-10 pixels) rightward, then arrowhead
-  - Otherwise: Straight horizontal line from origin to termination
-- Path: Single horizontal segment: (origin_x, origin_y) → (term_x, term_y)
+- Rendering: No link is rendered (tasks/milestones are delineated by their 0.5px borders instead)
+- Note: This prevents visual clutter when tasks touch at the same date boundary
 
 1b. Positive Gap/Lag (Bars Separated)
 - Condition: Same row AND successor start x > predecessor finish x
