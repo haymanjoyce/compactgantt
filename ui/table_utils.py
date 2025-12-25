@@ -211,11 +211,13 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
                     # Ensure we have 6 elements: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid]
                     defaults = [str(next_id), "", "", "", "", "Yes"]
         else:
-            # If no generator, use empty strings except Valid column for links
+            # If no generator, use empty strings except Valid column for links and tasks
             defaults = [""] * (table.columnCount() - 1)  # Exclude checkbox column
-            # Set Valid column default to "Yes" for links
+            # Set Valid column default to "Yes" for links and tasks
             if is_links_table and len(defaults) >= 6:
                 defaults[5] = "Yes"  # Index 5 in defaults (0=ID, 1=From Task ID, 2=From Task Name, 3=To Task ID, 4=To Task Name, 5=Valid)
+            elif table_key == "tasks" and len(defaults) >= 8:
+                defaults[7] = "Yes"  # Index 7 in defaults (0=ID, 1=Row, 2=Name, 3=Start Date, 4=Finish Date, 5=Label, 6=Placement, 7=Valid)
 
         # Set default values for each column (skip checkbox column)
         for col_idx in range(1, table.columnCount()):
@@ -256,8 +258,8 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
                 if hasattr(parent, '_sync_data_if_not_initializing'):
                     combo.currentTextChanged.connect(parent._sync_data_if_not_initializing)
                 table.setCellWidget(row_index, col_idx, combo)
-            # Valid column for links - read-only text
-            elif is_links_table and header_text == "Valid":
+            # Valid column for links and tasks - read-only text
+            elif header_text == "Valid":
                 item = QTableWidgetItem(str(default) if default else "Yes")
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
                 item.setBackground(QBrush(READ_ONLY_BG))  # Gray background

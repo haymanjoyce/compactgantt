@@ -214,7 +214,7 @@ class AppConfig:
             if row_idx < len(defaults):
                 default = defaults[row_idx]
                 task_id = context.get("max_task_id", 0) + row_idx + 1
-                # Return format: [ID, Row, Name, Start Date, Finish Date, Label, Placement]
+                # Return format: [ID, Row, Name, Start Date, Finish Date, Label, Placement, Valid]
                 return [
                     str(task_id),                                    # ID
                     str(default["row"]),                            # Row
@@ -222,7 +222,8 @@ class AppConfig:
                     internal_to_display_date(default["start"]),      # Start Date (converted to dd/mm/yyyy)
                     internal_to_display_date(default["finish"]),     # Finish Date (converted to dd/mm/yyyy)
                     default.get("label", "Yes"),                     # Label (Yes = Show, No = Hide)
-                    default["placement"]                             # Placement (Inside or Outside)
+                    default["placement"],                            # Placement (Inside or Outside)
+                    "Yes"                                            # Valid (default to Yes)
                 ]
             else:
                 # Fallback for additional rows beyond the 5 defaults
@@ -230,7 +231,7 @@ class AppConfig:
                 row_number = str(row_idx + 1)
                 internal_start = QDate.currentDate().toString("yyyy-MM-dd")
                 internal_finish = QDate.currentDate().toString("yyyy-MM-dd")
-                # Return format: [ID, Row, Name, Start Date, Finish Date, Label, Placement]
+                # Return format: [ID, Row, Name, Start Date, Finish Date, Label, Placement, Valid]
                 return [
                     str(task_id),                                    # ID
                     row_number,                                      # Row
@@ -238,7 +239,8 @@ class AppConfig:
                     internal_to_display_date(internal_start),       # Start Date (converted to dd/mm/yyyy)
                     internal_to_display_date(internal_finish),       # Finish Date (converted to dd/mm/yyyy)
                     "Yes",                                          # Label (Yes = Show, No = Hide)
-                    "Outside"                                        # Placement (Inside or Outside)
+                    "Outside",                                       # Placement (Inside or Outside)
+                    "Yes"                                            # Valid (default to Yes)
                 ]
 
         def links_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
@@ -282,7 +284,8 @@ class AppConfig:
                     TableColumnConfig("Start Date", validator=validate_display_date),
                     TableColumnConfig("Finish Date", validator=validate_display_date),
                     TableColumnConfig("Label", widget_type="combo", combo_items=["No", "Yes"], default_value="Yes"),
-                    TableColumnConfig("Placement", widget_type="combo", combo_items=["Inside", "Outside"])
+                    TableColumnConfig("Placement", widget_type="combo", combo_items=["Inside", "Outside"]),
+                    TableColumnConfig("Valid", widget_type="text", default_value="Yes")
                 ],
                 min_rows=5,
                 default_generator=lambda row_idx, context: [False] + tasks_default(row_idx, context)

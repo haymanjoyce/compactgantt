@@ -59,9 +59,9 @@ class TasksTab(BaseTab):
         table_group_layout.setSpacing(5)
         table_group_layout.setContentsMargins(5, 10, 5, 5)
         
-        # Create table - show: Select, ID, Row, Name, Start Date, Finish Date
+        # Create table - show: Select, ID, Row, Name, Start Date, Finish Date, Valid
         headers = [col.name for col in self.table_config.columns]
-        visible_columns = ["Select", "ID", "Row", "Name", "Start Date", "Finish Date"]
+        visible_columns = ["Select", "ID", "Row", "Name", "Start Date", "Finish Date", "Valid"]
         visible_indices = [headers.index(col) for col in visible_columns if col in headers]
         
         self.tasks_table = QTableWidget(0, len(visible_indices))
@@ -100,6 +100,7 @@ class TasksTab(BaseTab):
         header.setSectionResizeMode(3, QHeaderView.Stretch)  # Name
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Start Date
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Finish Date
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Valid
         
         # Enable horizontal scroll bar
         self.tasks_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -257,8 +258,10 @@ class TasksTab(BaseTab):
             except (ValueError, AttributeError):
                 item.setData(Qt.UserRole, 1)
         
-        # Trigger sync
-        self._sync_data_if_not_initializing()
+        # Don't trigger sync for Valid column changes (it's read-only and auto-calculated)
+        if actual_col_idx < len(headers) and headers[actual_col_idx] != "Valid":
+            # Trigger sync
+            self._sync_data_if_not_initializing()
 
     def _load_initial_data(self):
         self._load_initial_data_impl()
@@ -272,7 +275,7 @@ class TasksTab(BaseTab):
         headers = [col.name for col in self.table_config.columns]
         
         # Create a mapping from column name to index in row_data from get_table_data
-        # row_data structure: [ID, Row, Name, Start Date, Finish Date, Label, Placement]
+        # row_data structure: [ID, Row, Name, Start Date, Finish Date, Label, Placement, Valid]
         row_data_column_map = {
             "ID": 0,
             "Row": 1,
@@ -280,7 +283,8 @@ class TasksTab(BaseTab):
             "Start Date": 3,
             "Finish Date": 4,
             "Label": 5,
-            "Placement": 6
+            "Placement": 6,
+            "Valid": 7
         }
         
         for row_idx in range(row_count):
@@ -350,6 +354,9 @@ class TasksTab(BaseTab):
                                 item.setData(Qt.UserRole, int(str(value).strip()) if str(value).strip() else 1)
                             except (ValueError, AttributeError):
                                 item.setData(Qt.UserRole, 1)
+                        elif col_name == "Valid":  # Valid column - read-only text
+                            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                            item.setBackground(QBrush(READ_ONLY_BG))  # Gray background
                         
                         self.tasks_table.setItem(row_idx, vis_col_idx, item)
             else:
@@ -453,7 +460,7 @@ class TasksTab(BaseTab):
             full_row = []
             
             # NOTE: update_from_table expects data WITHOUT checkbox column
-            # Column order expected: ID, Row, Name, Start Date, Finish Date, Label, Placement
+            # Column order expected: ID, Row, Name, Start Date, Finish Date, Label, Placement, Valid
             
             # Reconstruct row data from visible columns (skip checkbox column)
             for actual_col_idx in range(1, len(headers)):  # Skip Select column (index 0)
@@ -500,8 +507,8 @@ class TasksTab(BaseTab):
                                 "max_task_id": len(table_data) + row,
                             }
                             defaults = self.table_config.default_generator(row, context)
-                            # defaults structure: [False, ID, Row, Name, Start Date, Finish Date, Label, Placement]
-                            # defaults[0] is checkbox, so Label is at defaults[6], Placement is at defaults[7]
+                            # defaults structure: [False, ID, Row, Name, Start Date, Finish Date, Label, Placement, Valid]
+                            # defaults[0] is checkbox, so Label is at defaults[6], Placement is at defaults[7], Valid is at defaults[8]
                             if col_name == "Label":
                                 if len(defaults) > 6:
                                     full_row.append(str(defaults[6]))
@@ -512,13 +519,20 @@ class TasksTab(BaseTab):
                                     full_row.append(str(defaults[7]))
                                 else:
                                     full_row.append("Inside")
+                            elif col_name == "Valid":
+                                if len(defaults) > 8:
+                                    full_row.append(str(defaults[8]))
+                                else:
+                                    full_row.append("Yes")
                             else:
                                 full_row.append("")
             
             full_table_data.append(full_row)
         
         errors = self.project_data.update_from_table("tasks", full_table_data)
-        highlight_table_errors(self.tasks_table, errors)
+        # No longer highlight errors - Valid column shows validation status
+        # Update only the Valid column without reloading the entire table
+        self._update_valid_column_only()
         logging.debug("_sync_data in TasksTab completed")
 
     def _sync_data_if_not_initializing(self):
@@ -527,12 +541,16 @@ class TasksTab(BaseTab):
             self._sync_data()
     
     def _ensure_read_only_styling(self):
-        """Ensure all read-only cells (Task ID) have proper styling."""
+        """Ensure all read-only cells (Task ID, Valid) have proper styling."""
+        headers = [col.name for col in self.table_config.columns]
         id_col_vis_idx = None
+        valid_col_vis_idx = None
+        
         for vis_idx, act_idx in self._column_mapping.items():
             if act_idx == 1:  # Task ID column
                 id_col_vis_idx = vis_idx
-                break
+            elif act_idx < len(headers) and headers[act_idx] == "Valid":
+                valid_col_vis_idx = vis_idx
         
         if id_col_vis_idx is not None:
             for row in range(self.tasks_table.rowCount()):
@@ -540,6 +558,52 @@ class TasksTab(BaseTab):
                 if item:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                     item.setBackground(QBrush(READ_ONLY_BG))
+        
+        if valid_col_vis_idx is not None:
+            for row in range(self.tasks_table.rowCount()):
+                item = self.tasks_table.item(row, valid_col_vis_idx)
+                if item:
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                    item.setBackground(QBrush(READ_ONLY_BG))
+
+    def _update_valid_column_only(self):
+        """Update only the Valid column without reloading the entire table."""
+        # Get updated data from project_data
+        table_data = self.project_data.get_table_data("tasks")
+        headers = [col.name for col in self.table_config.columns]
+        
+        # Find Valid column visible index
+        valid_col_vis_idx = None
+        for vis_idx, act_idx in self._column_mapping.items():
+            if act_idx < len(headers) and headers[act_idx] == "Valid":
+                valid_col_vis_idx = vis_idx
+                break
+        
+        if valid_col_vis_idx is None:
+            return
+        
+        # Block signals to prevent recursive updates
+        self.tasks_table.blockSignals(True)
+        
+        # Update Valid column for each row
+        for row_idx in range(self.tasks_table.rowCount()):
+            if row_idx < len(table_data):
+                # Get Valid value from updated data
+                row_data = table_data[row_idx]
+                valid_value = row_data[7] if len(row_data) > 7 else "Yes"  # Valid is at index 7 in row_data
+                
+                # Update the Valid cell
+                item = self.tasks_table.item(row_idx, valid_col_vis_idx)
+                if item:
+                    item.setText(valid_value)
+                else:
+                    # Create item if it doesn't exist
+                    item = QTableWidgetItem(valid_value)
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                    item.setBackground(QBrush(READ_ONLY_BG))  # Gray background
+                    self.tasks_table.setItem(row_idx, valid_col_vis_idx, item)
+        
+        self.tasks_table.blockSignals(False)
 
     def _extract_table_data(self) -> List[List[str]]:
         # This is now handled in _sync_data_impl
@@ -621,7 +685,7 @@ class TasksTab(BaseTab):
                     # Row not in stored data, extract from table
                     orig_row_data = self._extract_row_data_from_table(orig_row_idx)
                 
-                if not orig_row_data or len(orig_row_data) < 7:
+                if not orig_row_data or len(orig_row_data) < 8:
                     continue
                 
                 # Create new row data with new ID
@@ -710,6 +774,9 @@ class TasksTab(BaseTab):
                                 item.setData(Qt.UserRole, int(str(value).strip()) if str(value).strip() else 1)
                             except (ValueError, AttributeError):
                                 item.setData(Qt.UserRole, 1)
+                        elif col_name == "Valid":  # Valid column - read-only text
+                            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                            item.setBackground(QBrush(READ_ONLY_BG))  # Gray background
                         
                         self.tasks_table.setItem(new_row_idx, vis_col_idx, item)
         finally:
@@ -729,7 +796,8 @@ class TasksTab(BaseTab):
             "Start Date": 3,
             "Finish Date": 4,
             "Label": 5,
-            "Placement": 6
+            "Placement": 6,
+            "Valid": 7
         }
         
         full_row = []

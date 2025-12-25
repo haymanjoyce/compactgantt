@@ -100,6 +100,7 @@ class ProjectData:
                 for row_idx, row in enumerate(data, 1):
                     try:
                         # Skip validation for empty rows (ID is empty or 0, or row is too short)
+                        # Now expects: [ID, Row, Name, Start Date, Finish Date, Label, Placement, Valid]
                         if not row or len(row) < 7:
                             continue
                         
@@ -109,7 +110,7 @@ class ProjectData:
                             continue
                         
                         # extract_table_data already skips checkbox column, so data is 0-indexed
-                        # Column order: ID, Row, Name, Start Date, Finish Date, Label, Placement
+                        # Column order: ID, Row, Name, Start Date, Finish Date, Label, Placement, Valid
                         # Handle backward compatibility: check if row has Order column (old format)
                         # If row[1] is numeric and row[2] is also numeric, assume old format with Order
                         has_order = False
@@ -123,21 +124,23 @@ class ProjectData:
                         
                         # Adjust indices based on whether Order column exists
                         if has_order:
-                            # Old format: [ID, Order, Row, Name, Start Date, Finish Date, Label, Placement]
+                            # Old format: [ID, Order, Row, Name, Start Date, Finish Date, Label, Placement, Valid?]
                             row_idx = 2
                             name_idx = 3
                             start_date_idx = 4
                             finish_date_idx = 5
                             label_idx = 6
                             placement_idx = 7
+                            valid_idx = 8 if len(row) > 8 else None
                         else:
-                            # New format: [ID, Row, Name, Start Date, Finish Date, Label, Placement]
+                            # New format: [ID, Row, Name, Start Date, Finish Date, Label, Placement, Valid]
                             row_idx = 1
                             name_idx = 2
                             start_date_idx = 3
                             finish_date_idx = 4
                             label_idx = 5
                             placement_idx = 6
+                            valid_idx = 7 if len(row) > 7 else None
                         
                         # Convert display format to internal format for dates (handles empty strings)
                         start_date_internal = display_to_internal_date(row[start_date_idx]) if len(row) > start_date_idx and row[start_date_idx].strip() else ""
@@ -158,28 +161,84 @@ class ProjectData:
                             label_horizontal_offset=1.0,  # Default value (backward compatibility - now uses config value)
                             label_text_colour="black"  # Default color (backward compatibility - not used in rendering)
                         )
+                        # Validate task and set Valid field
                         row_errors = self.validator.validate_task(task, used_ids)
+                        valid_status = "No" if row_errors else "Yes"
+                        
+                        # Ensure row has Valid field at the correct index
+                        if has_order:
+                            # Old format: ensure 9 elements [ID, Order, Row, Name, Start Date, Finish Date, Label, Placement, Valid]
+                            while len(row) < 9:
+                                row.append("")
+                            row[8] = valid_status
+                        else:
+                            # New format: ensure 8 elements [ID, Row, Name, Start Date, Finish Date, Label, Placement, Valid]
+                            while len(row) < 8:
+                                row.append("")
+                            row[7] = valid_status
+                        
+                        # Save task regardless of validity (like links)
+                        new_tasks.append(task)
                         if not row_errors:
-                            new_tasks.append(task)
                             used_ids.add(task.task_id)
-                        else:
-                            errors.extend(f"Row {row_idx}: {err}" for err in row_errors)
                     except ValueError as e:
-                        # Handle date conversion errors - avoid duplicate "Row X:" prefix
+                        # Handle date conversion errors - set Valid to "No" but still try to save
                         error_msg = str(e)
-                        # Check if error already has "Row" prefix to avoid duplication
-                        if error_msg.startswith("Row "):
-                            errors.append(error_msg)
+                        # Ensure row has Valid field
+                        if has_order:
+                            while len(row) < 9:
+                                row.append("")
+                            row[8] = "No"
                         else:
-                            errors.append(f"Row {row_idx}: {error_msg}")
+                            while len(row) < 8:
+                                row.append("")
+                            row[7] = "No"
+                        # Still try to create and save the task if possible
+                        try:
+                            task = Task(
+                                task_id=safe_int(row[0], 0),
+                                row_number=safe_int(row[row_idx] if has_order else row[1], 1),
+                                task_name=row[name_idx] if len(row) > name_idx else "",
+                                start_date="",
+                                finish_date="",
+                                label_hide=row[label_idx] if len(row) > label_idx else "Yes",
+                                label_placement=row[placement_idx] if len(row) > placement_idx else "Outside"
+                            )
+                            new_tasks.append(task)
+                        except:
+                            pass  # Skip if we can't create task
                     except (IndexError, AttributeError) as e:
-                        errors.append(f"Row {row_idx}: {str(e)}")
-                if not errors:
-                    self.tasks = new_tasks
-                    logging.debug(f"Updated tasks: {len(new_tasks)} tasks saved")
-                else:
-                    logging.warning(f"Validation errors prevented task update: {errors}")
-                    logging.debug(f"Would have saved {len(new_tasks)} tasks but validation failed")
+                        # Set Valid to "No" for index errors
+                        if has_order:
+                            while len(row) < 9:
+                                row.append("")
+                            row[8] = "No"
+                        else:
+                            while len(row) < 8:
+                                row.append("")
+                            row[7] = "No"
+                        # Try to save task if we have at least an ID
+                        try:
+                            task_id = safe_int(row[0], 0)
+                            if task_id > 0:
+                                task = Task(
+                                    task_id=task_id,
+                                    row_number=1,
+                                    task_name="",
+                                    start_date="",
+                                    finish_date="",
+                                    label_hide="Yes",
+                                    label_placement="Outside"
+                                )
+                                new_tasks.append(task)
+                        except:
+                            pass
+                
+                # Always save tasks (regardless of validation errors)
+                self.tasks = new_tasks
+                logging.debug(f"Updated tasks: {len(new_tasks)} tasks saved (with Valid field set)")
+                # Return empty errors list (no error dialogs)
+                errors = []
             elif key == "links":
                 # Validate links: check Finish-to-Start constraint and set Valid field
                 new_links = []
