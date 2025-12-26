@@ -134,11 +134,24 @@ class SvgDisplay(QMainWindow):
     def load_svg(self, svg_path):
         absolute_path = os.path.abspath(svg_path)
         if os.path.exists(absolute_path):
+            # Preserve current zoom state if SVG was already loaded
+            preserve_zoom = self._svg_path is not None and self._svg_size.width() > 0
+            saved_zoom = self._zoom
+            saved_fit_to_window = self._fit_to_window
+            
             self._svg_path = absolute_path  # Store path for saving
             self.svg_renderer.load(absolute_path)
             self._svg_size = self.svg_renderer.defaultSize()
-            self._zoom = 1.0
-            self._fit_to_window = True
+            
+            # Restore zoom state if we had a previous SVG loaded
+            if preserve_zoom:
+                self._zoom = saved_zoom
+                self._fit_to_window = saved_fit_to_window
+            else:
+                # First load - use default zoom
+                self._zoom = 1.0
+                self._fit_to_window = True
+            
             self.update_image()
             self._update_button_states()
             self._update_zoom_label()
