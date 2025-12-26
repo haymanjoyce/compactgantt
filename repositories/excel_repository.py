@@ -216,19 +216,46 @@ class ExcelRepository:
     def _create_links_sheet(self, wb: Workbook, links: List[List[str]]) -> None:
         """Create Links worksheet."""
         ws = wb.create_sheet("Links")
-        if links:
-            # Use first row as headers if available
-            if links and len(links) > 0:
-                ws.append(links[0] if len(links[0]) > 0 else ["From", "To"])
-                self._format_header_row(ws, 1)
-                for row in links[1:] if len(links) > 1 else []:
-                    ws.append(row)
+        
+        # Define headers explicitly (excluding Valid field as it's calculated)
+        headers = ["ID", "From Task ID", "From Task Name", "To Task ID", "To Task Name", "Line Color", "Line Style"]
+        ws.append(headers)
+        self._format_header_row(ws, 1)
+        
+        # Strip Valid field from each link before saving (it's calculated, not stored)
+        for link in links:
+            if len(link) >= 8:
+                # Has Valid field at index 5 - exclude it
+                # Keep: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Line Color, Line Style]
+                link_copy = link[:5] + link[6:8]
+                ws.append(link_copy)
+            elif len(link) >= 7:
+                # Already doesn't have Valid field (7 elements) - keep as is
+                ws.append(link[:7])
             else:
-                ws.append(["From", "To"])
-                self._format_header_row(ws, 1)
-        else:
-            ws.append(["From", "To"])
-            self._format_header_row(ws, 1)
+                # Link has fewer than 7 elements - pad with defaults if needed
+                link_copy = list(link)
+                while len(link_copy) < 7:
+                    if len(link_copy) == 5:
+                        link_copy.append("black")  # Default Line Color
+                    elif len(link_copy) == 6:
+                        link_copy.append("solid")  # Default Line Style
+                    else:
+                        link_copy.append("")
+                ws.append(link_copy[:7])
+        
+        # Auto-adjust column widths
+        for col in ws.columns:
+            max_length = 0
+            col_letter = col[0].column_letter
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            ws.column_dimensions[col_letter].width = adjusted_width
     
     def _create_swimlanes_sheet(self, wb: Workbook, swimlanes: List[List[str]]) -> None:
         """Create Swimlanes worksheet."""

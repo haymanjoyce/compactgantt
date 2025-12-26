@@ -256,21 +256,21 @@ class AppConfig:
             """
             Generate default link data for a given row index.
             Links are designed to demonstrate all link rendering scenarios.
-            Returns: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid]
+            Returns: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Line Color, Line Style]
             """
             # Default links configuration covering all linking scenarios
             # Links demonstrate: same row (no gap/gap), successor below (no gap/gap), 
             # successor above (no gap/gap), milestone connections (regular↔milestone)
             defaults = [
-                {"from_id": 1, "to_id": 2, "from_name": "Task A", "to_name": "Task B"},      # Same row, no gap (1a)
-                {"from_id": 2, "to_id": 3, "from_name": "Task B", "to_name": "Task C"},      # Same row, gap (1b)
-                {"from_id": 3, "to_id": 5, "from_name": "Task C", "to_name": "Task D"},      # Successor below, no gap (2a)
-                {"from_id": 5, "to_id": 6, "from_name": "Task D", "to_name": "Task E"},      # Same row, gap (1b) - row 2
-                {"from_id": 6, "to_id": 4, "from_name": "Task E", "to_name": "Milestone M1"}, # Successor above, no gap (3a) - row 2 to row 1, regular to milestone
-                {"from_id": 4, "to_id": 5, "from_name": "Milestone M1", "to_name": "Task D"}, # Successor below, no gap (2a) - row 1 to row 2, milestone to regular
-                {"from_id": 6, "to_id": 8, "from_name": "Task E", "to_name": "Task F"},      # Successor below, gap (2b) - row 2 to row 3
-                {"from_id": 8, "to_id": 7, "from_name": "Task F", "to_name": "Milestone M2"}, # Successor above, gap (3b) - row 3 to row 2, regular to milestone
-                {"from_id": 7, "to_id": 1, "from_name": "Milestone M2", "to_name": "Task A"}, # Successor above, gap (3b) - row 2 to row 1, milestone to regular
+                {"from_id": 1, "to_id": 2, "from_name": "Task A", "to_name": "Task B", "line_color": "black", "line_style": "solid"},      # Same row, no gap (1a)
+                {"from_id": 2, "to_id": 3, "from_name": "Task B", "to_name": "Task C", "line_color": "black", "line_style": "solid"},      # Same row, gap (1b)
+                {"from_id": 3, "to_id": 5, "from_name": "Task C", "to_name": "Task D", "line_color": "black", "line_style": "solid"},      # Successor below, no gap (2a)
+                {"from_id": 5, "to_id": 6, "from_name": "Task D", "to_name": "Task E", "line_color": "black", "line_style": "solid"},      # Same row, gap (1b) - row 2
+                {"from_id": 6, "to_id": 4, "from_name": "Task E", "to_name": "Milestone M1", "line_color": "black", "line_style": "solid"}, # Successor above, no gap (3a) - row 2 to row 1, regular to milestone
+                {"from_id": 4, "to_id": 5, "from_name": "Milestone M1", "to_name": "Task D", "line_color": "black", "line_style": "solid"}, # Successor below, no gap (2a) - row 1 to row 2, milestone to regular
+                {"from_id": 6, "to_id": 8, "from_name": "Task E", "to_name": "Task F", "line_color": "black", "line_style": "solid"},      # Successor below, gap (2b) - row 2 to row 3
+                {"from_id": 8, "to_id": 7, "from_name": "Task F", "to_name": "Milestone M2", "line_color": "black", "line_style": "solid"}, # Successor above, gap (3b) - row 3 to row 2, regular to milestone
+                {"from_id": 7, "to_id": 1, "from_name": "Milestone M2", "to_name": "Task A", "line_color": "black", "line_style": "solid"}, # Successor above, gap (3b) - row 2 to row 1, milestone to regular
             ]
             
             if row_idx < len(defaults):
@@ -283,8 +283,8 @@ class AppConfig:
                     str(default["to_id"]),                           # To Task ID
                     default["to_name"],                               # To Task Name
                     "Yes",                                           # Valid (default to Yes)
-                    "black",                                         # Line Color (default)
-                    "solid"                                         # Line Style (default)
+                    default.get("line_color", "black"),              # Line Color
+                    default.get("line_style", "solid")               # Line Style
                 ]
             else:
                 # Fallback for additional links beyond the defaults

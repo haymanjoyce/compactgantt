@@ -412,16 +412,33 @@ class GanttChartService(QObject):
         row_height = row_frame_height / num_rows if num_rows > 0 else row_frame_height
         
         for link in links:
-            if len(link) < 6:  # Minimum: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid]
+            if len(link) < 2:  # Minimum: [ID, From Task ID]
                 continue
             
+            # Determine if Valid field exists
+            # Format with Valid (8 elements): [ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid, Line Color, Line Style]
+            # Format without Valid (7 elements): [ID, From Task ID, From Task Name, To Task ID, To Task Name, Line Color, Line Style]
+            has_valid_field = len(link) >= 8 or (len(link) >= 6 and str(link[5]).strip().lower() in ["yes", "no"])
+            
             # Check if link is valid (if Valid field exists and is "No", skip rendering)
-            if len(link) >= 6 and str(link[5]).strip().lower() == "no":  # Valid is at index 5
+            if has_valid_field and len(link) >= 6 and str(link[5]).strip().lower() == "no":
                 continue  # Skip invalid links
             
             # Get style properties from link data (with defaults)
-            line_color = str(link[6]).strip() if len(link) > 6 and link[6] else "black"
-            line_style = str(link[7]).strip() if len(link) > 7 and link[7] else "solid"
+            # Adjust indices based on whether Valid field exists
+            if has_valid_field and len(link) >= 8:
+                # Format with Valid: Line Color at index 6, Line Style at index 7
+                line_color = str(link[6]).strip() if len(link) > 6 and link[6] else "black"
+                line_style = str(link[7]).strip() if len(link) > 7 and link[7] else "solid"
+            else:
+                # Format without Valid: Line Color at index 5, Line Style at index 6
+                line_color = str(link[5]).strip() if len(link) > 5 and link[5] else "black"
+                line_style = str(link[6]).strip() if len(link) > 6 and link[6] else "solid"
+            
+            # Validate line_color is actually a color, not a style
+            if line_color.lower() in ["solid", "dotted", "dashed"]:
+                # They're swapped - fix it
+                line_color, line_style = line_style, line_color
             
             # Map line style to SVG stroke-dasharray
             stroke_dasharray = None

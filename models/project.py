@@ -49,10 +49,33 @@ class ProjectData:
             tasks_data.append(task_dict)
         
         # FrameConfig: save all fields (all are necessary)
+        # Strip Valid field from links before saving (it's calculated, not stored)
+        links_for_save = []
+        for link in self.links:
+            if len(link) >= 8:
+                # Has Valid field at index 5 - exclude it
+                # Keep: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Line Color, Line Style]
+                link_copy = link[:5] + link[6:8]
+                links_for_save.append(link_copy)
+            elif len(link) >= 7:
+                # Already doesn't have Valid field (7 elements) - keep as is
+                links_for_save.append(link[:7])
+            else:
+                # Link has fewer than 7 elements - pad with defaults if needed
+                link_copy = list(link)
+                while len(link_copy) < 7:
+                    if len(link_copy) == 5:
+                        link_copy.append("black")  # Default Line Color
+                    elif len(link_copy) == 6:
+                        link_copy.append("solid")  # Default Line Style
+                    else:
+                        link_copy.append("")
+                links_for_save.append(link_copy[:7])
+        
         return {
             "frame_config": vars(self.frame_config),
             "tasks": tasks_data,
-            "links": self.links,
+            "links": links_for_save,  # Use stripped links
             "swimlanes": self.swimlanes,
             "pipes": self.pipes,
             "curtains": self.curtains,
