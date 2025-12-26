@@ -6,6 +6,7 @@ from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QFont, QFontMetrics
 from config.app_config import AppConfig
 import logging
+from models.link import Link
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -403,42 +404,31 @@ class GanttChartService(QObject):
             end_date: The end date of the timeline (datetime)
         """
         num_rows = self._get_frame_config("num_rows", 1)
-        links = self.data.get("links", [])
+        links_data = self.data.get("links", [])
         
-        if not links:
+        if not links_data:
             return
+        
+        # Convert dicts to Link objects (links come from to_json() as dicts)
+        links = []
+        for link_item in links_data:
+            if isinstance(link_item, dict):
+                links.append(Link.from_dict(link_item))
+            elif hasattr(link_item, 'link_id'):  # Already a Link object
+                links.append(link_item)
+            # Skip legacy list format
         
         # Calculate row height for vertical positioning
         row_height = row_frame_height / num_rows if num_rows > 0 else row_frame_height
         
         for link in links:
-            if len(link) < 2:  # Minimum: [ID, From Task ID]
+            # Skip invalid links
+            if link.valid == "No":
                 continue
             
-            # Determine if Valid field exists
-            # Format with Valid (8 elements): [ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid, Line Color, Line Style]
-            # Format without Valid (7 elements): [ID, From Task ID, From Task Name, To Task ID, To Task Name, Line Color, Line Style]
-            has_valid_field = len(link) >= 8 or (len(link) >= 6 and str(link[5]).strip().lower() in ["yes", "no"])
-            
-            # Check if link is valid (if Valid field exists and is "No", skip rendering)
-            if has_valid_field and len(link) >= 6 and str(link[5]).strip().lower() == "no":
-                continue  # Skip invalid links
-            
-            # Get style properties from link data (with defaults)
-            # Adjust indices based on whether Valid field exists
-            if has_valid_field and len(link) >= 8:
-                # Format with Valid: Line Color at index 6, Line Style at index 7
-                line_color = str(link[6]).strip() if len(link) > 6 and link[6] else "black"
-                line_style = str(link[7]).strip() if len(link) > 7 and link[7] else "solid"
-            else:
-                # Format without Valid: Line Color at index 5, Line Style at index 6
-                line_color = str(link[5]).strip() if len(link) > 5 and link[5] else "black"
-                line_style = str(link[6]).strip() if len(link) > 6 and link[6] else "solid"
-            
-            # Validate line_color is actually a color, not a style
-            if line_color.lower() in ["solid", "dotted", "dashed"]:
-                # They're swapped - fix it
-                line_color, line_style = line_style, line_color
+            # Get style properties
+            line_color = link.line_color or "black"
+            line_style = link.line_style or "solid"
             
             # Map line style to SVG stroke-dasharray
             stroke_dasharray = None
@@ -448,11 +438,8 @@ class GanttChartService(QObject):
                 stroke_dasharray = "5,5"
             # "solid" uses None (no dasharray)
             
-            try:
-                from_task_id = int(link[1])  # From Task ID is at index 1
-                to_task_id = int(link[3])   # To Task ID is at index 3
-            except (ValueError, TypeError):
-                continue
+            from_task_id = link.from_task_id
+            to_task_id = link.to_task_id
             
             # Helper function to create line with style
             def create_line(start, end):
@@ -466,8 +453,8 @@ class GanttChartService(QObject):
                 return self.dwg.line(start, end, **line_attrs)
             
             # Get positions for both tasks - use row_y and row_frame_height for correct vertical positioning
-            from_task = self._get_task_position(from_task_id, x, row_y, width, row_frame_height, start_date, end_date, num_rows)
-            to_task = self._get_task_position(to_task_id, x, row_y, width, row_frame_height, start_date, end_date, num_rows)
+            from_task = self._get_task_position(link.from_task_id, x, row_y, width, row_frame_height, start_date, end_date, num_rows)
+            to_task = self._get_task_position(link.to_task_id, x, row_y, width, row_frame_height, start_date, end_date, num_rows)
             
             if not from_task or not to_task:
                 continue  # Skip if either task not found
@@ -476,9 +463,9 @@ class GanttChartService(QObject):
             from_task_data = None
             to_task_data = None
             for task in self.data.get("tasks", []):
-                if task.get("task_id") == from_task_id:
+                if task.get("task_id") == link.from_task_id:
                     from_task_data = task
-                if task.get("task_id") == to_task_id:
+                if task.get("task_id") == link.to_task_id:
                     to_task_data = task
             
             if not from_task_data or not to_task_data:

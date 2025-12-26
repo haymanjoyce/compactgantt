@@ -289,15 +289,28 @@ class LinksTab(BaseTab):
                     "max_id": len(table_data)  # Maximum existing link ID
                 }
                 defaults = self.table_config.default_generator(row_idx, context)
-                # defaults structure: [False, ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid]
-                # defaults[0] is checkbox, defaults[1] is ID (col_idx 1), etc.
+                # defaults structure: [False(0), ID(1), From Task ID(2), From Task Name(3), To Task ID(4), To Task Name(5), Line Color(6), Line Style(7)]
+                # Note: defaults includes Select checkbox at 0, but does NOT include Valid (calculated field)
+                # Table columns: Select(0), ID(1), From Task ID(2), From Task Name(3), To Task ID(4), To Task Name(5), Valid(6)
                 
                 for col_idx in range(1, len(headers)):  # Skip Select column (index 0)
                     col_config = self.table_config.columns[col_idx]
                     col_name = col_config.name
                     
-                    # defaults includes checkbox at 0, so col_idx maps to defaults[col_idx]
+                    # Handle Valid column specially - it's not in defaults, it's calculated
+                    if col_name == "Valid":
+                        # Valid is calculated, so use placeholder that will be updated later
+                        item = QTableWidgetItem("Yes")
+                        item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
+                        item.setBackground(QBrush(self.READ_ONLY_BG))  # Gray background
+                        self.links_table.setItem(row_idx, col_idx, item)
+                        continue
+                    
+                    # Map table column to defaults array index
+                    # Since both defaults and table columns have Select at index 0, col_idx maps directly to defaults[col_idx]
+                    # But we skip Line Color and Line Style (which are in defaults but not in table)
                     default_idx = col_idx
+                    
                     if default_idx < len(defaults):
                         default = defaults[default_idx]
                     else:
@@ -332,11 +345,6 @@ class LinksTab(BaseTab):
                             item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
                             item.setBackground(QBrush(self.READ_ONLY_BG))  # Gray background
                             item.setToolTip(str(default))  # Show full text in tooltip
-                        # Valid column - read-only text
-                        elif col_name == "Valid":
-                            item = QTableWidgetItem(str(default) if default else "Yes")
-                            item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
-                            item.setBackground(QBrush(self.READ_ONLY_BG))  # Gray background
                         else:
                             item = QTableWidgetItem(str(default))
                         self.links_table.setItem(row_idx, col_idx, item)
@@ -345,6 +353,9 @@ class LinksTab(BaseTab):
         self.links_table.sortItems(1, Qt.AscendingOrder)  # Column 1 = ID
         
         self._initializing = False
+        
+        # Calculate and update Valid column for all rows (including those populated from defaults)
+        self._update_valid_column_only()
 
     def _sync_data_impl(self):
         """Extract data from table and update project_data."""

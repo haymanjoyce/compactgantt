@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Set
-from models import FrameConfig, Task
+from models import FrameConfig, Task, Link
 from validators import DataValidator
 from datetime import datetime
 import logging
@@ -13,7 +13,7 @@ class ProjectData:
         app_config = AppConfig()
         self.frame_config = FrameConfig(num_rows=app_config.general.tasks_rows)
         self.tasks: List[Task] = []
-        self.links: List[List[str]] = []
+        self.links: List[Link] = []
         self.swimlanes: List[List[str]] = []
         self.pipes: List[List[str]] = []
         self.curtains: List[List[str]] = []
@@ -49,33 +49,13 @@ class ProjectData:
             tasks_data.append(task_dict)
         
         # FrameConfig: save all fields (all are necessary)
-        # Strip Valid field from links before saving (it's calculated, not stored)
-        links_for_save = []
-        for link in self.links:
-            if len(link) >= 8:
-                # Has Valid field at index 5 - exclude it
-                # Keep: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Line Color, Line Style]
-                link_copy = link[:5] + link[6:8]
-                links_for_save.append(link_copy)
-            elif len(link) >= 7:
-                # Already doesn't have Valid field (7 elements) - keep as is
-                links_for_save.append(link[:7])
-            else:
-                # Link has fewer than 7 elements - pad with defaults if needed
-                link_copy = list(link)
-                while len(link_copy) < 7:
-                    if len(link_copy) == 5:
-                        link_copy.append("black")  # Default Line Color
-                    elif len(link_copy) == 6:
-                        link_copy.append("solid")  # Default Line Style
-                    else:
-                        link_copy.append("")
-                links_for_save.append(link_copy[:7])
+        # Convert Link objects to dictionaries for JSON (Valid field is excluded as it's calculated)
+        links_data = [link.to_dict() for link in self.links]
         
         return {
             "frame_config": vars(self.frame_config),
             "tasks": tasks_data,
-            "links": links_for_save,  # Use stripped links
+            "links": links_data,
             "swimlanes": self.swimlanes,
             "pipes": self.pipes,
             "curtains": self.curtains,
@@ -104,8 +84,15 @@ class ProjectData:
         for task_data in data.get("tasks", []):
             project.tasks.append(Task.from_dict(task_data))
         
-        # Load other data
-        project.links = data.get("links", [])
+        # Load links - convert dicts to Link objects
+        links_data = data.get("links", [])
+        project.links = []
+        for link_data in links_data:
+            if isinstance(link_data, dict):
+                project.links.append(Link.from_dict(link_data))
+            else:
+                # Legacy list format - skip (shouldn't happen after migration)
+                continue
         project.swimlanes = data.get("swimlanes", [])
         project.pipes = data.get("pipes", [])
         project.curtains = data.get("curtains", [])
@@ -300,104 +287,62 @@ class ProjectData:
                 # Return empty errors list (no error dialogs)
                 errors = []
             elif key == "links":
-                # Validate links: check Finish-to-Start constraint and set Valid field
+                # Convert table rows to Link objects
                 new_links = []
                 for row_idx, row in enumerate(data, 1):
                     try:
-                        # Skip empty rows - now expects: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid, Line Color, Line Style]
-                        if not row or len(row) < 6:
+                        # Skip empty rows
+                        # Table format: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid, Line Color, Line Style]
+                        # (Note: extract_table_data excludes Select checkbox, so indices start at 0)
+                        if not row or len(row) < 4:  # Minimum: ID, From Task ID, To Task ID
                             continue
                         
-                        # Extract fields (ID at index 0, From Task ID at index 1, To Task ID at index 3)
-                        from_task_id_str = str(row[1]).strip() if len(row) > 1 else ""
-                        to_task_id_str = str(row[3]).strip() if len(row) > 3 else ""
+                        # Extract core fields
+                        link_id = safe_int(row[0])  # ID at index 0
+                        from_task_id = safe_int(row[1])  # From Task ID at index 1
+                        to_task_id = safe_int(row[3])  # To Task ID at index 3
                         
-                        # Skip if either ID is empty or invalid
-                        from_task_id = safe_int(from_task_id_str)
-                        to_task_id = safe_int(to_task_id_str)
-                        
-                        if from_task_id <= 0 or to_task_id <= 0:
-                            # Invalid IDs - set Valid to "No" but still save the link
-                            valid_status = "No"
-                            # Ensure row has 8 elements: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid, Line Color, Line Style]
-                            while len(row) < 8:
-                                if len(row) == 6:
-                                    row.append("black")  # Default Line Color
-                                elif len(row) == 7:
-                                    row.append("solid")  # Default Line Style
-                                else:
-                                    row.append("")
-                            row[5] = valid_status  # Valid is at index 5
-                            new_links.append(row)
+                        if link_id <= 0 or from_task_id <= 0 or to_task_id <= 0:
+                            # Invalid IDs - skip this row
                             continue
                         
-                        # Find the tasks to check their dates
-                        from_task = None
-                        to_task = None
-                        for task in self.tasks:
-                            if task.task_id == from_task_id:
-                                from_task = task
-                            if task.task_id == to_task_id:
-                                to_task = task
+                        # Extract style fields (with defaults)
+                        line_color = str(row[6]).strip() if len(row) > 6 and row[6] else "black"  # Line Color at index 6
+                        line_style = str(row[7]).strip() if len(row) > 7 and row[7] else "solid"  # Line Style at index 7
                         
-                        # Validate that both tasks exist
-                        if not from_task or not to_task:
-                            # Task not found - set Valid to "No" but still save the link
-                            valid_status = "No"
-                            # Ensure row has 8 elements: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid, Line Color, Line Style]
-                            while len(row) < 8:
-                                if len(row) == 6:
-                                    row.append("black")  # Default Line Color
-                                elif len(row) == 7:
-                                    row.append("solid")  # Default Line Style
-                                else:
-                                    row.append("")
-                            row[5] = valid_status  # Valid is at index 5
-                            new_links.append(row)
-                            continue
+                        # Create Link instance
+                        link = Link(
+                            link_id=link_id,
+                            from_task_id=from_task_id,
+                            to_task_id=to_task_id,
+                            line_color=line_color,
+                            line_style=line_style,
+                            from_task_name=str(row[2]).strip() if len(row) > 2 else "",  # From Task Name at index 2
+                            to_task_name=str(row[4]).strip() if len(row) > 4 else ""     # To Task Name at index 4
+                        )
                         
-                        # Validate Finish-to-Start constraint: To Task start date must be >= From Task finish date
-                        # For milestones, use the single date as both start and finish
-                        from_finish_date = from_task.finish_date
-                        if not from_finish_date:
-                            from_finish_date = from_task.start_date
+                        # Calculate valid status (Finish-to-Start validation)
+                        from_task = next((t for t in self.tasks if t.task_id == from_task_id), None)
+                        to_task = next((t for t in self.tasks if t.task_id == to_task_id), None)
                         
-                        to_start_date = to_task.start_date
-                        if not to_start_date:
-                            to_start_date = to_task.finish_date
-                        
-                        # Determine validity
-                        valid_status = "Yes"
-                        if not from_finish_date or not to_start_date:
-                            # Missing dates - cannot validate, set to "No"
-                            valid_status = "No"
-                        else:
-                            try:
-                                from_finish = datetime.strptime(from_finish_date, "%Y-%m-%d")
-                                to_start = datetime.strptime(to_start_date, "%Y-%m-%d")
-                                
-                                # Check Finish-to-Start: target task must start on or after source task finishes
-                                if to_start < from_finish:
-                                    valid_status = "No"
-                            except (ValueError, TypeError):
-                                # Invalid date format - set to "No"
-                                valid_status = "No"
-                        
-                        # Update or add Valid field (at index 5)
-                        # Ensure row has 8 elements: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid, Line Color, Line Style]
-                        while len(row) < 8:
-                            if len(row) == 6:
-                                row.append("black")  # Default Line Color
-                            elif len(row) == 7:
-                                row.append("solid")  # Default Line Style
+                        if from_task and to_task:
+                            from_finish_date = from_task.finish_date or from_task.start_date
+                            to_start_date = to_task.start_date or to_task.finish_date
+                            
+                            if from_finish_date and to_start_date:
+                                try:
+                                    from_finish = datetime.strptime(from_finish_date, "%Y-%m-%d")
+                                    to_start = datetime.strptime(to_start_date, "%Y-%m-%d")
+                                    link.valid = "No" if to_start < from_finish else "Yes"
+                                except (ValueError, TypeError):
+                                    link.valid = "No"
                             else:
-                                row.append("")
-                        row[5] = valid_status  # Valid is at index 5
-                        # Task names will be updated in get_table_data, so we keep them as-is here
+                                link.valid = "No"
+                        else:
+                            link.valid = "No"
                         
-                        # Link is saved regardless of validity
-                        new_links.append(row)
-                    except (IndexError, AttributeError) as e:
+                        new_links.append(link)
+                    except (ValueError, TypeError, IndexError) as e:
                         errors.append(f"Row {row_idx}: {str(e)}")
                 
                 # Always update links (even if some are invalid)
@@ -421,44 +366,43 @@ class ProjectData:
             # Create a mapping of task_id to task_name for quick lookup
             task_name_map = {task.task_id: task.task_name for task in self.tasks}
             
-            # Ensure all links have 8 elements: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid, Line Color, Line Style]
             result = []
-            for link in getattr(self, key, []):
-                if len(link) >= 2:  # At minimum need From Task ID
-                    # Ensure all 8 fields exist
-                    if len(link) >= 8:
-                        # Update task names in case tasks have changed
-                        from_id = safe_int(link[1]) if len(link) > 1 else 0
-                        to_id = safe_int(link[3]) if len(link) > 3 else 0
-                        link[2] = task_name_map.get(from_id, "")  # From Task Name
-                        link[4] = task_name_map.get(to_id, "")   # To Task Name
-                        result.append(link[:8])
-                    elif len(link) >= 4:
-                        # Old format: [ID, From Task ID, To Task ID, Valid] - add names and style fields
-                        from_id = safe_int(link[1]) if len(link) > 1 else 0
-                        to_id = safe_int(link[2]) if len(link) > 2 else 0
-                        from_name = task_name_map.get(from_id, "")
-                        to_name = task_name_map.get(to_id, "")
-                        result.append([link[0], link[1], from_name, link[2], to_name, link[3] if len(link) > 3 else "Yes", "black", "solid"])
-                    elif len(link) == 3:
-                        # Old format without ID - generate one and add names and style fields
-                        max_id = max([int(l[0]) for l in result if len(l) > 0 and l[0].isdigit()], default=0) if result else 0
-                        from_id = safe_int(link[0])
-                        to_id = safe_int(link[1])
-                        from_name = task_name_map.get(from_id, "")
-                        to_name = task_name_map.get(to_id, "")
-                        result.append([str(max_id + 1), link[0], from_name, link[1], to_name, link[2] if len(link) > 2 else "Yes", "black", "solid"])
-                    elif len(link) == 2:
-                        # Old format without ID and Valid - generate both and add names and style fields
-                        max_id = max([int(l[0]) for l in result if len(l) > 0 and l[0].isdigit()], default=0) if result else 0
-                        from_id = safe_int(link[0])
-                        to_id = safe_int(link[1])
-                        from_name = task_name_map.get(from_id, "")
-                        to_name = task_name_map.get(to_id, "")
-                        result.append([str(max_id + 1), link[0], from_name, link[1], to_name, "Yes", "black", "solid"])
+            for link in self.links:
+                # Populate task names
+                link.from_task_name = task_name_map.get(link.from_task_id, "")
+                link.to_task_name = task_name_map.get(link.to_task_id, "")
+                
+                # Calculate valid status if not already set
+                if link.valid is None:
+                    from_task = next((t for t in self.tasks if t.task_id == link.from_task_id), None)
+                    to_task = next((t for t in self.tasks if t.task_id == link.to_task_id), None)
+                    
+                    if from_task and to_task:
+                        from_finish_date = from_task.finish_date or from_task.start_date
+                        to_start_date = to_task.start_date or to_task.finish_date
+                        
+                        if from_finish_date and to_start_date:
+                            try:
+                                from_finish = datetime.strptime(from_finish_date, "%Y-%m-%d")
+                                to_start = datetime.strptime(to_start_date, "%Y-%m-%d")
+                                link.valid = "No" if to_start < from_finish else "Yes"
+                            except (ValueError, TypeError):
+                                link.valid = "No"
+                        else:
+                            link.valid = "No"
                     else:
-                        # Default with ID and style fields
-                        max_id = max([int(l[0]) for l in result if len(l) > 0 and l[0].isdigit()], default=0) if result else 0
-                        result.append([str(max_id + 1), "", "", "", "", "Yes", "black", "solid"])
+                        link.valid = "No"
+                
+                # Table format: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid, Line Color, Line Style]
+                result.append([
+                    str(link.link_id),
+                    str(link.from_task_id),
+                    link.from_task_name or "",
+                    str(link.to_task_id),
+                    link.to_task_name or "",
+                    link.valid or "Yes",
+                    link.line_color,
+                    link.line_style
+                ])
             return result
         return getattr(self, key, [])

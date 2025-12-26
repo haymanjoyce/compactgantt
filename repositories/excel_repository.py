@@ -6,6 +6,7 @@ from datetime import datetime
 from models.project import ProjectData
 from models.frame import FrameConfig
 from models.task import Task
+from models.link import Link
 from utils.conversion import internal_to_display_date, display_to_internal_date
 
 
@@ -82,7 +83,24 @@ class ExcelRepository:
         
         # Load other sheets
         if "Links" in wb.sheetnames:
-            project.links = self._read_table_sheet(wb["Links"])
+            rows = self._read_table_sheet(wb["Links"])
+            # Convert rows to Link objects
+            project.links = []
+            for row in rows:
+                if len(row) >= 5:  # Minimum: ID, From Task ID, From Task Name, To Task ID, To Task Name
+                    try:
+                        link = Link(
+                            link_id=int(row[0]),
+                            from_task_id=int(row[1]),
+                            to_task_id=int(row[3]),
+                            line_color=row[5] if len(row) > 5 else "black",
+                            line_style=row[6] if len(row) > 6 else "solid",
+                            from_task_name=row[2] if len(row) > 2 else "",
+                            to_task_name=row[4] if len(row) > 4 else ""
+                        )
+                        project.links.append(link)
+                    except (ValueError, IndexError):
+                        continue
         
         if "Swimlanes" in wb.sheetnames:
             project.swimlanes = self._read_table_sheet(wb["Swimlanes"])
@@ -213,7 +231,7 @@ class ExcelRepository:
             else:
                 ws.column_dimensions[col_letter].width = 10
     
-    def _create_links_sheet(self, wb: Workbook, links: List[List[str]]) -> None:
+    def _create_links_sheet(self, wb: Workbook, links: List[Link]) -> None:
         """Create Links worksheet."""
         ws = wb.create_sheet("Links")
         
@@ -222,27 +240,17 @@ class ExcelRepository:
         ws.append(headers)
         self._format_header_row(ws, 1)
         
-        # Strip Valid field from each link before saving (it's calculated, not stored)
+        # Write link data (Valid field is excluded as it's calculated)
         for link in links:
-            if len(link) >= 8:
-                # Has Valid field at index 5 - exclude it
-                # Keep: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Line Color, Line Style]
-                link_copy = link[:5] + link[6:8]
-                ws.append(link_copy)
-            elif len(link) >= 7:
-                # Already doesn't have Valid field (7 elements) - keep as is
-                ws.append(link[:7])
-            else:
-                # Link has fewer than 7 elements - pad with defaults if needed
-                link_copy = list(link)
-                while len(link_copy) < 7:
-                    if len(link_copy) == 5:
-                        link_copy.append("black")  # Default Line Color
-                    elif len(link_copy) == 6:
-                        link_copy.append("solid")  # Default Line Style
-                    else:
-                        link_copy.append("")
-                ws.append(link_copy[:7])
+            ws.append([
+                str(link.link_id),
+                str(link.from_task_id),
+                link.from_task_name or "",
+                str(link.to_task_id),
+                link.to_task_name or "",
+                link.line_color,
+                link.line_style
+            ])
         
         # Auto-adjust column widths
         for col in ws.columns:

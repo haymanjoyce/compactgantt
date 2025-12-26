@@ -282,14 +282,13 @@ class AppConfig:
                     default["from_name"],                             # From Task Name
                     str(default["to_id"]),                           # To Task ID
                     default["to_name"],                               # To Task Name
-                    "Yes",                                           # Valid (default to Yes)
                     default.get("line_color", "black"),              # Line Color
                     default.get("line_style", "solid")               # Line Style
                 ]
             else:
                 # Fallback for additional links beyond the defaults
                 link_id = context.get("max_id", 0) + 1
-                return [str(link_id), "", "", "", "", "Yes", "black", "solid"]  # ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid, Line Color, Line Style
+                return [str(link_id), "", "", "", "", "black", "solid"]  # ID, From Task ID, From Task Name, To Task ID, To Task Name, Line Color, Line Style
 
         def swimlanes_default(row_idx: int, context: Dict[str, Any]) -> List[Any]:
             return ["1", "2", f"Swimlane {row_idx + 1}", "lightblue"]
