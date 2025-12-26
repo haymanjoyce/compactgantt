@@ -431,6 +431,22 @@ class GanttChartService(QObject):
             if not from_task or not to_task:
                 continue  # Skip if either task not found
             
+            # Get actual task dates to check if they touch on the same date
+            from_task_data = None
+            to_task_data = None
+            for task in self.data.get("tasks", []):
+                if task.get("task_id") == from_task_id:
+                    from_task_data = task
+                if task.get("task_id") == to_task_id:
+                    to_task_data = task
+            
+            if not from_task_data or not to_task_data:
+                continue
+            
+            # Check if predecessor finishes on same date as successor starts
+            from_finish_date_str = from_task_data.get("finish_date", "")
+            to_start_date_str = to_task_data.get("start_date", "")
+            
             # Determine connection points based on task type (milestone vs regular task)
             # For milestones: use center point (center_x = x_start + half_size, or calculated from date)
             # For regular tasks: use right edge (predecessor) and left edge (successor)
@@ -457,9 +473,21 @@ class GanttChartService(QObject):
             
             term_y = to_task["y_center"]
             
-            # Determine routing based on positions
+            # Determine routing based on positions and dates
             same_row = from_task["row_num"] == to_task["row_num"]
-            same_date = abs(origin_x - term_x) < 1.0  # Very close horizontally (within 1 pixel)
+            # Check if predecessor finishes on same date as successor starts (actual date comparison)
+            same_date = False
+            if from_finish_date_str and to_start_date_str:
+                try:
+                    from_finish_date = datetime.strptime(from_finish_date_str, "%Y-%m-%d")
+                    to_start_date = datetime.strptime(to_start_date_str, "%Y-%m-%d")
+                    same_date = from_finish_date == to_start_date
+                except (ValueError, TypeError):
+                    # If date parsing fails, fall back to pixel-based check
+                    same_date = abs(origin_x - term_x) < 1.0
+            else:
+                # Fall back to pixel-based check if dates are missing
+                same_date = abs(origin_x - term_x) < 1.0
             has_gap = term_x > origin_x  # Successor starts after predecessor finishes
             
             # Calculate link path according to spec
