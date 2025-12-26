@@ -499,9 +499,12 @@ class GanttChartService(QObject):
                     continue
                 else:
                     # 1b. Positive Gap/Lag (Bars Separated)
-                    self.dwg.add(self.dwg.line((origin_x, origin_y), (term_x, term_y),
+                    # Shorten line by arrowhead size so it ends at arrowhead base
+                    arrow_size = 5
+                    line_end_x = term_x - arrow_size  # Arrow points left, base is to the right
+                    self.dwg.add(self.dwg.line((origin_x, origin_y), (line_end_x, term_y),
                                               stroke="black", stroke_width=1.5))
-                    self._render_arrowhead(term_x, term_y, "left", 5)
+                    self._render_arrowhead(term_x, term_y, "left", arrow_size)
             else:
                 # Different rows
                 if same_date:
@@ -511,14 +514,20 @@ class GanttChartService(QObject):
                         # Perfect alignment - single vertical segment
                         if to_task["row_num"] > from_task["row_num"]:
                             # Successor below - downward arrow
-                            self.dwg.add(self.dwg.line((origin_x, origin_y), (term_x, term_y),
+                            # Shorten line by arrowhead size so it ends at arrowhead base
+                            arrow_size = 5
+                            line_end_y = term_y - arrow_size  # Arrow points down, base is above
+                            self.dwg.add(self.dwg.line((origin_x, origin_y), (term_x, line_end_y),
                                                       stroke="black", stroke_width=1.5))
-                            self._render_arrowhead(term_x, term_y, "down", 5)
+                            self._render_arrowhead(term_x, term_y, "down", arrow_size)
                         else:
                             # Successor above - upward arrow
-                            self.dwg.add(self.dwg.line((origin_x, origin_y), (term_x, term_y),
+                            # Shorten line by arrowhead size so it ends at arrowhead base
+                            arrow_size = 5
+                            line_end_y = term_y + arrow_size  # Arrow points up, base is below
+                            self.dwg.add(self.dwg.line((origin_x, origin_y), (term_x, line_end_y),
                                                       stroke="black", stroke_width=1.5))
-                            self._render_arrowhead(term_x, term_y, "up", 5)
+                            self._render_arrowhead(term_x, term_y, "up", arrow_size)
                     else:
                         # Not perfectly aligned - use V-H-V pattern
                         # Calculate row midpoint y
@@ -526,22 +535,28 @@ class GanttChartService(QObject):
                         
                         if to_task["row_num"] > from_task["row_num"]:
                             # Successor below - V-H-V downward
+                            arrow_size = 5
+                            # Shorten final vertical segment so it ends at arrowhead base
+                            line_end_y = term_y - arrow_size  # Arrow points down, base is above
                             self.dwg.add(self.dwg.line((origin_x, origin_y), (origin_x, mid_y),
                                                       stroke="black", stroke_width=1.5))
                             self.dwg.add(self.dwg.line((origin_x, mid_y), (term_x, mid_y),
                                                       stroke="black", stroke_width=1.5))
-                            self.dwg.add(self.dwg.line((term_x, mid_y), (term_x, term_y),
+                            self.dwg.add(self.dwg.line((term_x, mid_y), (term_x, line_end_y),
                                                       stroke="black", stroke_width=1.5))
-                            self._render_arrowhead(term_x, term_y, "down", 5)
+                            self._render_arrowhead(term_x, term_y, "down", arrow_size)
                         else:
                             # Successor above - V-H-V upward
+                            arrow_size = 5
+                            # Shorten final vertical segment so it ends at arrowhead base
+                            line_end_y = term_y + arrow_size  # Arrow points up, base is below
                             self.dwg.add(self.dwg.line((origin_x, origin_y), (origin_x, mid_y),
                                                       stroke="black", stroke_width=1.5))
                             self.dwg.add(self.dwg.line((origin_x, mid_y), (term_x, mid_y),
                                                       stroke="black", stroke_width=1.5))
-                            self.dwg.add(self.dwg.line((term_x, mid_y), (term_x, term_y),
+                            self.dwg.add(self.dwg.line((term_x, mid_y), (term_x, line_end_y),
                                                       stroke="black", stroke_width=1.5))
-                            self._render_arrowhead(term_x, term_y, "up", 5)
+                            self._render_arrowhead(term_x, term_y, "up", arrow_size)
                 else:
                     # Case 2b/3b: Positive Gap/Lag (Successor Starts Later)
                     # V-H-V pattern
@@ -552,26 +567,30 @@ class GanttChartService(QObject):
                         # Successor below - V-H-V downward
                         # Segment 1: Vertical down from origin to row midpoint
                         # Segment 2: Horizontal right to align with successor
-                        # Segment 3: Vertical down to termination
+                        # Segment 3: Vertical down to termination (shortened to arrowhead base)
+                        arrow_size = 5
+                        line_end_y = term_y - arrow_size  # Arrow points down, base is above
                         self.dwg.add(self.dwg.line((origin_x, origin_y), (origin_x, mid_y),
                                                   stroke="black", stroke_width=1.5))
                         self.dwg.add(self.dwg.line((origin_x, mid_y), (term_x, mid_y),
                                                   stroke="black", stroke_width=1.5))
-                        self.dwg.add(self.dwg.line((term_x, mid_y), (term_x, term_y),
+                        self.dwg.add(self.dwg.line((term_x, mid_y), (term_x, line_end_y),
                                                   stroke="black", stroke_width=1.5))
-                        self._render_arrowhead(term_x, term_y, "down", 5)
+                        self._render_arrowhead(term_x, term_y, "down", arrow_size)
                     else:
                         # Successor above - V-H-V upward
                         # Segment 1: Vertical up from origin to row midpoint
                         # Segment 2: Horizontal right to align with successor
-                        # Segment 3: Vertical up to termination
+                        # Segment 3: Vertical up to termination (shortened to arrowhead base)
+                        arrow_size = 5
+                        line_end_y = term_y + arrow_size  # Arrow points up, base is below
                         self.dwg.add(self.dwg.line((origin_x, origin_y), (origin_x, mid_y),
                                                   stroke="black", stroke_width=1.5))
                         self.dwg.add(self.dwg.line((origin_x, mid_y), (term_x, mid_y),
                                                   stroke="black", stroke_width=1.5))
-                        self.dwg.add(self.dwg.line((term_x, mid_y), (term_x, term_y),
+                        self.dwg.add(self.dwg.line((term_x, mid_y), (term_x, line_end_y),
                                                   stroke="black", stroke_width=1.5))
-                        self._render_arrowhead(term_x, term_y, "up", 5)
+                        self._render_arrowhead(term_x, term_y, "up", arrow_size)
 
     def render_scales_and_rows(self, x, y, width, height, start_date, end_date):
         logging.debug(f"Rendering scales and rows from {start_date} to {end_date}")
