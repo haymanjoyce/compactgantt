@@ -6,6 +6,7 @@ from PyQt5.QtGui import QBrush, QColor
 from typing import List, Dict, Any
 from datetime import datetime
 import logging
+from utils.conversion import normalize_display_date
 
 # Read-only cell background color (light gray)
 READ_ONLY_BG = QColor(240, 240, 240)
@@ -256,30 +257,14 @@ class TasksTab(BaseTab):
                     val_str = item.text().strip()
                     logging.debug(f"_on_item_changed: date value='{val_str}'")
                     if val_str:
-                        # Try parsing with flexible date format (handles both single and double digit days/months)
                         try:
-                            date_obj = datetime.strptime(val_str, "%d/%m/%Y")
+                            # Use normalize_display_date to handle flexible formats
+                            normalized = normalize_display_date(val_str)
+                            date_obj = datetime.strptime(normalized, "%d/%m/%Y")
                             logging.debug(f"_on_item_changed: Parsed date successfully: {date_obj}")
-                        except ValueError as ve:
-                            logging.debug(f"_on_item_changed: First parse failed: {ve}, trying normalization")
-                            # Try alternative format in case of single digits
-                            try:
-                                # Normalize single-digit days/months to double digits
-                                parts = val_str.split('/')
-                                if len(parts) == 3:
-                                    day = parts[0].zfill(2)
-                                    month = parts[1].zfill(2)
-                                    year = parts[2]
-                                    normalized = f"{day}/{month}/{year}"
-                                    logging.debug(f"_on_item_changed: Normalized date: {normalized}")
-                                    date_obj = datetime.strptime(normalized, "%d/%m/%Y")
-                                    logging.debug(f"_on_item_changed: Parsed normalized date: {date_obj}")
-                                else:
-                                    logging.debug(f"_on_item_changed: Invalid parts count: {len(parts)}")
-                                    date_obj = None
-                            except (ValueError, IndexError) as e:
-                                logging.debug(f"_on_item_changed: Normalization failed: {e}")
-                                date_obj = None
+                        except ValueError as e:
+                            logging.debug(f"_on_item_changed: Date parsing failed: {e}")
+                            date_obj = None
                         
                         # Check if UserRole already has the same value to avoid unnecessary updates
                         current_role = item.data(Qt.UserRole)
@@ -534,28 +519,13 @@ class TasksTab(BaseTab):
                                 else:
                                     full_row.append("")
                             else:
-                                # New row created from defaults - get Label and Placement from defaults
-                                context = {
-                                    "max_task_id": len(table_data) + row,
-                                }
-                                defaults = self.table_config.default_generator(row, context)
-                                # defaults structure: [False, ID, Row, Name, Start Date, Finish Date, Label, Placement, Valid]
-                                # defaults[0] is checkbox, so Label is at defaults[6], Placement is at defaults[7], Valid is at defaults[8]
+                                # New row - use default values
                                 if col_name == "Label":
-                                    if len(defaults) > 6:
-                                        full_row.append(str(defaults[6]))
-                                    else:
-                                        full_row.append("Yes")
+                                    full_row.append("Yes")  # Default label visibility
                                 elif col_name == "Placement":
-                                    if len(defaults) > 7:
-                                        full_row.append(str(defaults[7]))
-                                    else:
-                                        full_row.append("Inside")
+                                    full_row.append("Inside")  # Default placement
                                 elif col_name == "Valid":
-                                    if len(defaults) > 8:
-                                        full_row.append(str(defaults[8]))
-                                    else:
-                                        full_row.append("Yes")
+                                    full_row.append("Yes")  # Default valid status
                                 else:
                                     full_row.append("")
                 
