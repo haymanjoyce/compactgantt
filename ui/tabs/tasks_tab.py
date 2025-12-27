@@ -104,7 +104,7 @@ class TasksTab(BaseTab):
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Start Date
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Finish Date
         header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Valid
-        
+
         # Enable horizontal scroll bar
         self.tasks_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.tasks_table.setSortingEnabled(True)
@@ -124,7 +124,7 @@ class TasksTab(BaseTab):
         layout.addWidget(detail_group)  # No stretch factor - stays at natural size
         
         # Removed addStretch() - we want the table to expand, not push everything to top
-        
+
         self.setLayout(layout)
 
     def _create_detail_form(self) -> QGroupBox:
@@ -631,15 +631,8 @@ class TasksTab(BaseTab):
             # Update project data with Task objects directly
             errors = self.project_data.update_tasks(tasks)
             
-            # Update table rows with computed fields (valid status)
-            self.tasks_table.blockSignals(True)
-            try:
-                for row_idx, task in enumerate(tasks):
-                    if row_idx < self.tasks_table.rowCount():
-                        # Update computed fields in the table (mainly Valid column)
-                        self._update_table_row_from_task(row_idx, task)
-            finally:
-                self.tasks_table.blockSignals(False)
+            # Update only the Valid column (computed field) - don't overwrite user-edited fields
+            self._update_valid_column_only()
             
             logging.debug("_sync_data_impl: END (success)")
         except Exception as e:
@@ -685,8 +678,6 @@ class TasksTab(BaseTab):
                 logging.debug("_update_valid_column_only: Table invalid or empty, returning")
                 return
             
-            headers = [col.name for col in self.table_config.columns]
-            
             # Find Valid column visible index
             valid_col = self._get_column_index("Valid")
             valid_col_vis_idx = self._reverse_column_mapping.get(valid_col) if valid_col is not None else None
@@ -694,6 +685,9 @@ class TasksTab(BaseTab):
             if valid_col_vis_idx is None:
                 logging.debug("_update_valid_column_only: Valid column not found, returning")
                 return
+            
+            # Create a mapping of task_id to task for quick lookup
+            task_map = {task.task_id: task for task in self.project_data.tasks}
             
             # Block signals to prevent recursive updates
             was_blocked = self.tasks_table.signalsBlocked()
@@ -709,28 +703,49 @@ class TasksTab(BaseTab):
                     pass
                 
                 try:
-                    # Get tasks from project_data and update Valid column
-                    tasks = self.project_data.tasks
-                    used_ids: Set[int] = set()
+                    # Get ID column to extract task_id from each row
+                    id_col = self._get_column_index("ID")
+                    id_vis_col = self._reverse_column_mapping.get(id_col) if id_col is not None else None
                     
+                    if id_vis_col is None:
+                        return
+                    
+                    # Build used_ids set from all tasks for validation
+                    used_ids: Set[int] = set(task.task_id for task in self.project_data.tasks)
+                    
+                    # For each table row, find the corresponding task by task_id
                     for row_idx in range(self.tasks_table.rowCount()):
-                        if row_idx < len(tasks):
-                            task = tasks[row_idx]
-                            # Calculate valid status
-                            row_errors = self.project_data.validator.validate_task(task, used_ids)
-                            valid_status = "No" if row_errors else "Yes"
-                            if not row_errors:
-                                used_ids.add(task.task_id)
-                            
-                            # Update the Valid cell
-                            item = self.tasks_table.item(row_idx, valid_col_vis_idx)
-                            if item:
-                                item.setText(str(valid_status))
-                            else:
-                                item = QTableWidgetItem(str(valid_status))
-                                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                                item.setBackground(QBrush(READ_ONLY_BG))
-                                self.tasks_table.setItem(row_idx, valid_col_vis_idx, item)
+                        # Extract task_id from table
+                        id_item = self.tasks_table.item(row_idx, id_vis_col)
+                        if not id_item:
+                            continue
+                        
+                        try:
+                            task_id = safe_int(id_item.text())
+                            if task_id <= 0:
+                                continue
+                        except (ValueError, TypeError):
+                            continue
+                        
+                        # Find the task in project_data by task_id
+                        task = task_map.get(task_id)
+                        if not task:
+                            continue
+                        
+                        # Calculate valid status (exclude current task from used_ids for uniqueness check)
+                        task_used_ids = used_ids - {task.task_id}
+                        row_errors = self.project_data.validator.validate_task(task, task_used_ids)
+                        valid_status = "No" if row_errors else "Yes"
+                        
+                        # Update the Valid cell
+                        item = self.tasks_table.item(row_idx, valid_col_vis_idx)
+                        if item:
+                            item.setText(str(valid_status))
+                        else:
+                            item = QTableWidgetItem(str(valid_status))
+                            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                            item.setBackground(QBrush(READ_ONLY_BG))
+                            self.tasks_table.setItem(row_idx, valid_col_vis_idx, item)
                 finally:
                     # Reconnect itemChanged signal
                     if was_connected:

@@ -255,6 +255,10 @@ class GanttChartService(QObject):
                 logging.warning(f"Skipping task {task.get('task_name', 'Unknown')} due to invalid date: {e}")
                 continue
 
+            # Skip invalid tasks where finish date is before start date
+            if task_finish < task_start:
+                continue
+
             if task_finish < start_date or task_start > end_date:
                 continue
             
@@ -330,6 +334,10 @@ class GanttChartService(QObject):
                     task_start = datetime.strptime(start_date_str, "%Y-%m-%d")
                     task_finish = datetime.strptime(finish_date_str, "%Y-%m-%d")
             except (ValueError, TypeError):
+                return None
+            
+            # Skip invalid tasks where finish date is before start date
+            if task_finish < task_start:
                 return None
             
             if task_finish < start_date or task_start > end_date:
