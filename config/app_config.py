@@ -329,7 +329,7 @@ class AppConfig:
                     TableColumnConfig("Placement", widget_type="combo", combo_items=["Inside", "Outside"]),
                     TableColumnConfig("Valid", widget_type="text", default_value="Yes")
                 ],
-                min_rows=9,  # Updated to match new default task count
+                min_rows=0,  # Allow users to delete all rows
                 default_generator=lambda row_idx, context: [False] + tasks_default(row_idx, context)
             ),
             "links": TableConfig(
@@ -343,7 +343,7 @@ class AppConfig:
                     TableColumnConfig("To Task Name", widget_type="text"),
                     TableColumnConfig("Valid", widget_type="text", default_value="Yes")
                 ],
-                min_rows=9,  # Updated to match new default link count
+                min_rows=0,  # Allow users to delete all rows
                 default_generator=lambda row_idx, context: [False] + links_default(row_idx, context)
             ),
             "swimlanes": TableConfig(
