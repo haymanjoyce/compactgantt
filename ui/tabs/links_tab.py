@@ -3,10 +3,13 @@ from PyQt5.QtWidgets import (QWidget, QTableWidget, QVBoxLayout, QPushButton,
                            QMessageBox, QGroupBox, QSizePolicy, QComboBox, QLabel, QGridLayout)
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import logging
+from datetime import datetime
 from ui.table_utils import NumericTableWidgetItem, add_row, remove_row, CheckBoxWidget, extract_table_data, highlight_table_errors
 from .base_tab import BaseTab
+from models.link import Link
+from utils.conversion import safe_int
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -159,18 +162,15 @@ class LinksTab(BaseTab):
         self._updating_form = True
         
         try:
-            # Get data from project_data for the selected row
-            table_data = self.project_data.get_table_data("links")
-            if row < len(table_data):
-                row_data = table_data[row]
-                # row_data structure: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid, Line Color, Line Style]
-                if len(row_data) >= 8:
-                    self.detail_line_color.setCurrentText(str(row_data[6]) if row_data[6] else "black")
-                    self.detail_line_style.setCurrentText(str(row_data[7]) if row_data[7] else "solid")
-                elif len(row_data) >= 6:
-                    # Old format without style fields - use defaults
-                    self.detail_line_color.setCurrentText("black")
-                    self.detail_line_style.setCurrentText("solid")
+            # Get Link object directly from project_data
+            if row < len(self.project_data.links):
+                link = self.project_data.links[row]
+                self.detail_line_color.setCurrentText(link.line_color if link.line_color else "black")
+                self.detail_line_style.setCurrentText(link.line_style if link.line_style else "solid")
+            else:
+                # Use defaults if link doesn't exist
+                self.detail_line_color.setCurrentText("black")
+                self.detail_line_style.setCurrentText("solid")
         finally:
             self._updating_form = False
 
@@ -219,135 +219,94 @@ class LinksTab(BaseTab):
         self._sync_data_if_not_initializing()
 
     def _load_initial_data_impl(self):
-        table_data = self.project_data.get_table_data("links")
-        row_count = max(len(table_data), self.table_config.min_rows)
+        """Load initial data into the table using Link objects directly."""
+        # Get Link objects directly from project_data
+        links = self.project_data.links
+        row_count = max(len(links), self.table_config.min_rows)
         self.links_table.setRowCount(row_count)
         self._initializing = True
 
-        headers = [col.name for col in self.table_config.columns]
+        # Create task name mapping
+        task_name_map = {task.task_id: task.task_name for task in self.project_data.tasks}
         
         for row_idx in range(row_count):
             # Add checkbox first (Select column)
             checkbox_widget = CheckBoxWidget()
             self.links_table.setCellWidget(row_idx, 0, checkbox_widget)
 
-            if row_idx < len(table_data):
-                row_data = table_data[row_idx]
-                # row_data structure: [ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid]
-                for col_idx in range(1, len(headers)):  # Skip Select column (index 0)
-                    col_config = self.table_config.columns[col_idx]
-                    col_name = col_config.name
-                    
-                    # Get value from row_data (index 0 = ID, index 1 = From Task ID, index 2 = From Task Name, index 3 = To Task ID, index 4 = To Task Name, index 5 = Valid)
-                    value_idx = col_idx - 1  # Adjust for missing Select column in row_data
-                    value = row_data[value_idx] if value_idx < len(row_data) else ""
-                    
-                    # Create appropriate widget/item based on column type
-                    if col_config.widget_type == "combo":
-                        combo = QComboBox()
-                        combo.addItems(col_config.combo_items)
-                        if value:
-                            idx = combo.findText(str(value))
-                            if idx >= 0:
-                                combo.setCurrentIndex(idx)
-                        combo.currentTextChanged.connect(self._sync_data_if_not_initializing)
-                        self.links_table.setCellWidget(row_idx, col_idx, combo)
-                    else:
-                        # ID column - read-only numeric
-                        if col_name == "ID":
-                            item = NumericTableWidgetItem(str(value))
-                            item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
-                            item.setBackground(QBrush(self.READ_ONLY_BG))  # Gray background
-                            try:
-                                item.setData(Qt.UserRole, int(str(value).strip()) if str(value).strip() else 0)
-                            except (ValueError, AttributeError):
-                                item.setData(Qt.UserRole, 0)
-                        # Numeric columns (From Task ID, To Task ID)
-                        elif col_name in ["From Task ID", "To Task ID"]:
-                            item = NumericTableWidgetItem(str(value))
-                            try:
-                                item.setData(Qt.UserRole, int(str(value).strip()) if str(value).strip() else 0)
-                            except (ValueError, AttributeError):
-                                item.setData(Qt.UserRole, 0)
-                        # Name columns (From Task Name, To Task Name) - read-only with truncation
-                        elif col_name in ["From Task Name", "To Task Name"]:
-                            item = QTableWidgetItem(self._truncate_text(str(value)))
-                            item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
-                            item.setBackground(QBrush(self.READ_ONLY_BG))  # Gray background
-                            item.setToolTip(str(value))  # Show full text in tooltip
-                        # Valid column - read-only text
-                        elif col_name == "Valid":
-                            item = QTableWidgetItem(str(value) if value else "Yes")
-                            item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
-                            item.setBackground(QBrush(self.READ_ONLY_BG))  # Gray background
-                        else:
-                            item = QTableWidgetItem(str(value))
-                        self.links_table.setItem(row_idx, col_idx, item)
+            if row_idx < len(links):
+                # Use helper method to populate row from Link object
+                link = links[row_idx]
+                self._update_table_row_from_link(row_idx, link, task_name_map)
             else:
-                # New row - use defaults
+                # New row - use defaults from config
                 context = {
-                    "max_id": len(table_data)  # Maximum existing link ID
+                    "max_id": max([link.link_id for link in links] + [0])  # Maximum existing link ID
                 }
                 defaults = self.table_config.default_generator(row_idx, context)
                 # defaults structure: [False(0), ID(1), From Task ID(2), From Task Name(3), To Task ID(4), To Task Name(5), Line Color(6), Line Style(7)]
                 # Note: defaults includes Select checkbox at 0, but does NOT include Valid (calculated field)
-                # Table columns: Select(0), ID(1), From Task ID(2), From Task Name(3), To Task ID(4), To Task Name(5), Valid(6)
                 
-                for col_idx in range(1, len(headers)):  # Skip Select column (index 0)
-                    col_config = self.table_config.columns[col_idx]
-                    col_name = col_config.name
-                    
-                    # Handle Valid column specially - it's not in defaults, it's calculated
-                    if col_name == "Valid":
-                        # Valid is calculated, so use placeholder that will be updated later
-                        item = QTableWidgetItem("Yes")
-                        item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
-                        item.setBackground(QBrush(self.READ_ONLY_BG))  # Gray background
-                        self.links_table.setItem(row_idx, col_idx, item)
-                        continue
-                    
-                    # Map table column to defaults array index
-                    # Since both defaults and table columns have Select at index 0, col_idx maps directly to defaults[col_idx]
-                    # But we skip Line Color and Line Style (which are in defaults but not in table)
-                    default_idx = col_idx
-                    
-                    if default_idx < len(defaults):
-                        default = defaults[default_idx]
-                    else:
-                        default = ""
-                    
-                    if col_config.widget_type == "combo":
-                        combo = QComboBox()
-                        combo.addItems(col_config.combo_items)
-                        combo.setCurrentText(str(default))
-                        combo.currentTextChanged.connect(self._sync_data_if_not_initializing)
-                        self.links_table.setCellWidget(row_idx, col_idx, combo)
-                    else:
-                        # ID column - read-only numeric
-                        if col_name == "ID":
-                            item = NumericTableWidgetItem(str(default))
-                            item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
-                            item.setBackground(QBrush(self.READ_ONLY_BG))  # Gray background
-                            try:
-                                item.setData(Qt.UserRole, int(str(default).strip()) if str(default).strip() else 0)
-                            except (ValueError, AttributeError):
-                                item.setData(Qt.UserRole, 0)
-                        # Numeric columns (From Task ID, To Task ID)
-                        elif col_name in ["From Task ID", "To Task ID"]:
-                            item = NumericTableWidgetItem(str(default))
-                            try:
-                                item.setData(Qt.UserRole, int(str(default).strip()) if str(default).strip() else 0)
-                            except (ValueError, AttributeError):
-                                item.setData(Qt.UserRole, 0)
-                        # Name columns (From Task Name, To Task Name) - read-only with truncation
-                        elif col_name in ["From Task Name", "To Task Name"]:
-                            item = QTableWidgetItem(self._truncate_text(str(default)))
-                            item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
-                            item.setBackground(QBrush(self.READ_ONLY_BG))  # Gray background
-                            item.setToolTip(str(default))  # Show full text in tooltip
-                        else:
-                            item = QTableWidgetItem(str(default))
-                        self.links_table.setItem(row_idx, col_idx, item)
+                # Get column indices by name
+                id_col = self._get_column_index("ID")
+                from_id_col = self._get_column_index("From Task ID")
+                from_name_col = self._get_column_index("From Task Name")
+                to_id_col = self._get_column_index("To Task ID")
+                to_name_col = self._get_column_index("To Task Name")
+                valid_col = self._get_column_index("Valid")
+                
+                # Populate row from defaults
+                if id_col is not None and 1 < len(defaults):
+                    # ID column
+                    item = NumericTableWidgetItem(str(defaults[1]))
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                    item.setBackground(QBrush(self.READ_ONLY_BG))
+                    try:
+                        item.setData(Qt.UserRole, int(str(defaults[1]).strip()) if str(defaults[1]).strip() else 0)
+                    except (ValueError, AttributeError):
+                        item.setData(Qt.UserRole, 0)
+                    self.links_table.setItem(row_idx, id_col, item)
+                
+                if from_id_col is not None and 2 < len(defaults):
+                    # From Task ID column
+                    item = NumericTableWidgetItem(str(defaults[2]))
+                    try:
+                        item.setData(Qt.UserRole, int(str(defaults[2]).strip()) if str(defaults[2]).strip() else 0)
+                    except (ValueError, AttributeError):
+                        item.setData(Qt.UserRole, 0)
+                    self.links_table.setItem(row_idx, from_id_col, item)
+                
+                if from_name_col is not None and 3 < len(defaults):
+                    # From Task Name column (read-only)
+                    item = QTableWidgetItem(self._truncate_text(str(defaults[3])))
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                    item.setBackground(QBrush(self.READ_ONLY_BG))
+                    item.setToolTip(str(defaults[3]))
+                    self.links_table.setItem(row_idx, from_name_col, item)
+                
+                if to_id_col is not None and 4 < len(defaults):
+                    # To Task ID column
+                    item = NumericTableWidgetItem(str(defaults[4]))
+                    try:
+                        item.setData(Qt.UserRole, int(str(defaults[4]).strip()) if str(defaults[4]).strip() else 0)
+                    except (ValueError, AttributeError):
+                        item.setData(Qt.UserRole, 0)
+                    self.links_table.setItem(row_idx, to_id_col, item)
+                
+                if to_name_col is not None and 5 < len(defaults):
+                    # To Task Name column (read-only)
+                    item = QTableWidgetItem(self._truncate_text(str(defaults[5])))
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                    item.setBackground(QBrush(self.READ_ONLY_BG))
+                    item.setToolTip(str(defaults[5]))
+                    self.links_table.setItem(row_idx, to_name_col, item)
+                
+                if valid_col is not None:
+                    # Valid column (calculated, placeholder)
+                    item = QTableWidgetItem("Yes")
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                    item.setBackground(QBrush(self.READ_ONLY_BG))
+                    self.links_table.setItem(row_idx, valid_col, item)
         
         # Sort by ID by default
         self.links_table.sortItems(1, Qt.AscendingOrder)  # Column 1 = ID
@@ -358,49 +317,31 @@ class LinksTab(BaseTab):
         self._update_valid_column_only()
 
     def _sync_data_impl(self):
-        """Extract data from table and update project_data."""
+        """Extract data from table and update project_data using Link objects directly."""
         # Avoid emitting during initialization to prevent recursive updates
         if self._initializing:
             return
         
-        # Extract table data (excludes checkbox column)
-        data = extract_table_data(self.links_table)
+        # Extract Link objects from table rows
+        links = []
+        for row_idx in range(self.links_table.rowCount()):
+            link = self._link_from_table_row(row_idx)
+            if link:
+                links.append(link)
         
-        # Get existing link data to preserve style fields for non-selected rows
-        existing_data = self.project_data.get_table_data("links")
+        # Update project data with Link objects directly
+        errors = self.project_data.update_links(links)
         
-        # data structure: [[ID, From Task ID, From Task Name, To Task ID, To Task Name, Valid], ...]
-        # Add style fields from detail form for selected row, or preserve existing values for others
-        headers = [col.name for col in self.table_config.columns]
-        for row_idx, row in enumerate(data):
-            # Ensure row has at least 6 elements
-            while len(row) < 6:
-                row.append("")
-            
-            # If this is the selected row, add style fields from detail form
-            if row_idx == self._selected_row:
-                # Add Line Color and Line Style from detail form
-                if len(row) < 8:
-                    row.extend(["", ""])  # Add placeholders if needed
-                row[6] = self.detail_line_color.currentText() if self.detail_line_color else "black"
-                row[7] = self.detail_line_style.currentText() if self.detail_line_style else "solid"
-            else:
-                # For non-selected rows, preserve existing style fields or use defaults
-                if len(row) < 8:
-                    if row_idx < len(existing_data) and len(existing_data[row_idx]) >= 8:
-                        # Preserve existing style values
-                        row.append(existing_data[row_idx][6] if existing_data[row_idx][6] else "black")
-                        row.append(existing_data[row_idx][7] if existing_data[row_idx][7] else "solid")
-                    else:
-                        # Use defaults if no existing data
-                        row.extend(["black", "solid"])
-        
-        # Note: Valid field will be recalculated in update_from_table
-        errors = self.project_data.update_from_table("links", data)
-        
-        # Update Valid column for rows that have changed, without full reload
-        # This preserves user input in progress
-        self._update_valid_column_only()
+        # Update table rows with computed fields (task names, valid status)
+        task_name_map = {task.task_id: task.task_name for task in self.project_data.tasks}
+        self.links_table.blockSignals(True)
+        try:
+            for row_idx, link in enumerate(links):
+                if row_idx < self.links_table.rowCount():
+                    # Update computed fields in the table
+                    self._update_table_row_from_link(row_idx, link, task_name_map)
+        finally:
+            self.links_table.blockSignals(False)
         
         # Don't emit data_updated here - chart will update when user clicks "Update Chart" button
         # This matches the behavior of the tasks tab
@@ -413,60 +354,208 @@ class LinksTab(BaseTab):
             return text
         return text[:max_length - 3] + "..."
     
+    def _get_column_index(self, column_name: str) -> Optional[int]:
+        """Get the column index for a given column name."""
+        for idx, col_config in enumerate(self.table_config.columns):
+            if col_config.name == column_name:
+                return idx
+        return None
+    
+    def _link_from_table_row(self, row_idx: int) -> Optional[Link]:
+        """
+        Extract a Link object from a table row.
+        Returns None if the row is invalid or incomplete.
+        """
+        try:
+            # Get column indices by name
+            id_col = self._get_column_index("ID")
+            from_id_col = self._get_column_index("From Task ID")
+            to_id_col = self._get_column_index("To Task ID")
+            
+            if id_col is None or from_id_col is None or to_id_col is None:
+                return None
+            
+            # Extract ID fields
+            id_item = self.links_table.item(row_idx, id_col)
+            from_id_item = self.links_table.item(row_idx, from_id_col)
+            to_id_item = self.links_table.item(row_idx, to_id_col)
+            
+            if not id_item or not from_id_item or not to_id_item:
+                return None
+            
+            link_id = safe_int(id_item.text())
+            from_task_id = safe_int(from_id_item.text())
+            to_task_id = safe_int(to_id_item.text())
+            
+            if link_id <= 0 or from_task_id <= 0 or to_task_id <= 0:
+                return None
+            
+            # Extract style fields from detail form if this is the selected row
+            # Otherwise, get from existing Link object
+            line_color = "black"
+            line_style = "solid"
+            
+            if row_idx == self._selected_row:
+                # Use values from detail form
+                if self.detail_line_color:
+                    line_color = self.detail_line_color.currentText()
+                if self.detail_line_style:
+                    line_style = self.detail_line_style.currentText()
+            else:
+                # Get from existing Link object if available
+                if row_idx < len(self.project_data.links):
+                    existing_link = self.project_data.links[row_idx]
+                    line_color = existing_link.line_color
+                    line_style = existing_link.line_style
+            
+            # Create Link object
+            link = Link(
+                link_id=link_id,
+                from_task_id=from_task_id,
+                to_task_id=to_task_id,
+                line_color=line_color,
+                line_style=line_style
+            )
+            
+            return link
+        except (ValueError, TypeError, AttributeError) as e:
+            logging.error(f"Error extracting link from table row {row_idx}: {e}")
+            return None
+    
+    def _update_table_row_from_link(self, row_idx: int, link: Link, task_name_map: Dict[int, str]) -> None:
+        """
+        Populate a table row from a Link object.
+        Uses column name mapping instead of positional indices.
+        """
+        # Update task names
+        link.from_task_name = task_name_map.get(link.from_task_id, "")
+        link.to_task_name = task_name_map.get(link.to_task_id, "")
+        
+        # Get column indices by name
+        id_col = self._get_column_index("ID")
+        from_id_col = self._get_column_index("From Task ID")
+        from_name_col = self._get_column_index("From Task Name")
+        to_id_col = self._get_column_index("To Task ID")
+        to_name_col = self._get_column_index("To Task Name")
+        valid_col = self._get_column_index("Valid")
+        
+        # Block signals to prevent recursive updates
+        self.links_table.blockSignals(True)
+        try:
+            # Update ID column
+            if id_col is not None:
+                item = self.links_table.item(row_idx, id_col)
+                if item:
+                    item.setText(str(link.link_id))
+                    item.setData(Qt.UserRole, link.link_id)
+                else:
+                    item = NumericTableWidgetItem(str(link.link_id))
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                    item.setBackground(QBrush(self.READ_ONLY_BG))
+                    item.setData(Qt.UserRole, link.link_id)
+                    self.links_table.setItem(row_idx, id_col, item)
+            
+            # Update From Task ID column
+            if from_id_col is not None:
+                item = self.links_table.item(row_idx, from_id_col)
+                if item:
+                    item.setText(str(link.from_task_id))
+                    item.setData(Qt.UserRole, link.from_task_id)
+                else:
+                    item = NumericTableWidgetItem(str(link.from_task_id))
+                    item.setData(Qt.UserRole, link.from_task_id)
+                    self.links_table.setItem(row_idx, from_id_col, item)
+            
+            # Update From Task Name column
+            if from_name_col is not None:
+                item = self.links_table.item(row_idx, from_name_col)
+                display_text = self._truncate_text(link.from_task_name or "")
+                if item:
+                    item.setText(display_text)
+                    item.setToolTip(link.from_task_name or "")
+                else:
+                    item = QTableWidgetItem(display_text)
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                    item.setBackground(QBrush(self.READ_ONLY_BG))
+                    item.setToolTip(link.from_task_name or "")
+                    self.links_table.setItem(row_idx, from_name_col, item)
+            
+            # Update To Task ID column
+            if to_id_col is not None:
+                item = self.links_table.item(row_idx, to_id_col)
+                if item:
+                    item.setText(str(link.to_task_id))
+                    item.setData(Qt.UserRole, link.to_task_id)
+                else:
+                    item = NumericTableWidgetItem(str(link.to_task_id))
+                    item.setData(Qt.UserRole, link.to_task_id)
+                    self.links_table.setItem(row_idx, to_id_col, item)
+            
+            # Update To Task Name column
+            if to_name_col is not None:
+                item = self.links_table.item(row_idx, to_name_col)
+                display_text = self._truncate_text(link.to_task_name or "")
+                if item:
+                    item.setText(display_text)
+                    item.setToolTip(link.to_task_name or "")
+                else:
+                    item = QTableWidgetItem(display_text)
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                    item.setBackground(QBrush(self.READ_ONLY_BG))
+                    item.setToolTip(link.to_task_name or "")
+                    self.links_table.setItem(row_idx, to_name_col, item)
+            
+            # Update Valid column
+            if valid_col is not None:
+                # Calculate valid status if not already set
+                if link.valid is None:
+                    from_task = next((t for t in self.project_data.tasks if t.task_id == link.from_task_id), None)
+                    to_task = next((t for t in self.project_data.tasks if t.task_id == link.to_task_id), None)
+                    
+                    if from_task and to_task:
+                        from_finish_date = from_task.finish_date or from_task.start_date
+                        to_start_date = to_task.start_date or to_task.finish_date
+                        
+                        if from_finish_date and to_start_date:
+                            try:
+                                from_finish = datetime.strptime(from_finish_date, "%Y-%m-%d")
+                                to_start = datetime.strptime(to_start_date, "%Y-%m-%d")
+                                link.valid = "No" if to_start < from_finish else "Yes"
+                            except (ValueError, TypeError):
+                                link.valid = "No"
+                        else:
+                            link.valid = "No"
+                    else:
+                        link.valid = "No"
+                
+                item = self.links_table.item(row_idx, valid_col)
+                valid_value = link.valid or "Yes"
+                if item:
+                    item.setText(valid_value)
+                else:
+                    item = QTableWidgetItem(valid_value)
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                    item.setBackground(QBrush(self.READ_ONLY_BG))
+                    self.links_table.setItem(row_idx, valid_col, item)
+        finally:
+            self.links_table.blockSignals(False)
+    
     def _update_valid_column_only(self):
         """Update only the Valid column and task name columns without reloading the entire table."""
-        # Get updated data from project_data
-        table_data = self.project_data.get_table_data("links")
-        valid_col_idx = 6  # Valid is column 6 (after Select, ID, From Task ID, From Task Name, To Task ID, To Task Name)
-        from_name_col_idx = 3  # From Task Name is column 3
-        to_name_col_idx = 5  # To Task Name is column 5
+        # Get Link objects directly from project_data
+        links = self.project_data.links
+        task_name_map = {task.task_id: task.task_name for task in self.project_data.tasks}
         
         # Block signals to prevent recursive updates
         self.links_table.blockSignals(True)
         
-        # Update Valid column and task name columns for each row
-        for row_idx in range(self.links_table.rowCount()):
-            if row_idx < len(table_data):
-                # Get values from updated data
-                row_data = table_data[row_idx]
-                valid_value = row_data[5] if len(row_data) > 5 else "Yes"  # Valid is at index 5 in row_data
-                from_name = row_data[2] if len(row_data) > 2 else ""  # From Task Name is at index 2
-                to_name = row_data[4] if len(row_data) > 4 else ""  # To Task Name is at index 4
-                
-                # Update the Valid cell
-                item = self.links_table.item(row_idx, valid_col_idx)
-                if item:
-                    item.setText(valid_value)
-                else:
-                    # Create item if it doesn't exist
-                    item = QTableWidgetItem(valid_value)
-                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                    item.setBackground(QBrush(self.READ_ONLY_BG))  # Gray background
-                    self.links_table.setItem(row_idx, valid_col_idx, item)
-                
-                # Update From Task Name cell
-                from_name_item = self.links_table.item(row_idx, from_name_col_idx)
-                if from_name_item:
-                    from_name_item.setText(self._truncate_text(from_name))
-                    from_name_item.setToolTip(from_name)
-                elif from_name:
-                    from_name_item = QTableWidgetItem(self._truncate_text(from_name))
-                    from_name_item.setFlags(from_name_item.flags() & ~Qt.ItemIsEditable)
-                    from_name_item.setBackground(QBrush(self.READ_ONLY_BG))  # Gray background
-                    from_name_item.setToolTip(from_name)
-                    self.links_table.setItem(row_idx, from_name_col_idx, from_name_item)
-                
-                # Update To Task Name cell
-                to_name_item = self.links_table.item(row_idx, to_name_col_idx)
-                if to_name_item:
-                    to_name_item.setText(self._truncate_text(to_name))
-                    to_name_item.setToolTip(to_name)
-                elif to_name:
-                    to_name_item = QTableWidgetItem(self._truncate_text(to_name))
-                    to_name_item.setFlags(to_name_item.flags() & ~Qt.ItemIsEditable)
-                    to_name_item.setBackground(QBrush(self.READ_ONLY_BG))  # Gray background
-                    to_name_item.setToolTip(to_name)
-                    self.links_table.setItem(row_idx, to_name_col_idx, to_name_item)
-        
-        self.links_table.blockSignals(False)
+        try:
+            # Update Valid column and task name columns for each row using Link objects
+            for row_idx in range(self.links_table.rowCount()):
+                if row_idx < len(links):
+                    link = links[row_idx]
+                    # Use the helper method to update the row with computed fields
+                    self._update_table_row_from_link(row_idx, link, task_name_map)
+        finally:
+            self.links_table.blockSignals(False)
 

@@ -100,6 +100,52 @@ class ProjectData:
         
         return project
     
+    def update_links(self, links: List[Link]) -> List[str]:
+        """
+        Update links from a list of Link objects directly.
+        This method calculates valid status for each link based on task dates.
+        
+        Args:
+            links: List of Link objects to update
+            
+        Returns:
+            List of error messages (empty if no errors)
+        """
+        errors = []
+        try:
+            # Calculate valid status for each link
+            for link in links:
+                from_task = next((t for t in self.tasks if t.task_id == link.from_task_id), None)
+                to_task = next((t for t in self.tasks if t.task_id == link.to_task_id), None)
+                
+                if from_task and to_task:
+                    from_finish_date = from_task.finish_date or from_task.start_date
+                    to_start_date = to_task.start_date or to_task.finish_date
+                    
+                    if from_finish_date and to_start_date:
+                        try:
+                            from_finish = datetime.strptime(from_finish_date, "%Y-%m-%d")
+                            to_start = datetime.strptime(to_start_date, "%Y-%m-%d")
+                            link.valid = "No" if to_start < from_finish else "Yes"
+                        except (ValueError, TypeError):
+                            link.valid = "No"
+                    else:
+                        link.valid = "No"
+                else:
+                    link.valid = "No"
+            
+            # Populate task names
+            task_name_map = {task.task_id: task.task_name for task in self.tasks}
+            for link in links:
+                link.from_task_name = task_name_map.get(link.from_task_id, "")
+                link.to_task_name = task_name_map.get(link.to_task_id, "")
+            
+            self.links = links
+        except Exception as e:
+            logging.error(f"Error in update_links: {e}", exc_info=True)
+            errors.append(f"Internal error: {str(e)}")
+        return errors
+    
     def update_from_table(self, key: str, data: List[List[str]]) -> List[str]:
         """Update project data from table data. Returns list of validation errors."""
         errors = []
