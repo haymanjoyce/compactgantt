@@ -276,43 +276,6 @@ def test_frame_config_margins_tuple_conversion():
     return True
 
 
-def test_frame_config_backward_compatibility():
-    """Test that old project files with header_height=50 and vertical_gridlines still load correctly."""
-    print("Testing: Backward compatibility with old defaults...")
-    
-    # Simulate an old project file with old default header_height and old vertical_gridlines format
-    test_data = {
-        "frame_config": {
-            "header_height": 50,  # Old default
-            "footer_height": 50,  # Old default
-            "header_text": "",
-            "footer_text": "",
-            "vertical_gridlines": True  # Old format - should be migrated to individual flags
-        },
-        "tasks": [],
-        "links": [],
-        "swimlanes": [],
-        "pipes": [],
-        "curtains": [],
-        "text_boxes": []
-    }
-    
-    loaded_project = ProjectData.from_json(test_data)
-    
-    # Should preserve old values, not use new defaults
-    assert loaded_project.frame_config.header_height == 50
-    assert loaded_project.frame_config.footer_height == 50
-    
-    # Old vertical_gridlines=True should be migrated to all individual flags being True
-    assert loaded_project.frame_config.vertical_gridline_years == True
-    assert loaded_project.frame_config.vertical_gridline_months == True
-    assert loaded_project.frame_config.vertical_gridline_weeks == True
-    assert loaded_project.frame_config.vertical_gridline_days == True
-    
-    print("  [PASSED]")
-    return True
-
-
 def main():
     """Run all tests."""
     print("=" * 60)
@@ -326,7 +289,6 @@ def main():
         ("Save/load roundtrip", test_frame_config_save_and_load_roundtrip),
         ("Defaults on missing fields", test_frame_config_defaults_on_missing_fields),
         ("Margins tuple conversion", test_frame_config_margins_tuple_conversion),
-        ("Backward compatibility", test_frame_config_backward_compatibility),
     ]
     
     passed = 0

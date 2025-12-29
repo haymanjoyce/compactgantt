@@ -234,9 +234,6 @@ class GanttChartService(QObject):
             # A task is a milestone if explicitly marked or if start_date equals finish_date
             is_milestone = task.get("is_milestone", False) or (start_date_str and finish_date_str and start_date_str == finish_date_str)
             label_placement = task.get("label_placement", "Outside")
-            # Convert old placement values to new ones for backward compatibility
-            if label_placement in ["To left", "To right"]:
-                label_placement = "Outside"
             label_hide = task.get("label_hide", "Yes") == "No"
             task_name = task.get("task_name", "Unnamed")
             
@@ -801,11 +798,6 @@ class GanttChartService(QObject):
             vertical_gridline_intervals.append("weeks")
         if self._get_frame_config("vertical_gridline_days", False):
             vertical_gridline_intervals.append("days")
-        
-        # Handle backward compatibility: if old vertical_gridlines flag exists, use all visible scales
-        if not vertical_gridline_intervals and self._get_frame_config("vertical_gridlines", False):
-            # Old format - use all visible scale intervals
-            vertical_gridline_intervals = [interval for interval, _ in scale_configs]
         
         # Render gridlines for each enabled interval
         for interval in vertical_gridline_intervals:

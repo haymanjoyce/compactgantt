@@ -66,14 +66,6 @@ class ExcelRepository:
         if "margins" in frame_config_data and isinstance(frame_config_data["margins"], list):
             frame_config_data["margins"] = tuple(frame_config_data["margins"])
         
-        # Handle backward compatibility for vertical_gridlines
-        if "vertical_gridlines" in frame_config_data and "vertical_gridline_years" not in frame_config_data:
-            old_value = frame_config_data.pop("vertical_gridlines")
-            frame_config_data["vertical_gridline_years"] = old_value
-            frame_config_data["vertical_gridline_months"] = old_value
-            frame_config_data["vertical_gridline_weeks"] = old_value
-            frame_config_data["vertical_gridline_days"] = old_value
-        
         # Create FrameConfig
         project.frame_config = FrameConfig(**frame_config_data)
         

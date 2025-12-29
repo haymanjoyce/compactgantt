@@ -39,7 +39,7 @@ class ProjectData:
             # Only save is_milestone if it's explicitly True (auto-detected from dates otherwise)
             if task.is_milestone:
                 task_dict["is_milestone"] = True
-            # Only save non-default values for backward compatibility fields
+            # Only save non-default values to reduce JSON size
             if task.label_alignment != "Centre":
                 task_dict["label_alignment"] = task.label_alignment
             if task.label_horizontal_offset != 1.0:
@@ -70,14 +70,6 @@ class ProjectData:
         if "margins" in frame_config_data and isinstance(frame_config_data["margins"], list):
             frame_config_data["margins"] = tuple(frame_config_data["margins"])
         
-        # Handle backward compatibility: migrate old vertical_gridlines to new individual flags
-        if "vertical_gridlines" in frame_config_data and "vertical_gridline_years" not in frame_config_data:
-            old_value = frame_config_data.pop("vertical_gridlines")
-            frame_config_data["vertical_gridline_years"] = old_value
-            frame_config_data["vertical_gridline_months"] = old_value
-            frame_config_data["vertical_gridline_weeks"] = old_value
-            frame_config_data["vertical_gridline_days"] = old_value
-        
         project.frame_config = FrameConfig(**frame_config_data)
         
         # Load tasks
@@ -86,13 +78,7 @@ class ProjectData:
         
         # Load links - convert dicts to Link objects
         links_data = data.get("links", [])
-        project.links = []
-        for link_data in links_data:
-            if isinstance(link_data, dict):
-                project.links.append(Link.from_dict(link_data))
-            else:
-                # Legacy list format - skip (shouldn't happen after migration)
-                continue
+        project.links = [Link.from_dict(link_data) for link_data in links_data if isinstance(link_data, dict)]
         project.swimlanes = data.get("swimlanes", [])
         project.pipes = data.get("pipes", [])
         project.curtains = data.get("curtains", [])

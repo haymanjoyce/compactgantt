@@ -61,22 +61,10 @@ class GridTab(BaseTab):
     def _load_initial_data_impl(self):
         frame_config = self.project_data.frame_config
         self.horizontal_gridlines.setChecked(frame_config.horizontal_gridlines)
-        
-        # Handle backward compatibility: if old vertical_gridlines exists, migrate to new format
-        if hasattr(frame_config, 'vertical_gridlines') and not hasattr(frame_config, 'vertical_gridline_years'):
-            # Old format - migrate to new individual flags
-            old_value = frame_config.vertical_gridlines
-            frame_config.vertical_gridline_years = old_value
-            frame_config.vertical_gridline_months = old_value
-            frame_config.vertical_gridline_weeks = old_value
-            frame_config.vertical_gridline_days = old_value
-            # Optionally remove old attribute (but not necessary, it won't hurt)
-        
-        # Load individual flags (with defaults if not present)
-        self.vertical_gridline_years.setChecked(getattr(frame_config, 'vertical_gridline_years', True))
-        self.vertical_gridline_months.setChecked(getattr(frame_config, 'vertical_gridline_months', True))
-        self.vertical_gridline_weeks.setChecked(getattr(frame_config, 'vertical_gridline_weeks', False))
-        self.vertical_gridline_days.setChecked(getattr(frame_config, 'vertical_gridline_days', False))
+        self.vertical_gridline_years.setChecked(frame_config.vertical_gridline_years)
+        self.vertical_gridline_months.setChecked(frame_config.vertical_gridline_months)
+        self.vertical_gridline_weeks.setChecked(frame_config.vertical_gridline_weeks)
+        self.vertical_gridline_days.setChecked(frame_config.vertical_gridline_days)
 
     def _sync_data_impl(self):
         self.project_data.frame_config.horizontal_gridlines = self.horizontal_gridlines.isChecked()
