@@ -180,7 +180,7 @@ class ExcelRepository:
         ws = wb.create_sheet("Tasks")
         
         # Headers - only include fields that are visible/editable in UI
-        headers = ["ID", "Row", "Name", "Start Date", "Finish Date", "Label", "Placement", "Fill Color"]
+        headers = ["ID", "Row", "Name", "Start Date", "Finish Date", "Label Display", "Label Placement", "Label Offset", "Fill Color"]
         ws.append(headers)
         self._format_header_row(ws, 1)
         
@@ -194,6 +194,7 @@ class ExcelRepository:
                 internal_to_display_date(task.finish_date),
                 task.label_hide,
                 task.label_placement,
+                int(task.label_horizontal_offset) if task.label_horizontal_offset else 0,
                 task.fill_color
             ]
             ws.append(row)
@@ -460,18 +461,18 @@ class ExcelRepository:
                                 task_data["finish_date"] = ""
                         except (ValueError, AttributeError):
                             task_data["finish_date"] = ""
-                    elif header == "Label":
+                    elif header == "Label" or header == "Label Display":
                         task_data["label_hide"] = str(value) if value is not None else "Yes"
-                    elif header == "Placement":
+                    elif header == "Placement" or header == "Label Placement":
                         task_data["label_placement"] = str(value) if value is not None else "Outside"
+                    elif header == "Offset" or header == "Label Offset" or header == "Label Horizontal Offset":
+                        task_data["label_horizontal_offset"] = float(value) if value is not None else 0.0
                     elif header == "Fill Color":
                         task_data["fill_color"] = str(value) if value is not None else "blue"
                     elif header == "Is Milestone":
                         task_data["is_milestone"] = str(value).strip().lower() in ["yes", "true", "1"]
                     elif header == "Label Alignment":
                         task_data["label_alignment"] = str(value) if value is not None else "Centre"
-                    elif header == "Label Horizontal Offset":
-                        task_data["label_horizontal_offset"] = float(value) if value is not None else 1.0
                     elif header == "Label Text Colour":
                         task_data["label_text_colour"] = str(value) if value is not None else "black"
             

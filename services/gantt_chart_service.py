@@ -219,15 +219,32 @@ class GanttChartService(QObject):
 
 
     def _render_outside_label(self, task_name: str, attachment_x: float, attachment_y: float,
-                             label_y_base: float):
-        """Render a label outside a task/milestone with a leader line to the right."""
-        label_horizontal_offset = self.config.general.leader_line_horizontal_default
-        label_x = attachment_x + label_horizontal_offset  # Fixed pixel offset, no time scaling
+                             label_y_base: float, label_horizontal_offset: float = 0.0):
+        """Render a label outside a task/milestone with optional leader line.
+        
+        Args:
+            task_name: The label text to display
+            attachment_x: The x position where the label attaches to the task/milestone
+            attachment_y: The y position for the leader line (if shown)
+            label_y_base: The y position for the label text baseline
+            label_horizontal_offset: Additional offset beyond default close offset (default 0.0)
+        """
+        # Default close offset from config (always applied)
+        default_close_offset = self.config.general.leader_line_horizontal_default
+        
+        # Total distance = default close offset + user-specified offset
+        total_offset = default_close_offset + label_horizontal_offset
+        label_x = attachment_x + total_offset  # Fixed pixel offset, no time scaling
+        
+        # Render label text
         self.dwg.add(self.dwg.text(task_name, insert=(label_x, label_y_base), 
                                    font_size=str(self.config.general.task_font_size), font_family="Arial", fill="black",
                                    text_anchor="start", dominant_baseline="middle"))
-        self.dwg.add(self.dwg.line((label_x, attachment_y), (attachment_x, attachment_y),
-                                   stroke="black", stroke_width=1))
+        
+        # Render leader line only if user offset > 0
+        if label_horizontal_offset > 0:
+            self.dwg.add(self.dwg.line((label_x, attachment_y), (attachment_x, attachment_y),
+                                       stroke="black", stroke_width=0.5))
 
     def render_tasks(self, x, y, width, height, start_date, end_date, num_rows):
         """Render all tasks that overlap with the timeline date range.
@@ -261,6 +278,7 @@ class GanttChartService(QObject):
             label_hide = task.get("label_hide", "Yes") == "No"
             task_name = task.get("task_name", "Unnamed")
             fill_color = task.get("fill_color", "blue")  # Get fill color, default to blue
+            label_horizontal_offset = task.get("label_horizontal_offset", 0.0)  # Get label offset, default to 0.0
             
             if not start_date_str and not finish_date_str:
                 continue
@@ -303,7 +321,7 @@ class GanttChartService(QObject):
                     # Use proportional positioning: center_y is at row_height * 0.5, apply factor to row_height
                     label_y_base = y_task + row_height * self.config.general.text_vertical_alignment_factor
                     milestone_right = center_x + half_size
-                    self._render_outside_label(task_name, milestone_right, center_y, label_y_base)
+                    self._render_outside_label(task_name, milestone_right, center_y, label_y_base, label_horizontal_offset)
             else:
                 if x_start < x + width:
                     y_offset = (row_height - task_height) / 2
@@ -324,7 +342,7 @@ class GanttChartService(QObject):
                             self._render_inside_label(task_name, x_start, width_task, label_y_base, fill_color)
                         elif label_placement == "Outside":
                             self._render_outside_label(task_name, x_end, rect_y + task_height / 2, 
-                                                      label_y_base)
+                                                      label_y_base, label_horizontal_offset)
 
     def _get_task_position(self, task_id: int, x, y, width, height, start_date, end_date, num_rows):
         """Get the position and dimensions of a task by its ID.

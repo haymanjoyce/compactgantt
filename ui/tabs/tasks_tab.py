@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QWidget, QTableWidget, QVBoxLayout, QPushButton, 
                            QHBoxLayout, QComboBox, QHeaderView, QTableWidgetItem, 
-                           QMessageBox, QGroupBox, QSizePolicy, QLabel, QGridLayout)
+                           QMessageBox, QGroupBox, QSizePolicy, QLabel, QGridLayout, QLineEdit)
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor
 from typing import List, Dict, Any, Optional, Set
@@ -137,21 +137,28 @@ class TasksTab(BaseTab):
         
         LABEL_WIDTH = 120
         
-        # Label (Show/Hide)
-        label_label = QLabel("Label:")
+        # Label Display (Show/Hide)
+        label_label = QLabel("Label Display:")
         label_label.setFixedWidth(LABEL_WIDTH)
         self.detail_label = QComboBox()
         self.detail_label.addItems(["No", "Yes"])
         self.detail_label.setToolTip("Show task label (No = Hide, Yes = Show)")
         self.detail_label.currentTextChanged.connect(self._on_detail_form_changed)
         
-        # Placement
-        placement_label = QLabel("Placement:")
+        # Label Placement
+        placement_label = QLabel("Label Placement:")
         placement_label.setFixedWidth(LABEL_WIDTH)
         self.detail_placement = QComboBox()
         self.detail_placement.addItems(["Inside", "Outside"])
         self.detail_placement.setToolTip("Label placement (Inside or Outside task bar)")
         self.detail_placement.currentTextChanged.connect(self._on_detail_form_changed)
+        
+        # Label Offset
+        offset_label = QLabel("Label Offset:")
+        offset_label.setFixedWidth(LABEL_WIDTH)
+        self.detail_offset = QLineEdit("0")
+        self.detail_offset.setToolTip("Additional horizontal offset for outside labels in pixels. Leader line appears when offset > 0.")
+        self.detail_offset.textChanged.connect(self._on_detail_form_changed)
         
         # Fill Color
         color_label = QLabel("Fill Color:")
@@ -166,8 +173,10 @@ class TasksTab(BaseTab):
         layout.addWidget(self.detail_label, 0, 1)
         layout.addWidget(placement_label, 1, 0)
         layout.addWidget(self.detail_placement, 1, 1)
-        layout.addWidget(color_label, 2, 0)
-        layout.addWidget(self.detail_fill_color, 2, 1)
+        layout.addWidget(offset_label, 2, 0)
+        layout.addWidget(self.detail_offset, 2, 1)
+        layout.addWidget(color_label, 3, 0)
+        layout.addWidget(self.detail_fill_color, 3, 1)
         
         layout.setColumnStretch(1, 1)
         
@@ -196,11 +205,13 @@ class TasksTab(BaseTab):
                 task = self.project_data.tasks[row]
                 self.detail_label.setCurrentText(task.label_hide if task.label_hide else "Yes")
                 self.detail_placement.setCurrentText(task.label_placement if task.label_placement else "Inside")
+                self.detail_offset.setText(str(int(task.label_horizontal_offset)) if task.label_horizontal_offset is not None else "0")
                 self.detail_fill_color.setCurrentText(task.fill_color if task.fill_color else "blue")
             else:
                 # Use defaults if task doesn't exist
                 self.detail_label.setCurrentText("Yes")
                 self.detail_placement.setCurrentText("Inside")
+                self.detail_offset.setText("0")
                 self.detail_fill_color.setCurrentText("blue")
         finally:
             self._updating_form = False
@@ -211,6 +222,7 @@ class TasksTab(BaseTab):
         try:
             self.detail_label.setCurrentText("Yes")
             self.detail_placement.setCurrentText("Inside")
+            self.detail_offset.setText("0")
             self.detail_fill_color.setCurrentText("blue")
         finally:
             self._updating_form = False
@@ -300,10 +312,11 @@ class TasksTab(BaseTab):
             elif finish_date_internal and not start_date_internal:
                 start_date_internal = finish_date_internal  # Auto-populate start date
             
-            # Extract Label, Placement, and Fill Color from detail form if this is the selected row
+            # Extract Label, Placement, Offset, and Fill Color from detail form if this is the selected row
             # Otherwise, get from existing Task object
             label_hide = "Yes"
             label_placement = "Inside"
+            label_horizontal_offset = 0.0
             fill_color = "blue"
             
             if row_idx == self._selected_row:
@@ -312,6 +325,13 @@ class TasksTab(BaseTab):
                     label_hide = self.detail_label.currentText()
                 if self.detail_placement:
                     label_placement = self.detail_placement.currentText()
+                if self.detail_offset:
+                    try:
+                        label_horizontal_offset = float(self.detail_offset.text()) if self.detail_offset.text().strip() else 0.0
+                        # Ensure non-negative
+                        label_horizontal_offset = max(0.0, label_horizontal_offset)
+                    except (ValueError, AttributeError):
+                        label_horizontal_offset = 0.0
                 if self.detail_fill_color:
                     fill_color = self.detail_fill_color.currentText()
             else:
@@ -320,6 +340,7 @@ class TasksTab(BaseTab):
                 if existing_task:
                     label_hide = existing_task.label_hide
                     label_placement = existing_task.label_placement
+                    label_horizontal_offset = existing_task.label_horizontal_offset if hasattr(existing_task, 'label_horizontal_offset') else 0.0
                     fill_color = existing_task.fill_color if hasattr(existing_task, 'fill_color') else "blue"
             
             # Create Task object
@@ -332,7 +353,7 @@ class TasksTab(BaseTab):
                 label_hide=label_hide,
                 label_placement=label_placement,
                 label_alignment="Centre",
-                label_horizontal_offset=1.0,
+                label_horizontal_offset=label_horizontal_offset,
                 label_text_colour="black",
                 fill_color=fill_color
             )

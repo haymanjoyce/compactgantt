@@ -29,7 +29,7 @@ class ChartConfig:
     # Default colors and label settings
     default_curtain_color: str = "red"
     leader_line_vertical_default: float = 0.5
-    leader_line_horizontal_default: float = 10.0  # Fixed pixel offset for outside labels
+    leader_line_horizontal_default: float = 3.0  # Default close offset for outside labels (base distance before user offset)
     label_horizontal_offset_factor: float = 0.0
     label_text_width_factor: float = 0.55
     text_vertical_alignment_factor: float = 0.7  # Vertical position for all text (0.0=top, 0.5=center, 1.0=bottom). Used for header, footer, scales, and task labels.
