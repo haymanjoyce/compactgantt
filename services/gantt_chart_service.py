@@ -86,7 +86,7 @@ class GanttChartService(QObject):
         width = self._get_frame_config("outer_width", self.config.general.outer_width) - margins[1] - margins[3]
         height = self._get_frame_config("header_height", 20)
         self.dwg.add(self.dwg.rect(insert=(margins[3], margins[0]), size=(width, height),
-                                   fill="lightgray", 
+                                   fill="lightgrey", 
                                    stroke=self.config.general.frame_border_color, 
                                    stroke_width=self.config.general.frame_border_width_light))
         header_text = self._get_frame_config("header_text", "")
@@ -103,7 +103,7 @@ class GanttChartService(QObject):
         height = self._get_frame_config("footer_height", 20)
         y = self._get_frame_config("outer_height", self.config.general.outer_height) - margins[2] - height
         self.dwg.add(self.dwg.rect(insert=(margins[3], y), size=(width, height),
-                                   fill="lightgray", 
+                                   fill="lightgrey", 
                                    stroke=self.config.general.frame_border_color, 
                                    stroke_width=self.config.general.frame_border_width_light))
         footer_text = self._get_frame_config("footer_text", "")
@@ -928,7 +928,7 @@ class GanttChartService(QObject):
                 text_element = self.dwg.text(
                     str(i + 1),  # 1-based row number
                     insert=(text_x, row_center_y),
-                    fill="#808080",  # Medium grey (darker than gridlines #d3d3d3)
+                    fill="grey",
                     font_size="11px",
                     font_family="Arial, sans-serif",
                     text_anchor="start",
@@ -1003,7 +1003,7 @@ class GanttChartService(QObject):
             # Draw increment border only if it doesn't align with scale border edges
             if x < x_pos < x + width:
                 self.dwg.add(self.dwg.line((x_pos, y), (x_pos, y + height),
-                                           stroke="gray", stroke_width=0.5))
+                                           stroke="grey", stroke_width=0.5))
             if prev_x < x + width and x_pos > x:
                 label_x = (max(x, prev_x) + min(x + width, x_pos)) / 2
                 label_y = y + height * self.config.general.text_vertical_alignment_factor
