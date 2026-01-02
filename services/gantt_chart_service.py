@@ -905,9 +905,14 @@ class GanttChartService(QObject):
 
         row_y = current_y
         num_rows = self._get_frame_config("num_rows", 1)
-        self.dwg.add(self.dwg.rect(insert=(x, row_y), size=(width, row_frame_height),
-                                   fill="none", 
-                                   stroke=self.config.general.frame_border_color, 
+        # Render row frame with only left and right borders (top/bottom borders overlap with scale and footer)
+        # Draw left border
+        self.dwg.add(self.dwg.line((x, row_y), (x, row_y + row_frame_height),
+                                   stroke=self.config.general.frame_border_color,
+                                   stroke_width=self.config.general.frame_border_width_light))
+        # Draw right border
+        self.dwg.add(self.dwg.line((x + width, row_y), (x + width, row_y + row_frame_height),
+                                   stroke=self.config.general.frame_border_color,
                                    stroke_width=self.config.general.frame_border_width_light))
 
         if self._get_frame_config("horizontal_gridlines", False):
