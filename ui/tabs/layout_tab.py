@@ -80,10 +80,19 @@ class LayoutTab(BaseTab):
         self.show_row_numbers.addItems(["No", "Yes"])
         self.show_row_numbers.setToolTip("Display row numbers on the left side of each row")
 
+        # Show Row Gridlines (using combobox instead of checkbox)
+        row_gridlines_label = QLabel("Show Row Gridlines:")
+        row_gridlines_label.setFixedWidth(label_width)
+        self.show_row_gridlines = QComboBox()
+        self.show_row_gridlines.addItems(["No", "Yes"])
+        self.show_row_gridlines.setToolTip("Display horizontal gridlines at row boundaries")
+
         layout.addWidget(rows_label, 0, 0)
         layout.addWidget(self.num_rows, 0, 1)
         layout.addWidget(row_numbers_label, 1, 0)
         layout.addWidget(self.show_row_numbers, 1, 1)
+        layout.addWidget(row_gridlines_label, 2, 0)
+        layout.addWidget(self.show_row_gridlines, 2, 1)
         layout.setColumnStretch(1, 1)
         group.setLayout(layout)
         return group
@@ -146,6 +155,7 @@ class LayoutTab(BaseTab):
         self.outer_height.textChanged.connect(self._sync_data_if_not_initializing)
         self.num_rows.textChanged.connect(self._sync_data_if_not_initializing)
         self.show_row_numbers.currentTextChanged.connect(self._sync_data_if_not_initializing)
+        self.show_row_gridlines.currentTextChanged.connect(self._sync_data_if_not_initializing)
         for margin in self.margin_inputs:
             margin.textChanged.connect(self._sync_data_if_not_initializing)
         self.start_date.dateChanged.connect(self._sync_data_if_not_initializing)
@@ -160,6 +170,7 @@ class LayoutTab(BaseTab):
         self.num_rows.setText(str(frame_config.num_rows))
         show_row_numbers = getattr(frame_config, 'show_row_numbers', False)
         self.show_row_numbers.setCurrentText("Yes" if show_row_numbers else "No")
+        self.show_row_gridlines.setCurrentText("Yes" if frame_config.horizontal_gridlines else "No")
 
         # Load Margins
         margins = frame_config.margins
@@ -237,6 +248,7 @@ class LayoutTab(BaseTab):
         )
         self.project_data.frame_config.num_rows = int(self.num_rows.text())
         self.project_data.frame_config.show_row_numbers = self.show_row_numbers.currentText() == "Yes"
+        self.project_data.frame_config.horizontal_gridlines = self.show_row_gridlines.currentText() == "Yes"
         
         # Update timeframe dates (convert QDate to internal format yyyy-mm-dd)
         start_date_str = start_qdate.toString("yyyy-MM-dd")

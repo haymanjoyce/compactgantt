@@ -5,28 +5,13 @@ from .base_tab import BaseTab
 class GridTab(BaseTab):
     def setup_ui(self):
         layout = QVBoxLayout()
-        horizontal_group = self._create_horizontal_gridlines_group()
         vertical_group = self._create_vertical_gridlines_group()
-        layout.addWidget(horizontal_group)
         layout.addWidget(vertical_group)
         
         # Add stretch at the end to push all groups to the top
         layout.addStretch(1)
         
         self.setLayout(layout)
-
-    def _create_horizontal_gridlines_group(self) -> QGroupBox:
-        group = QGroupBox("Horizontal Gridlines")
-        layout = QGridLayout()
-        layout.setHorizontalSpacing(10)
-        layout.setVerticalSpacing(5)
-
-        self.horizontal_gridlines = QCheckBox("Show Row Gridlines")
-        self.horizontal_gridlines.setToolTip("Display horizontal gridlines at row boundaries")
-
-        layout.addWidget(self.horizontal_gridlines, 0, 0)
-        group.setLayout(layout)
-        return group
 
     def _create_vertical_gridlines_group(self) -> QGroupBox:
         group = QGroupBox("Vertical Gridlines")
@@ -52,7 +37,6 @@ class GridTab(BaseTab):
         return group
 
     def _connect_signals(self):
-        self.horizontal_gridlines.stateChanged.connect(self._sync_data_if_not_initializing)
         self.vertical_gridline_years.stateChanged.connect(self._sync_data_if_not_initializing)
         self.vertical_gridline_months.stateChanged.connect(self._sync_data_if_not_initializing)
         self.vertical_gridline_weeks.stateChanged.connect(self._sync_data_if_not_initializing)
@@ -60,20 +44,17 @@ class GridTab(BaseTab):
 
     def _load_initial_data_impl(self):
         frame_config = self.project_data.frame_config
-        self.horizontal_gridlines.setChecked(frame_config.horizontal_gridlines)
         self.vertical_gridline_years.setChecked(frame_config.vertical_gridline_years)
         self.vertical_gridline_months.setChecked(frame_config.vertical_gridline_months)
         self.vertical_gridline_weeks.setChecked(frame_config.vertical_gridline_weeks)
         self.vertical_gridline_days.setChecked(frame_config.vertical_gridline_days)
 
     def _sync_data_impl(self):
-        self.project_data.frame_config.horizontal_gridlines = self.horizontal_gridlines.isChecked()
         self.project_data.frame_config.vertical_gridline_years = self.vertical_gridline_years.isChecked()
         self.project_data.frame_config.vertical_gridline_months = self.vertical_gridline_months.isChecked()
         self.project_data.frame_config.vertical_gridline_weeks = self.vertical_gridline_weeks.isChecked()
         self.project_data.frame_config.vertical_gridline_days = self.vertical_gridline_days.isChecked()
         self.data_updated.emit({
-            "horizontal_gridlines": self.horizontal_gridlines.isChecked(),
             "vertical_gridline_years": self.vertical_gridline_years.isChecked(),
             "vertical_gridline_months": self.vertical_gridline_months.isChecked(),
             "vertical_gridline_weeks": self.vertical_gridline_weeks.isChecked(),

@@ -913,7 +913,7 @@ class GanttChartService(QObject):
         if self._get_frame_config("horizontal_gridlines", False):
             for i in range(1, num_rows):  # Exclude first and last to avoid overlapping row frame border
                 y_pos = row_y + i * (row_frame_height / num_rows)
-                self.dwg.add(self.dwg.line((x, y_pos), (x + width, y_pos), stroke="lightgrey", stroke_width=1))
+                self.dwg.add(self.dwg.line((x, y_pos), (x + width, y_pos), stroke="lightgrey", stroke_width=0.5))
         
         # Render row numbers if enabled (after gridlines, before tasks)
         if self._get_frame_config("show_row_numbers", False):
