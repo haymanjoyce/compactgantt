@@ -7,6 +7,7 @@ from PyQt5.QtGui import QFont, QFontMetrics
 from config.app_config import AppConfig
 import logging
 from models.link import Link
+from utils.conversion import is_valid_internal_date
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -287,6 +288,16 @@ class GanttChartService(QObject):
             label_horizontal_offset = task.get("label_horizontal_offset", 0.0)  # Get label offset, default to 0.0
             
             if not start_date_str and not finish_date_str:
+                continue
+
+            # Validate that both dates are valid
+            # Skip task if either date is invalid (empty or invalid format)
+            # This matches the validation logic which requires both dates to be valid
+            if not is_valid_internal_date(start_date_str):
+                logging.warning(f"Skipping task {task.get('task_name', 'Unknown')} due to invalid start date: {start_date_str}")
+                continue
+            if not is_valid_internal_date(finish_date_str):
+                logging.warning(f"Skipping task {task.get('task_name', 'Unknown')} due to invalid finish date: {finish_date_str}")
                 continue
 
             # Try to parse dates, skip task if dates are invalid

@@ -19,15 +19,13 @@ class Task:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Task':
-        # Normalize dates: if only one date is provided, auto-populate the other (milestone behavior)
+        # Don't auto-populate dates when loading from JSON
+        # Auto-population should only happen in the UI when user enters data
+        # This preserves invalid dates (empty strings) so they remain visible as empty fields
         start_date = data.get("start_date", "")
         finish_date = data.get("finish_date", "")
         
-        # Auto-populate missing date field for milestones (if only one date is provided)
-        if start_date and not finish_date:
-            finish_date = start_date  # Auto-populate finish date
-        elif finish_date and not start_date:
-            start_date = finish_date  # Auto-populate start date
+        # Removed auto-population logic - dates are loaded as-is from JSON
         
         return cls(
             task_id=data["task_id"],

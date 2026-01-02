@@ -289,6 +289,7 @@ class TasksTab(BaseTab):
             
             # Extract dates (convert from display format to internal format)
             start_date_internal = ""
+            start_date_conversion_failed = False
             if start_date_vis_col is not None:
                 start_date_item = self.tasks_table.item(row_idx, start_date_vis_col)
                 if start_date_item and start_date_item.text().strip():
@@ -296,8 +297,10 @@ class TasksTab(BaseTab):
                         start_date_internal = display_to_internal_date(start_date_item.text())
                     except ValueError:
                         start_date_internal = ""
+                        start_date_conversion_failed = True  # Track that conversion failed
             
             finish_date_internal = ""
+            finish_date_conversion_failed = False
             if finish_date_vis_col is not None:
                 finish_date_item = self.tasks_table.item(row_idx, finish_date_vis_col)
                 if finish_date_item and finish_date_item.text().strip():
@@ -305,11 +308,13 @@ class TasksTab(BaseTab):
                         finish_date_internal = display_to_internal_date(finish_date_item.text())
                     except ValueError:
                         finish_date_internal = ""
+                        finish_date_conversion_failed = True  # Track that conversion failed
             
             # Auto-populate missing date field for milestones (if only one date is provided)
-            if start_date_internal and not finish_date_internal:
+            # Only auto-populate if the field was actually empty (not if conversion failed)
+            if start_date_internal and not finish_date_internal and not finish_date_conversion_failed:
                 finish_date_internal = start_date_internal  # Auto-populate finish date
-            elif finish_date_internal and not start_date_internal:
+            elif finish_date_internal and not start_date_internal and not start_date_conversion_failed:
                 start_date_internal = finish_date_internal  # Auto-populate start date
             
             # Extract Label, Placement, Offset, and Fill Color from detail form if this is the selected row
@@ -494,6 +499,10 @@ class TasksTab(BaseTab):
         """Handle item changes - update UserRole for numeric and date columns to maintain proper sorting."""
         logging.debug("_on_item_changed: START")
         
+        # Skip auto-population during initialization to preserve invalid dates
+        if self._initializing:
+            return
+        
         # CRITICAL: Disconnect signal BEFORE modifying item to prevent infinite loop
         was_connected = False
         try:
@@ -564,6 +573,9 @@ class TasksTab(BaseTab):
                         except ValueError as e:
                             logging.debug(f"_on_item_changed: Date parsing failed: {e}")
                             date_obj = None
+                            # Date is invalid - ensure validation will catch this
+                            # The invalid text remains in the cell, which will cause
+                            # _task_from_table_row() to set the date to "" when converting
                         
                         # Check if UserRole already has the same value to avoid unnecessary updates
                         current_role = item.data(Qt.UserRole)
