@@ -74,12 +74,12 @@ class LayoutTab(BaseTab):
         self.show_row_numbers.addItems(["No", "Yes"])
         self.show_row_numbers.setToolTip("Display row numbers on the left side of each row")
 
-        # Show Row Gridlines (using combobox instead of checkbox)
-        row_gridlines_label = QLabel("Show Row Gridlines:")
+        # Row Dividers (using combobox instead of checkbox)
+        row_gridlines_label = QLabel("Row Dividers:")
         row_gridlines_label.setFixedWidth(label_width)
         self.show_row_gridlines = QComboBox()
         self.show_row_gridlines.addItems(["No", "Yes"])
-        self.show_row_gridlines.setToolTip("Display horizontal gridlines at row boundaries")
+        self.show_row_gridlines.setToolTip("Show horizontal lines dividing rows")
 
         layout.addWidget(rows_label, 0, 0)
         layout.addWidget(self.num_rows, 0, 1)

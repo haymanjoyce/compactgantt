@@ -22,7 +22,7 @@ class ExcelRepository:
         self._create_layout_sheet(wb, project_data.frame_config)
         self._create_titles_sheet(wb, project_data.frame_config)
         self._create_timeline_sheet(wb, project_data.frame_config)
-        # Grid sheet deprecated - horizontal gridlines now in Layout sheet as "Show Row Gridlines"
+        # Grid sheet deprecated - horizontal gridlines now in Layout sheet as "Row Dividers"
         self._create_tasks_sheet(wb, project_data.tasks)
         self._create_links_sheet(wb, project_data.links)
         self._create_swimlanes_sheet(wb, project_data.swimlanes)
@@ -113,7 +113,7 @@ class ExcelRepository:
         ws.append(["Margin Bottom", frame_config.margins[2]])
         ws.append(["Margin Left", frame_config.margins[3]])
         ws.append(["Row Numbers", "Yes" if getattr(frame_config, 'show_row_numbers', False) else "No"])
-        ws.append(["Show Row Gridlines", "Yes" if frame_config.horizontal_gridlines else "No"])
+        ws.append(["Row Dividers", "Yes" if frame_config.horizontal_gridlines else "No"])
         
         # Auto-adjust column widths
         ws.column_dimensions['A'].width = 20
@@ -168,7 +168,7 @@ class ExcelRepository:
     def _create_grid_sheet(self, wb: Workbook, frame_config: FrameConfig) -> None:
         """DEPRECATED: Grid sheet is no longer created.
         
-        Horizontal gridlines are now saved in Layout sheet as "Show Row Gridlines".
+        Horizontal gridlines are now saved in Layout sheet as "Row Dividers".
         Vertical gridlines and scales are in Timeline sheet.
         Show Row Numbers is in Layout sheet.
         
@@ -341,7 +341,7 @@ class ExcelRepository:
                     except (ValueError, TypeError):
                         value = 0
                 elif key in ["Show Years", "Show Months", "Show Weeks", "Show Days",
-                             "Horizontal Gridlines", "Show Row Gridlines",
+                             "Horizontal Gridlines", "Show Row Gridlines", "Row Dividers",
                              "Vertical Gridline Years", "Vertical Gridline Months",
                              "Vertical Gridline Weeks", "Vertical Gridline Days", 
                              "Row Numbers", "Show Row Numbers"]:
@@ -381,6 +381,7 @@ class ExcelRepository:
                     "Show Days": "show_days",
                     "Horizontal Gridlines": "horizontal_gridlines",
                     "Show Row Gridlines": "horizontal_gridlines",  # Alias for backward compatibility
+                    "Row Dividers": "horizontal_gridlines",
                     "Vertical Gridline Years": "vertical_gridline_years",
                     "Vertical Gridline Months": "vertical_gridline_months",
                     "Vertical Gridline Weeks": "vertical_gridline_weeks",
