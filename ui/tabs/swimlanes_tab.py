@@ -128,13 +128,20 @@ class SwimlanesTab(BaseTab):
 
     def _move_up(self):
         """Move selected row(s) up by one position."""
-        selected_rows = self.swimlanes_table.selectionModel().selectedRows()
-        if not selected_rows:
-            QMessageBox.information(self, "No Selection", "Please select row(s) to move up.")
+        # Get all checked rows (using checkboxes, consistent with Remove)
+        checked_rows = []
+        for row in range(self.swimlanes_table.rowCount()):
+            checkbox_widget = self.swimlanes_table.cellWidget(row, 0)
+            if checkbox_widget and isinstance(checkbox_widget, CheckBoxWidget):
+                if checkbox_widget.checkbox.isChecked():
+                    checked_rows.append(row)
+        
+        if not checked_rows:
+            QMessageBox.information(self, "No Selection", "Please select row(s) to move up by checking their checkboxes.")
             return
         
         # Get sorted row indices
-        row_indices = sorted([idx.row() for idx in selected_rows])
+        row_indices = sorted(checked_rows)
         
         # Check if any row is already at the top
         if row_indices[0] == 0:
@@ -153,11 +160,7 @@ class SwimlanesTab(BaseTab):
                     # Swap rows by moving current row up
                     self._swap_table_rows(row_idx, row_idx - 1)
             
-            # Reselect moved rows
-            self.swimlanes_table.clearSelection()
-            for row_idx in row_indices:
-                if row_idx > 0:
-                    self.swimlanes_table.selectRow(row_idx - 1)
+            # Checkboxes maintain their state after swap (they're swapped with the row)
         finally:
             self.swimlanes_table.blockSignals(False)
             self.swimlanes_table.setSortingEnabled(was_sorting)
@@ -167,17 +170,24 @@ class SwimlanesTab(BaseTab):
 
     def _move_down(self):
         """Move selected row(s) down by one position."""
-        selected_rows = self.swimlanes_table.selectionModel().selectedRows()
-        if not selected_rows:
-            QMessageBox.information(self, "No Selection", "Please select row(s) to move down.")
+        # Get all checked rows (using checkboxes, consistent with Remove)
+        checked_rows = []
+        for row in range(self.swimlanes_table.rowCount()):
+            checkbox_widget = self.swimlanes_table.cellWidget(row, 0)
+            if checkbox_widget and isinstance(checkbox_widget, CheckBoxWidget):
+                if checkbox_widget.checkbox.isChecked():
+                    checked_rows.append(row)
+        
+        if not checked_rows:
+            QMessageBox.information(self, "No Selection", "Please select row(s) to move down by checking their checkboxes.")
             return
         
         # Get sorted row indices (reverse order for moving down)
-        row_indices = sorted([idx.row() for idx in selected_rows], reverse=True)
+        row_indices = sorted(checked_rows, reverse=True)
         max_row = self.swimlanes_table.rowCount() - 1
         
-        # Check if any row is already at the bottom
-        if row_indices[0] == max_row:
+        # Check if the highest selected row is already at the bottom
+        if max_row < 0 or row_indices[0] >= max_row:
             QMessageBox.information(self, "Cannot Move", "Selected row(s) are already at the bottom.")
             return
         
@@ -193,11 +203,7 @@ class SwimlanesTab(BaseTab):
                     # Swap rows by moving current row down
                     self._swap_table_rows(row_idx, row_idx + 1)
             
-            # Reselect moved rows
-            self.swimlanes_table.clearSelection()
-            for row_idx in row_indices:
-                if row_idx < max_row:
-                    self.swimlanes_table.selectRow(row_idx + 1)
+            # Checkboxes maintain their state after swap (they're swapped with the row)
         finally:
             self.swimlanes_table.blockSignals(False)
             self.swimlanes_table.setSortingEnabled(was_sorting)
@@ -209,26 +215,44 @@ class SwimlanesTab(BaseTab):
         """Swap two table rows by exchanging all cell contents and widgets."""
         num_cols = self.swimlanes_table.columnCount()
         
-        # Swap all cells
+        # Save checkbox states before removing widgets
+        checkbox1_state = False
+        checkbox2_state = False
+        checkbox_widget1 = self.swimlanes_table.cellWidget(row1, 0)
+        checkbox_widget2 = self.swimlanes_table.cellWidget(row2, 0)
+        if checkbox_widget1 and isinstance(checkbox_widget1, CheckBoxWidget):
+            checkbox1_state = checkbox_widget1.checkbox.isChecked()
+        if checkbox_widget2 and isinstance(checkbox_widget2, CheckBoxWidget):
+            checkbox2_state = checkbox_widget2.checkbox.isChecked()
+        
+        # Collect all items from both rows
+        items1 = [self.swimlanes_table.takeItem(row1, col) for col in range(num_cols)]
+        items2 = [self.swimlanes_table.takeItem(row2, col) for col in range(num_cols)]
+        
+        # Remove all widgets from both rows
         for col in range(num_cols):
-            item1 = self.swimlanes_table.takeItem(row1, col)
-            item2 = self.swimlanes_table.takeItem(row2, col)
-            
-            if item1:
-                self.swimlanes_table.setItem(row2, col, item1)
-            if item2:
-                self.swimlanes_table.setItem(row1, col, item2)
-            
-            # Swap widgets (checkboxes)
             widget1 = self.swimlanes_table.cellWidget(row1, col)
             widget2 = self.swimlanes_table.cellWidget(row2, col)
-            
             if widget1:
                 self.swimlanes_table.removeCellWidget(row1, col)
-                self.swimlanes_table.setCellWidget(row2, col, widget1)
             if widget2:
                 self.swimlanes_table.removeCellWidget(row2, col)
-                self.swimlanes_table.setCellWidget(row1, col, widget2)
+        
+        # Set items in swapped positions
+        for col in range(num_cols):
+            if items2[col]:
+                self.swimlanes_table.setItem(row1, col, items2[col])
+            if items1[col]:
+                self.swimlanes_table.setItem(row2, col, items1[col])
+        
+        # Recreate checkboxes with swapped states (column 0 only)
+        checkbox1_new = CheckBoxWidget()
+        checkbox1_new.checkbox.setChecked(checkbox2_state)
+        self.swimlanes_table.setCellWidget(row1, 0, checkbox1_new)
+        
+        checkbox2_new = CheckBoxWidget()
+        checkbox2_new.checkbox.setChecked(checkbox1_state)
+        self.swimlanes_table.setCellWidget(row2, 0, checkbox2_new)
 
     def _connect_signals(self):
         self.swimlanes_table.itemChanged.connect(self._on_item_changed)
