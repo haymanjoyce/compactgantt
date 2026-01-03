@@ -549,10 +549,6 @@ class GanttChartService(QObject):
         # Calculate row height
         row_height = row_frame_height / num_rows if num_rows > 0 else row_frame_height
         
-        # Sort swimlanes by last_row to identify the last one (highest last_row)
-        sorted_swimlanes = sorted(swimlanes, key=lambda s: s.last_row, reverse=True)
-        last_swimlane_last_row = sorted_swimlanes[0].last_row if sorted_swimlanes else -1
-        
         # Render dividers and labels for each swimlane
         for swimlane in swimlanes:
             # Convert 1-based row numbers to 0-based for calculations
@@ -563,9 +559,9 @@ class GanttChartService(QObject):
             if first_row_0based < 0 or last_row_0based >= num_rows:
                 continue
             
-            # Render divider at the bottom of the swimlane (except for the last swimlane)
+            # Render divider at the bottom of the swimlane (except if it meets the row frame bottom border)
             # The divider is at the boundary between last_row and last_row + 1
-            if swimlane.last_row < last_swimlane_last_row:
+            if swimlane.last_row < num_rows:
                 # Calculate Y position for divider (at the bottom boundary of the swimlane)
                 # This is the same Y position as a row divider would use
                 divider_y = row_y + (swimlane.last_row) * row_height
