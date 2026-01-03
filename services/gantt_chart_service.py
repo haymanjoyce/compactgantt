@@ -549,22 +549,31 @@ class GanttChartService(QObject):
         # Calculate row height
         row_height = row_frame_height / num_rows if num_rows > 0 else row_frame_height
         
-        # Render dividers and labels for each swimlane
+        # Calculate first/last rows from table order (swimlanes stack vertically)
+        current_first_row = 1  # 1-based
+        
+        # Render dividers and labels for each swimlane (order matters!)
         for swimlane in swimlanes:
-            # Convert 1-based row numbers to 0-based for calculations
-            first_row_0based = swimlane.first_row - 1
-            last_row_0based = swimlane.last_row - 1
+            # Calculate first and last row for this swimlane based on table order
+            first_row = current_first_row
+            last_row = current_first_row + swimlane.row_count - 1
             
             # Validate row numbers
-            if first_row_0based < 0 or last_row_0based >= num_rows:
+            if first_row < 1 or last_row > num_rows:
+                # Skip invalid swimlanes, but continue to next
+                current_first_row += swimlane.row_count
                 continue
+            
+            # Convert to 0-based for calculations
+            first_row_0based = first_row - 1
+            last_row_0based = last_row - 1
             
             # Render divider at the bottom of the swimlane (except if it meets the row frame bottom border)
             # The divider is at the boundary between last_row and last_row + 1
-            if swimlane.last_row < num_rows:
+            if last_row < num_rows:
                 # Calculate Y position for divider (at the bottom boundary of the swimlane)
                 # This is the same Y position as a row divider would use
-                divider_y = row_y + (swimlane.last_row) * row_height
+                divider_y = row_y + last_row * row_height
                 self.dwg.add(self.dwg.line(
                     (x, divider_y),
                     (x + width, divider_y),
@@ -577,7 +586,6 @@ class GanttChartService(QObject):
                 # Calculate the swimlane area bounds
                 swimlane_top = row_y + first_row_0based * row_height
                 swimlane_bottom = row_y + (last_row_0based + 1) * row_height
-                swimlane_height = swimlane_bottom - swimlane_top
                 
                 # Position label 5px from right, 5px from bottom
                 label_x = x + width - 5
@@ -594,6 +602,9 @@ class GanttChartService(QObject):
                     dominant_baseline="auto"
                 )
                 self.dwg.add(text_element)
+            
+            # Move to next swimlane's starting position
+            current_first_row += swimlane.row_count
 
     def render_curtains(self, x, row_y, width, row_frame_height, start_date, end_date):
         """Render curtains (two vertical lines with hatched pattern between them).

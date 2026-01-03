@@ -34,7 +34,7 @@ class SwimlanesTab(BaseTab):
         toolbar.setSpacing(8)
         
         add_btn = QPushButton("Add Swimlane")
-        add_btn.setToolTip("Add a new swimlane")
+        add_btn.setToolTip("Add a new swimlane at the end")
         add_btn.setMinimumWidth(120)
         add_btn.clicked.connect(lambda: add_row(self.swimlanes_table, "swimlanes", self.app_config.tables, self, "ID"))
         
@@ -44,8 +44,20 @@ class SwimlanesTab(BaseTab):
         remove_btn.clicked.connect(lambda: remove_row(self.swimlanes_table, "swimlanes", 
                                                     self.app_config.tables, self))
         
+        move_up_btn = QPushButton("Move Up")
+        move_up_btn.setToolTip("Move selected swimlane(s) up")
+        move_up_btn.setMinimumWidth(100)
+        move_up_btn.clicked.connect(self._move_up)
+        
+        move_down_btn = QPushButton("Move Down")
+        move_down_btn.setToolTip("Move selected swimlane(s) down")
+        move_down_btn.setMinimumWidth(100)
+        move_down_btn.clicked.connect(self._move_down)
+        
         toolbar.addWidget(add_btn)
         toolbar.addWidget(remove_btn)
+        toolbar.addWidget(move_up_btn)
+        toolbar.addWidget(move_down_btn)
         toolbar.addStretch()  # Push buttons to the left
         
         # Create group box for table
@@ -54,7 +66,7 @@ class SwimlanesTab(BaseTab):
         table_group_layout.setSpacing(5)
         table_group_layout.setContentsMargins(5, 10, 5, 5)
         
-        # Create table with all columns: Select, ID, First Row, Last Row, Name
+        # Create table with columns: Select, ID, Row Count, Name
         headers = [col.name for col in self.table_config.columns]
         self.swimlanes_table = QTableWidget(0, len(headers))
         self.swimlanes_table.setHorizontalHeaderLabels(headers)
@@ -81,13 +93,13 @@ class SwimlanesTab(BaseTab):
         header.setSectionResizeMode(0, QHeaderView.Fixed)  # Select
         self.swimlanes_table.setColumnWidth(0, 50)
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # ID
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # First Row
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Last Row
-        header.setSectionResizeMode(4, QHeaderView.Stretch)  # Name
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Row Count
+        header.setSectionResizeMode(3, QHeaderView.Stretch)  # Name
         
         # Enable horizontal scroll bar
         self.swimlanes_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.swimlanes_table.setSortingEnabled(True)
+        # DISABLE sorting - order matters for swimlanes
+        self.swimlanes_table.setSortingEnabled(False)
         
         # Set table size policy
         self.swimlanes_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -113,6 +125,110 @@ class SwimlanesTab(BaseTab):
         # Empty for now - reserved for future properties
         group.setLayout(layout)
         return group
+
+    def _move_up(self):
+        """Move selected row(s) up by one position."""
+        selected_rows = self.swimlanes_table.selectionModel().selectedRows()
+        if not selected_rows:
+            QMessageBox.information(self, "No Selection", "Please select row(s) to move up.")
+            return
+        
+        # Get sorted row indices
+        row_indices = sorted([idx.row() for idx in selected_rows])
+        
+        # Check if any row is already at the top
+        if row_indices[0] == 0:
+            QMessageBox.information(self, "Cannot Move", "Selected row(s) are already at the top.")
+            return
+        
+        # Block signals and disable sorting during move
+        self.swimlanes_table.blockSignals(True)
+        was_sorting = self.swimlanes_table.isSortingEnabled()
+        self.swimlanes_table.setSortingEnabled(False)
+        
+        try:
+            # Move rows from top to bottom to avoid index shifting issues
+            for row_idx in row_indices:
+                if row_idx > 0:
+                    # Swap rows by moving current row up
+                    self._swap_table_rows(row_idx, row_idx - 1)
+            
+            # Reselect moved rows
+            self.swimlanes_table.clearSelection()
+            for row_idx in row_indices:
+                if row_idx > 0:
+                    self.swimlanes_table.selectRow(row_idx - 1)
+        finally:
+            self.swimlanes_table.blockSignals(False)
+            self.swimlanes_table.setSortingEnabled(was_sorting)
+        
+        # Sync data to update project_data
+        self._sync_data_if_not_initializing()
+
+    def _move_down(self):
+        """Move selected row(s) down by one position."""
+        selected_rows = self.swimlanes_table.selectionModel().selectedRows()
+        if not selected_rows:
+            QMessageBox.information(self, "No Selection", "Please select row(s) to move down.")
+            return
+        
+        # Get sorted row indices (reverse order for moving down)
+        row_indices = sorted([idx.row() for idx in selected_rows], reverse=True)
+        max_row = self.swimlanes_table.rowCount() - 1
+        
+        # Check if any row is already at the bottom
+        if row_indices[0] == max_row:
+            QMessageBox.information(self, "Cannot Move", "Selected row(s) are already at the bottom.")
+            return
+        
+        # Block signals and disable sorting during move
+        self.swimlanes_table.blockSignals(True)
+        was_sorting = self.swimlanes_table.isSortingEnabled()
+        self.swimlanes_table.setSortingEnabled(False)
+        
+        try:
+            # Move rows from bottom to top to avoid index shifting issues
+            for row_idx in row_indices:
+                if row_idx < max_row:
+                    # Swap rows by moving current row down
+                    self._swap_table_rows(row_idx, row_idx + 1)
+            
+            # Reselect moved rows
+            self.swimlanes_table.clearSelection()
+            for row_idx in row_indices:
+                if row_idx < max_row:
+                    self.swimlanes_table.selectRow(row_idx + 1)
+        finally:
+            self.swimlanes_table.blockSignals(False)
+            self.swimlanes_table.setSortingEnabled(was_sorting)
+        
+        # Sync data to update project_data
+        self._sync_data_if_not_initializing()
+
+    def _swap_table_rows(self, row1: int, row2: int):
+        """Swap two table rows by exchanging all cell contents and widgets."""
+        num_cols = self.swimlanes_table.columnCount()
+        
+        # Swap all cells
+        for col in range(num_cols):
+            item1 = self.swimlanes_table.takeItem(row1, col)
+            item2 = self.swimlanes_table.takeItem(row2, col)
+            
+            if item1:
+                self.swimlanes_table.setItem(row2, col, item1)
+            if item2:
+                self.swimlanes_table.setItem(row1, col, item2)
+            
+            # Swap widgets (checkboxes)
+            widget1 = self.swimlanes_table.cellWidget(row1, col)
+            widget2 = self.swimlanes_table.cellWidget(row2, col)
+            
+            if widget1:
+                self.swimlanes_table.removeCellWidget(row1, col)
+                self.swimlanes_table.setCellWidget(row2, col, widget1)
+            if widget2:
+                self.swimlanes_table.removeCellWidget(row2, col)
+                self.swimlanes_table.setCellWidget(row1, col, widget2)
 
     def _connect_signals(self):
         self.swimlanes_table.itemChanged.connect(self._on_item_changed)
@@ -159,8 +275,8 @@ class SwimlanesTab(BaseTab):
             if col_name == "ID":
                 return
             
-            # Update UserRole for numeric columns (ID, First Row, Last Row)
-            if col_name in ["ID", "First Row", "Last Row"]:
+            # Update UserRole for numeric columns (ID, Row Count)
+            if col_name in ["ID", "Row Count"]:
                 try:
                     val_str = item.text().strip()
                     item.setData(Qt.UserRole, int(val_str) if val_str else 0)
@@ -197,19 +313,15 @@ class SwimlanesTab(BaseTab):
             swimlane = swimlanes[row_idx]
             self._update_table_row_from_swimlane(row_idx, swimlane)
         
-        # Sort by ID by default
-        id_col = self._get_column_index("ID")
-        if id_col is not None:
-            self.swimlanes_table.sortItems(id_col, Qt.AscendingOrder)
+        # No sorting - order is explicit
         
         self._initializing = False
 
     def _update_table_row_from_swimlane(self, row_idx: int, swimlane: Swimlane) -> None:
         """Populate a table row from a Swimlane object."""
-        # Get column indices
+        # Get column indices using key-based access
         id_col = self._get_column_index("ID")
-        first_row_col = self._get_column_index("First Row")
-        last_row_col = self._get_column_index("Last Row")
+        row_count_col = self._get_column_index("Row Count")
         name_col = self._get_column_index("Name")
         
         # Update ID column
@@ -225,27 +337,16 @@ class SwimlanesTab(BaseTab):
                 item.setData(Qt.UserRole, swimlane.swimlane_id)
                 self.swimlanes_table.setItem(row_idx, id_col, item)
         
-        # Update First Row column
-        if first_row_col is not None:
-            item = self.swimlanes_table.item(row_idx, first_row_col)
+        # Update Row Count column
+        if row_count_col is not None:
+            item = self.swimlanes_table.item(row_idx, row_count_col)
             if item:
-                item.setText(str(swimlane.first_row))
-                item.setData(Qt.UserRole, swimlane.first_row)
+                item.setText(str(swimlane.row_count))
+                item.setData(Qt.UserRole, swimlane.row_count)
             else:
-                item = NumericTableWidgetItem(str(swimlane.first_row))
-                item.setData(Qt.UserRole, swimlane.first_row)
-                self.swimlanes_table.setItem(row_idx, first_row_col, item)
-        
-        # Update Last Row column
-        if last_row_col is not None:
-            item = self.swimlanes_table.item(row_idx, last_row_col)
-            if item:
-                item.setText(str(swimlane.last_row))
-                item.setData(Qt.UserRole, swimlane.last_row)
-            else:
-                item = NumericTableWidgetItem(str(swimlane.last_row))
-                item.setData(Qt.UserRole, swimlane.last_row)
-                self.swimlanes_table.setItem(row_idx, last_row_col, item)
+                item = NumericTableWidgetItem(str(swimlane.row_count))
+                item.setData(Qt.UserRole, swimlane.row_count)
+                self.swimlanes_table.setItem(row_idx, row_count_col, item)
         
         # Update Name column
         if name_col is not None:
@@ -259,12 +360,12 @@ class SwimlanesTab(BaseTab):
     def _swimlane_from_table_row(self, row_idx: int) -> Optional[Swimlane]:
         """Extract a Swimlane object from a table row."""
         try:
+            # Get column indices using key-based access
             id_col = self._get_column_index("ID")
-            first_row_col = self._get_column_index("First Row")
-            last_row_col = self._get_column_index("Last Row")
+            row_count_col = self._get_column_index("Row Count")
             name_col = self._get_column_index("Name")
             
-            if id_col is None or first_row_col is None or last_row_col is None:
+            if id_col is None or row_count_col is None:
                 return None
             
             # Extract ID
@@ -275,20 +376,12 @@ class SwimlanesTab(BaseTab):
             if swimlane_id <= 0:
                 return None
             
-            # Extract First Row
-            first_row_item = self.swimlanes_table.item(row_idx, first_row_col)
-            if not first_row_item or not first_row_item.text().strip():
+            # Extract Row Count
+            row_count_item = self.swimlanes_table.item(row_idx, row_count_col)
+            if not row_count_item or not row_count_item.text().strip():
                 return None
-            first_row = safe_int(first_row_item.text())
-            if first_row <= 0:
-                return None
-            
-            # Extract Last Row
-            last_row_item = self.swimlanes_table.item(row_idx, last_row_col)
-            if not last_row_item or not last_row_item.text().strip():
-                return None
-            last_row = safe_int(last_row_item.text())
-            if last_row <= 0:
+            row_count = safe_int(row_count_item.text())
+            if row_count <= 0:
                 return None
             
             # Extract Name
@@ -300,38 +393,31 @@ class SwimlanesTab(BaseTab):
             
             return Swimlane(
                 swimlane_id=swimlane_id,
-                first_row=first_row,
-                last_row=last_row,
+                row_count=row_count,
                 name=name
             )
         except (ValueError, AttributeError, Exception) as e:
             logging.error(f"Error extracting swimlane from table row {row_idx}: {e}")
             return None
 
-    def _validate_swimlane(self, swimlane: Swimlane, existing_swimlanes: List[Swimlane]) -> List[str]:
-        """Validate a swimlane and return list of error messages."""
+    def _validate_swimlanes(self, swimlanes: List[Swimlane]) -> List[str]:
+        """Validate swimlanes and return list of error messages."""
         errors = []
         num_rows = self.project_data.frame_config.num_rows
         
-        # Check first_row <= last_row
-        if swimlane.first_row > swimlane.last_row:
-            errors.append(f"First Row ({swimlane.first_row}) must be <= Last Row ({swimlane.last_row})")
+        # Calculate total row count
+        total_row_count = sum(s.row_count for s in swimlanes)
         
-        # Check valid range (1-based row numbers)
-        if swimlane.first_row < 1 or swimlane.first_row > num_rows:
-            errors.append(f"First Row ({swimlane.first_row}) must be between 1 and {num_rows}")
-        if swimlane.last_row < 1 or swimlane.last_row > num_rows:
-            errors.append(f"Last Row ({swimlane.last_row}) must be between 1 and {num_rows}")
+        # Check total doesn't exceed num_rows
+        if total_row_count > num_rows:
+            errors.append(f"Total row count ({total_row_count}) exceeds available rows ({num_rows})")
         
-        # Check for overlaps with other swimlanes (exclude self)
-        for other in existing_swimlanes:
-            if other.swimlane_id == swimlane.swimlane_id:
-                continue  # Skip self
-            
-            # Check if ranges overlap: (first_row, last_row) overlaps with (other.first_row, other.last_row)
-            # Two ranges overlap if: first_row <= other.last_row AND last_row >= other.first_row
-            if (swimlane.first_row <= other.last_row and swimlane.last_row >= other.first_row):
-                errors.append(f"Swimlane overlaps with swimlane ID {other.swimlane_id} (rows {other.first_row}-{other.last_row})")
+        # Check each swimlane has valid row_count
+        for swimlane in swimlanes:
+            if swimlane.row_count <= 0:
+                errors.append(f"Swimlane ID {swimlane.swimlane_id}: Row Count must be greater than 0")
+            if swimlane.row_count > num_rows:
+                errors.append(f"Swimlane ID {swimlane.swimlane_id}: Row Count ({swimlane.row_count}) exceeds available rows ({num_rows})")
         
         return errors
 
@@ -341,7 +427,7 @@ class SwimlanesTab(BaseTab):
             return
         
         try:
-            # Extract Swimlane objects from table rows
+            # Extract Swimlane objects from table rows (order matters!)
             swimlanes = []
             for row_idx in range(self.swimlanes_table.rowCount()):
                 try:
@@ -353,12 +439,8 @@ class SwimlanesTab(BaseTab):
                     logging.error(f"Error extracting swimlane from row {row_idx}: {e}")
                     continue
             
-            # Validate all swimlanes for overlaps
-            validation_errors = []
-            for swimlane in swimlanes:
-                errors = self._validate_swimlane(swimlane, swimlanes)
-                if errors:
-                    validation_errors.extend([f"Swimlane ID {swimlane.swimlane_id}: {err}" for err in errors])
+            # Validate all swimlanes
+            validation_errors = self._validate_swimlanes(swimlanes)
             
             if validation_errors:
                 error_msg = "Validation errors:\n" + "\n".join(validation_errors)
@@ -366,7 +448,7 @@ class SwimlanesTab(BaseTab):
                 # Don't update project_data if validation fails
                 return
             
-            # Update project data with Swimlane objects directly
+            # Update project data with Swimlane objects directly (order is preserved)
             self.project_data.swimlanes = swimlanes
         except Exception as e:
             # Catch any unexpected exceptions during sync

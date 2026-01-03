@@ -4,19 +4,28 @@ from typing import Dict, Any
 
 @dataclass
 class Swimlane:
-    """Represents a horizontal swimlane spanning multiple rows."""
+    """Represents a horizontal swimlane spanning multiple rows.
+    
+    The swimlane's position (first_row/last_row) is determined by its order
+    in the list and the row_count of preceding swimlanes.
+    """
     swimlane_id: int
-    first_row: int  # 1-based row number (user perspective)
-    last_row: int   # 1-based row number (user perspective), inclusive
+    row_count: int  # Number of rows the swimlane spans
     name: str = ""  # Optional label displayed in bottom-right corner
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Swimlane':
         """Create Swimlane from dictionary (for JSON deserialization)."""
+        # Backward compatibility: support old first_row/last_row format
+        if "first_row" in data and "last_row" in data:
+            first_row = int(data["first_row"])
+            last_row = int(data["last_row"])
+            row_count = last_row - first_row + 1
+        else:
+            row_count = int(data.get("row_count", 1))
         return cls(
             swimlane_id=int(data["swimlane_id"]),
-            first_row=int(data["first_row"]),
-            last_row=int(data["last_row"]),
+            row_count=row_count,
             name=data.get("name", "")
         )
     
@@ -24,8 +33,7 @@ class Swimlane:
         """Convert Swimlane to dictionary (for JSON serialization)."""
         result = {
             "swimlane_id": self.swimlane_id,
-            "first_row": self.first_row,
-            "last_row": self.last_row,
+            "row_count": self.row_count,
         }
         # Only save non-default values to reduce JSON size
         if self.name:

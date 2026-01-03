@@ -248,8 +248,7 @@ class AppConfig:
                 columns=[
                     TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("ID", validator=lambda x: int(x) > 0 if x else False),
-                    TableColumnConfig("First Row", validator=lambda x: int(x) > 0 if x else False),
-                    TableColumnConfig("Last Row", validator=lambda x: int(x) > 0 if x else False),
+                    TableColumnConfig("Row Count", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Name")
                 ],
                 min_rows=0

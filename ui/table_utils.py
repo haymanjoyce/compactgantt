@@ -243,6 +243,11 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
                 item = NumericTableWidgetItem("1")  # Default row number
                 item.setData(Qt.UserRole, 1)
                 table.setItem(row_index, col_idx, item)
+            # Numeric column - check by column name for swimlanes table (Row Count)
+            elif header_text == "Row Count":
+                item = NumericTableWidgetItem("1")  # Default row count
+                item.setData(Qt.UserRole, 1)
+                table.setItem(row_index, col_idx, item)
             # Numeric column for links (From Task ID, To Task ID) - both should be editable
             elif is_links_table and header_text in ["From Task ID", "To Task ID"]:
                 item = NumericTableWidgetItem("")

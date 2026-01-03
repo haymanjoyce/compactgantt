@@ -258,14 +258,13 @@ class ExcelRepository:
     def _create_swimlanes_sheet(self, wb: Workbook, swimlanes: List[Swimlane]) -> None:
         """Create Swimlanes worksheet."""
         ws = wb.create_sheet("Swimlanes")
-        ws.append(["ID", "First Row", "Last Row", "Name"])
+        ws.append(["ID", "Row Count", "Name"])
         self._format_header_row(ws, 1)
         
         for swimlane in swimlanes:
             ws.append([
                 swimlane.swimlane_id,
-                swimlane.first_row,
-                swimlane.last_row,
+                swimlane.row_count,
                 swimlane.name if swimlane.name else ""
             ])
     
@@ -422,15 +421,19 @@ class ExcelRepository:
                 value = cell.value
                 if header == "ID":
                     swimlane_data["swimlane_id"] = int(value) if value else 0
+                elif header == "Row Count":
+                    swimlane_data["row_count"] = int(value) if value else 0
+                elif header == "Name":
+                    swimlane_data["name"] = str(value) if value else ""
+                # Backward compatibility: support old First Row/Last Row format
                 elif header == "First Row":
                     swimlane_data["first_row"] = int(value) if value else 0
                 elif header == "Last Row":
                     swimlane_data["last_row"] = int(value) if value else 0
-                elif header == "Name":
-                    swimlane_data["name"] = str(value) if value else ""
             
-            if swimlane_data.get("swimlane_id") and swimlane_data.get("first_row") and swimlane_data.get("last_row"):
+            if swimlane_data.get("swimlane_id"):
                 try:
+                    # Swimlane.from_dict() handles backward compatibility for first_row/last_row
                     swimlanes.append(Swimlane.from_dict(swimlane_data))
                 except (ValueError, KeyError) as e:
                     logging.warning(f"Skipping invalid swimlane row: {e}")
