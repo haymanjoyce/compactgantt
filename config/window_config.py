@@ -4,8 +4,8 @@ from dataclasses import dataclass
 class WindowConfig:
     """Configuration for application window sizes and positioning."""
     # Main window (data entry) settings
-    data_entry_width: int = 400
-    data_entry_height: int = 500
+    data_entry_width: int = 850  # Increased to accommodate all tabs without horizontal scrolling
+    data_entry_height: int = 600
     data_entry_screen: int = 0  # Which screen to display on (0 = primary screen)
     data_entry_x: int = 100  # X position in pixels
     data_entry_y: int = 100  # Y position in pixels

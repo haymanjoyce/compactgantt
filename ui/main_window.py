@@ -43,6 +43,15 @@ class MainWindow(QMainWindow):
         )
         self.setup_ui()
 
+    def resizeEvent(self, event):
+        """Handle window resize events - save new dimensions to config."""
+        super().resizeEvent(event)
+        # Update config with new window dimensions
+        self.app_config.general.window.data_entry_width = self.width()
+        self.app_config.general.window.data_entry_height = self.height()
+        # Save settings to persist across sessions
+        self.app_config.save_settings()
+
     def setup_ui(self):
         # Create menu bar
         self.menu_bar = self.menuBar()
