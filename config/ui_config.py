@@ -5,8 +5,8 @@ from PyQt5.QtGui import QColor
 @dataclass
 class UIConfig:
     """Configuration for UI styling and appearance."""
-    # Read-only cell background color (light gray)
-    read_only_bg_color: QColor = field(default_factory=lambda: QColor(240, 240, 240))
+    # Read-only cell background color (light gray - darker to distinguish from inactive selection)
+    read_only_bg_color: QColor = field(default_factory=lambda: QColor(220, 220, 220))
     
     # Table header border color
     table_header_border_color: str = "#c0c0c0"
