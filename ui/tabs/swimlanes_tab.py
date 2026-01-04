@@ -418,21 +418,11 @@ class SwimlanesTab(BaseTab):
     def _validate_swimlanes(self, swimlanes: List[Swimlane]) -> List[str]:
         """Validate swimlanes and return list of error messages."""
         errors = []
-        num_rows = self.project_data.frame_config.num_rows
-        
-        # Calculate total row count
-        total_row_count = sum(s.row_count for s in swimlanes)
-        
-        # Check total doesn't exceed num_rows
-        if total_row_count > num_rows:
-            errors.append(f"Total row count ({total_row_count}) exceeds available rows ({num_rows})")
         
         # Check each swimlane has valid row_count
         for swimlane in swimlanes:
             if swimlane.row_count <= 0:
                 errors.append(f"Swimlane ID {swimlane.swimlane_id}: Row Count must be greater than 0")
-            if swimlane.row_count > num_rows:
-                errors.append(f"Swimlane ID {swimlane.swimlane_id}: Row Count ({swimlane.row_count}) exceeds available rows ({num_rows})")
         
         return errors
 
