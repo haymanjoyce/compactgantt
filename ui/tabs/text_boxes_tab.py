@@ -126,6 +126,7 @@ class TextBoxesTab(BaseTab):
         self.edit_button = QPushButton("Edit")
         self.edit_button.setToolTip("Enable editing of text content")
         self.edit_button.clicked.connect(self._on_edit_clicked)
+        self.edit_button.setEnabled(False)  # Disabled until a text box is selected
         
         self.save_button = QPushButton("Save")
         self.save_button.setToolTip("Save text content changes")
@@ -170,14 +171,17 @@ class TextBoxesTab(BaseTab):
                 self.detail_text.setPlainText(textbox.text if textbox.text else "")
                 # Update group box title to show which text box is selected
                 self.detail_group.setTitle(f"Text Box {textbox.textbox_id}")
+                # Enable Edit button only when a valid text box exists
+                self.edit_button.setEnabled(True)
             else:
                 # Use defaults if textbox doesn't exist
                 self.detail_text.setPlainText("")
                 self.detail_group.setTitle("Text Box Content")
+                # Disable Edit button when no valid text box exists
+                self.edit_button.setEnabled(False)
             
             # Reset to read-only mode and button states
             self.detail_text.setReadOnly(True)
-            self.edit_button.setEnabled(True)
             self.save_button.setEnabled(False)
         finally:
             self.detail_text.blockSignals(False)
@@ -200,6 +204,10 @@ class TextBoxesTab(BaseTab):
 
     def _on_edit_clicked(self):
         """Enable editing of text content."""
+        # Safety check: only allow editing if a valid text box is selected
+        if self._selected_row is None or self._selected_row >= len(self.project_data.text_boxes):
+            return
+        
         self.detail_text.setReadOnly(False)
         self.edit_button.setEnabled(False)
         self.save_button.setEnabled(True)
@@ -315,6 +323,10 @@ class TextBoxesTab(BaseTab):
             self.text_boxes_table.sortItems(id_col, Qt.AscendingOrder)
         
         self._initializing = False
+        
+        # Clear detail form if table is empty
+        if row_count == 0:
+            self._clear_detail_form()
 
     def _update_table_row_from_textbox(self, row_idx: int, textbox: TextBox) -> None:
         """Populate a table row from a TextBox object."""
