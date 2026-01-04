@@ -1301,16 +1301,93 @@ class GanttChartService(QObject):
             prev_x = x_pos
             current_date = next_date
 
+    def _wrap_text_to_lines(self, text: str, max_width: float, font_size: int = 10) -> list:
+        """Wrap text into lines that fit within max_width, handling both explicit line breaks and word wrapping.
+        
+        Args:
+            text: The text to wrap
+            max_width: Maximum width in pixels for each line
+            font_size: Font size in pixels (default 10 for text boxes)
+            
+        Returns:
+            List of text lines that fit within max_width
+        """
+        # Create font metrics for text box font (10px Arial)
+        text_box_font = QFont("Arial", font_size)
+        text_box_font_metrics = QFontMetrics(text_box_font)
+        
+        lines = []
+        # First, split by explicit line breaks (newlines)
+        paragraphs = text.split('\n')
+        
+        for paragraph in paragraphs:
+            if not paragraph.strip():
+                # Empty line - preserve it
+                lines.append("")
+                continue
+            
+            # Word wrap this paragraph
+            words = paragraph.split()
+            current_line = ""
+            
+            for word in words:
+                # Test if adding this word would exceed max_width
+                test_line = current_line + (" " if current_line else "") + word
+                test_width = text_box_font_metrics.horizontalAdvance(test_line)
+                
+                if test_width <= max_width:
+                    # Word fits - add it to current line
+                    current_line = test_line
+                else:
+                    # Word doesn't fit
+                    if current_line:
+                        # Save current line and start new one
+                        lines.append(current_line)
+                        current_line = word
+                    else:
+                        # Single word is too long - truncate it
+                        # Find how many characters fit
+                        char_count = 0
+                        for i in range(1, len(word) + 1):
+                            if text_box_font_metrics.horizontalAdvance(word[:i]) <= max_width:
+                                char_count = i
+                            else:
+                                break
+                        if char_count > 0:
+                            lines.append(word[:char_count])
+                            # Handle remaining characters in next iteration
+                            remaining = word[char_count:]
+                            if remaining:
+                                # Recursively handle remaining part
+                                remaining_lines = self._wrap_text_to_lines(remaining, max_width, font_size)
+                                lines.extend(remaining_lines)
+                        else:
+                            # Even first character doesn't fit - add empty line and skip
+                            lines.append("")
+                        current_line = ""
+            
+            # Add remaining line if any
+            if current_line:
+                lines.append(current_line)
+        
+        return lines
+
     def render_text_boxes(self):
         """Render text boxes (rectangles with text) above all other elements.
         
         Text boxes are positioned absolutely on the chart and render last so they appear on top.
+        Supports multi-line text with word wrapping and explicit line breaks.
         """
         text_boxes = self.data.get("text_boxes", [])
         if not text_boxes:
             return
         
         logging.debug(f"Rendering {len(text_boxes)} text boxes")
+        
+        # Create font for text boxes (10px Arial)
+        text_box_font = QFont("Arial", 10)
+        text_box_font_metrics = QFontMetrics(text_box_font)
+        line_height = text_box_font_metrics.height()
         
         for textbox_data in text_boxes:
             # Convert dict to TextBox object if needed
@@ -1331,24 +1408,33 @@ class GanttChartService(QObject):
                 stroke_width=0.5
             ))
             
-            # Render text with wrapping
-            # Calculate text position (centered)
-            text_x = textbox.x + textbox.width / 2
-            text_y = textbox.y + textbox.height / 2
+            # Wrap text into lines that fit within the text box width
+            # Leave some padding (e.g., 4px on each side)
+            padding = 4
+            available_width = max(1, textbox.width - (2 * padding))
+            text_lines = self._wrap_text_to_lines(textbox.text, available_width, font_size=10)
             
-            # Create text element with wrapping
-            # SVG text doesn't support automatic wrapping, so we'll render the text
-            # and let it overflow (or we could implement manual line breaking)
-            # For now, render as single line centered
-            self.dwg.add(self.dwg.text(
-                textbox.text,
-                insert=(text_x, text_y),
-                font_size="10px",
-                font_family="Arial",
-                fill="black",
-                text_anchor="middle",
-                dominant_baseline="middle"
-            ))
+            if not text_lines:
+                continue
+            
+            # Calculate vertical positioning (center text vertically)
+            total_text_height = len(text_lines) * line_height
+            start_y = textbox.y + (textbox.height - total_text_height) / 2 + line_height * 0.75  # 0.75 for baseline adjustment
+            
+            # Render each line, centered horizontally
+            text_x = textbox.x + textbox.width / 2
+            
+            for i, line in enumerate(text_lines):
+                line_y = start_y + (i * line_height)
+                self.dwg.add(self.dwg.text(
+                    line,
+                    insert=(text_x, line_y),
+                    font_size="10px",
+                    font_family="Arial",
+                    fill="black",
+                    text_anchor="middle",
+                    dominant_baseline="auto"
+                ))
 
     def render(self):
         logging.debug("Starting render")
