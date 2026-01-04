@@ -444,7 +444,7 @@ class ExcelRepository:
     def _create_text_boxes_sheet(self, wb: Workbook, text_boxes: List[TextBox]) -> None:
         """Create Text Boxes worksheet."""
         ws = wb.create_sheet("Text Boxes")
-        ws.append(["ID", "X", "Y", "Width", "Height", "Text"])
+        ws.append(["ID", "X", "Y", "Width", "Height", "Text Align", "Vertical Align", "Text"])
         self._format_header_row(ws, 1)
         
         for textbox in text_boxes:
@@ -454,6 +454,8 @@ class ExcelRepository:
                 textbox.y,
                 textbox.width,
                 textbox.height,
+                textbox.text_align,
+                textbox.vertical_align,
                 textbox.text
             ])
     
@@ -727,6 +729,10 @@ class ExcelRepository:
                         textbox_data["width"] = int(value) if value is not None else 100
                     elif header == "Height":
                         textbox_data["height"] = int(value) if value is not None else 50
+                    elif header == "Text Align":
+                        textbox_data["text_align"] = str(value) if value is not None else "Center"
+                    elif header == "Vertical Align":
+                        textbox_data["vertical_align"] = str(value) if value is not None else "Middle"
                     elif header == "Text":
                         textbox_data["text"] = str(value) if value is not None else ""
             

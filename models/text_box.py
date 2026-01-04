@@ -11,6 +11,8 @@ class TextBox:
     width: int  # Width of text box (pixels)
     height: int  # Height of text box (pixels)
     text: str = ""  # Text content (supports wrapping)
+    text_align: str = "Center"  # Horizontal text alignment: Left, Center, Right
+    vertical_align: str = "Middle"  # Vertical text alignment: Top, Middle, Bottom
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TextBox':
@@ -36,7 +38,9 @@ class TextBox:
             y=int(data.get("y", 0)),
             width=int(data.get("width", 100)),
             height=int(data.get("height", 50)),
-            text=data.get("text", "")
+            text=data.get("text", ""),
+            text_align=data.get("text_align", "Center"),
+            vertical_align=data.get("vertical_align", "Middle")
         )
     
     def to_dict(self) -> Dict[str, Any]:
@@ -51,5 +55,9 @@ class TextBox:
         # Only save non-default values to reduce JSON size
         if self.text:
             result["text"] = self.text
+        if self.text_align != "Center":
+            result["text_align"] = self.text_align
+        if self.vertical_align != "Middle":
+            result["vertical_align"] = self.vertical_align
         return result
 

@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QWidget, QTableWidget, QVBoxLayout, QPushButton, 
                            QHBoxLayout, QHeaderView, QTableWidgetItem, 
-                           QMessageBox, QGroupBox, QSizePolicy, QLabel, QGridLayout, QPlainTextEdit)
+                           QMessageBox, QGroupBox, QSizePolicy, QLabel, QGridLayout, QPlainTextEdit, QComboBox)
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor
 from typing import List, Dict, Any, Optional
@@ -393,6 +393,40 @@ class TextBoxesTab(BaseTab):
                 item = NumericTableWidgetItem(str(textbox.height))
                 item.setData(Qt.UserRole, textbox.height)
                 self.text_boxes_table.setItem(row_idx, height_col, item)
+        
+        # Update Text Align column (combo box)
+        text_align_col = self._get_column_index("Text Align")
+        if text_align_col is not None:
+            combo = self.text_boxes_table.cellWidget(row_idx, text_align_col)
+            if combo and isinstance(combo, QComboBox):
+                # Find the index of the current value
+                index = combo.findText(textbox.text_align)
+                if index >= 0:
+                    combo.setCurrentIndex(index)
+            elif not combo:
+                # Create combo box if it doesn't exist (shouldn't happen if table_utils is used)
+                combo = QComboBox()
+                combo.addItems(["Left", "Center", "Right"])
+                combo.setCurrentText(textbox.text_align)
+                combo.currentTextChanged.connect(self._sync_data_if_not_initializing)
+                self.text_boxes_table.setCellWidget(row_idx, text_align_col, combo)
+        
+        # Update Vertical Align column (combo box)
+        vertical_align_col = self._get_column_index("Vertical Align")
+        if vertical_align_col is not None:
+            combo = self.text_boxes_table.cellWidget(row_idx, vertical_align_col)
+            if combo and isinstance(combo, QComboBox):
+                # Find the index of the current value
+                index = combo.findText(textbox.vertical_align)
+                if index >= 0:
+                    combo.setCurrentIndex(index)
+            elif not combo:
+                # Create combo box if it doesn't exist (shouldn't happen if table_utils is used)
+                combo = QComboBox()
+                combo.addItems(["Top", "Middle", "Bottom"])
+                combo.setCurrentText(textbox.vertical_align)
+                combo.currentTextChanged.connect(self._sync_data_if_not_initializing)
+                self.text_boxes_table.setCellWidget(row_idx, vertical_align_col, combo)
 
     def _textbox_from_table_row(self, row_idx: int) -> Optional[TextBox]:
         """Extract a TextBox object from a table row."""
@@ -402,6 +436,9 @@ class TextBoxesTab(BaseTab):
             y_col = self._get_column_index("Y")
             width_col = self._get_column_index("Width")
             height_col = self._get_column_index("Height")
+            
+            text_align_col = self._get_column_index("Text Align")
+            vertical_align_col = self._get_column_index("Vertical Align")
             
             if id_col is None or x_col is None or y_col is None or width_col is None or height_col is None:
                 return None
@@ -455,13 +492,39 @@ class TextBoxesTab(BaseTab):
                 if existing_textbox and existing_textbox.text:
                     text = existing_textbox.text
             
+            # Extract Text Align
+            text_align = "Center"  # Default
+            if text_align_col is not None:
+                combo = self.text_boxes_table.cellWidget(row_idx, text_align_col)
+                if combo and isinstance(combo, QComboBox):
+                    text_align = combo.currentText()
+                else:
+                    # Fallback to existing value if combo doesn't exist
+                    existing_textbox = next((tb for tb in self.project_data.text_boxes if tb.textbox_id == textbox_id), None)
+                    if existing_textbox:
+                        text_align = existing_textbox.text_align
+            
+            # Extract Vertical Align
+            vertical_align = "Middle"  # Default
+            if vertical_align_col is not None:
+                combo = self.text_boxes_table.cellWidget(row_idx, vertical_align_col)
+                if combo and isinstance(combo, QComboBox):
+                    vertical_align = combo.currentText()
+                else:
+                    # Fallback to existing value if combo doesn't exist
+                    existing_textbox = next((tb for tb in self.project_data.text_boxes if tb.textbox_id == textbox_id), None)
+                    if existing_textbox:
+                        vertical_align = existing_textbox.vertical_align
+            
             return TextBox(
                 textbox_id=textbox_id,
                 x=x,
                 y=y,
                 width=width,
                 height=height,
-                text=text
+                text=text,
+                text_align=text_align,
+                vertical_align=vertical_align
             )
         except (ValueError, AttributeError, Exception) as e:
             logging.error(f"Error extracting textbox from table row {row_idx}: {e}")

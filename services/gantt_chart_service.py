@@ -1422,13 +1422,30 @@ class GanttChartService(QObject):
             if not text_lines:
                 continue
             
-            # Calculate vertical positioning (center text vertically)
+            # Calculate horizontal alignment and text_x position
+            text_align = textbox.text_align
+            if text_align == "Left":
+                text_x = textbox.x + padding
+                text_anchor = "start"
+            elif text_align == "Right":
+                text_x = textbox.x + textbox.width - padding
+                text_anchor = "end"
+            else:  # Center (default)
+                text_x = textbox.x + textbox.width / 2
+                text_anchor = "middle"
+            
+            # Calculate vertical alignment and start_y position
+            vertical_align = textbox.vertical_align
             total_text_height = len(text_lines) * line_height
-            start_y = textbox.y + (textbox.height - total_text_height) / 2 + line_height * 0.75  # 0.75 for baseline adjustment
             
-            # Render each line, centered horizontally
-            text_x = textbox.x + textbox.width / 2
+            if vertical_align == "Top":
+                start_y = textbox.y + padding + line_height * 0.75  # 0.75 for baseline adjustment
+            elif vertical_align == "Bottom":
+                start_y = textbox.y + textbox.height - total_text_height - padding + line_height * 0.75
+            else:  # Middle (default)
+                start_y = textbox.y + (textbox.height - total_text_height) / 2 + line_height * 0.75
             
+            # Render each line
             for i, line in enumerate(text_lines):
                 line_y = start_y + (i * line_height)
                 self.dwg.add(self.dwg.text(
@@ -1437,7 +1454,7 @@ class GanttChartService(QObject):
                     font_size="10px",
                     font_family="Arial",
                     fill="black",
-                    text_anchor="middle",
+                    text_anchor=text_anchor,
                     dominant_baseline="auto"
                 ))
 

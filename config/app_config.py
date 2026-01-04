@@ -282,7 +282,9 @@ class AppConfig:
                     TableColumnConfig("X", validator=lambda x: int(x) >= 0 if x else False),
                     TableColumnConfig("Y", validator=lambda x: int(x) >= 0 if x else False),
                     TableColumnConfig("Width", validator=lambda x: int(x) > 0 if x else False),
-                    TableColumnConfig("Height", validator=lambda x: int(x) > 0 if x else False)
+                    TableColumnConfig("Height", validator=lambda x: int(x) > 0 if x else False),
+                    TableColumnConfig("Text Align", widget_type="combo", combo_items=["Left", "Center", "Right"], default_value="Center"),
+                    TableColumnConfig("Vertical Align", widget_type="combo", combo_items=["Top", "Middle", "Bottom"], default_value="Middle")
                 ],
                 min_rows=0
             )
