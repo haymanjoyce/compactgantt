@@ -114,11 +114,7 @@ class TextBoxesTab(BaseTab):
         layout.setVerticalSpacing(5)
         layout.setContentsMargins(10, 10, 10, 10)
         
-        LABEL_WIDTH = 120
-        
-        # Text (large text area) - read-only by default
-        text_label = QLabel("Text:")
-        text_label.setFixedWidth(LABEL_WIDTH)
+        # Text (large text area) - read-only by default, spans full width
         self.detail_text = QPlainTextEdit()
         self.detail_text.setToolTip("Text content for the text box (supports text wrapping)")
         self.detail_text.setMinimumHeight(100)
@@ -140,10 +136,9 @@ class TextBoxesTab(BaseTab):
         button_layout.addWidget(self.save_button)
         button_layout.addStretch()
         
-        layout.addWidget(text_label, 0, 0)
-        layout.addWidget(self.detail_text, 0, 1)
-        layout.addLayout(button_layout, 1, 1)  # Buttons below text area
-        layout.setColumnStretch(1, 1)
+        layout.addWidget(self.detail_text, 0, 0)  # Text area spans full width
+        layout.addLayout(button_layout, 1, 0)  # Buttons below text area
+        layout.setColumnStretch(0, 1)  # Make column 0 stretch
         layout.setRowStretch(0, 1)  # Allow text area to expand vertically
         
         group.setLayout(layout)

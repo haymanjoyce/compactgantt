@@ -56,6 +56,7 @@ class ProjectData:
         pipes_data = [pipe.to_dict() for pipe in self.pipes]
         curtains_data = [curtain.to_dict() for curtain in self.curtains]
         swimlanes_data = [swimlane.to_dict() for swimlane in self.swimlanes]
+        text_boxes_data = [textbox.to_dict() for textbox in self.text_boxes]
         
         return {
             "frame_config": vars(self.frame_config),
@@ -64,7 +65,7 @@ class ProjectData:
             "swimlanes": swimlanes_data,
             "pipes": pipes_data,
             "curtains": curtains_data,
-            "text_boxes": self.text_boxes
+            "text_boxes": text_boxes_data
         }
 
     @classmethod
