@@ -8,7 +8,7 @@ import logging
 from ui.table_utils import NumericTableWidgetItem, add_row, remove_row, CheckBoxWidget
 from .base_tab import BaseTab
 from models.text_box import TextBox
-from utils.conversion import safe_int, safe_float
+from utils.conversion import safe_int
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -275,8 +275,8 @@ class TextBoxesTab(BaseTab):
                     val_str = item.text().strip()
                     if val_str:
                         try:
-                            val_float = float(val_str)
-                            item.setData(Qt.UserRole, val_float)
+                            val_int = int(val_str)
+                            item.setData(Qt.UserRole, val_int)
                         except ValueError:
                             # Invalid numeric format - set UserRole to None
                             item.setData(Qt.UserRole, None)
@@ -418,7 +418,7 @@ class TextBoxesTab(BaseTab):
             x_item = self.text_boxes_table.item(row_idx, x_col)
             if not x_item or not x_item.text().strip():
                 return None
-            x = safe_float(x_item.text())
+            x = safe_int(x_item.text())
             if x is None or x < 0:
                 return None
             
@@ -426,7 +426,7 @@ class TextBoxesTab(BaseTab):
             y_item = self.text_boxes_table.item(row_idx, y_col)
             if not y_item or not y_item.text().strip():
                 return None
-            y = safe_float(y_item.text())
+            y = safe_int(y_item.text())
             if y is None or y < 0:
                 return None
             
@@ -434,7 +434,7 @@ class TextBoxesTab(BaseTab):
             width_item = self.text_boxes_table.item(row_idx, width_col)
             if not width_item or not width_item.text().strip():
                 return None
-            width = safe_float(width_item.text())
+            width = safe_int(width_item.text())
             if width is None or width <= 0:
                 return None
             
@@ -442,7 +442,7 @@ class TextBoxesTab(BaseTab):
             height_item = self.text_boxes_table.item(row_idx, height_col)
             if not height_item or not height_item.text().strip():
                 return None
-            height = safe_float(height_item.text())
+            height = safe_int(height_item.text())
             if height is None or height <= 0:
                 return None
             

@@ -720,13 +720,13 @@ class ExcelRepository:
                     if header == "ID":
                         textbox_data["textbox_id"] = int(value) if value is not None else 0
                     elif header == "X":
-                        textbox_data["x"] = float(value) if value is not None else 0.0
+                        textbox_data["x"] = int(value) if value is not None else 0
                     elif header == "Y":
-                        textbox_data["y"] = float(value) if value is not None else 0.0
+                        textbox_data["y"] = int(value) if value is not None else 0
                     elif header == "Width":
-                        textbox_data["width"] = float(value) if value is not None else 100.0
+                        textbox_data["width"] = int(value) if value is not None else 100
                     elif header == "Height":
-                        textbox_data["height"] = float(value) if value is not None else 50.0
+                        textbox_data["height"] = int(value) if value is not None else 50
                     elif header == "Text":
                         textbox_data["text"] = str(value) if value is not None else ""
             

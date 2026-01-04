@@ -279,10 +279,10 @@ class AppConfig:
                 columns=[
                     TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("ID", validator=lambda x: int(x) > 0 if x else False),
-                    TableColumnConfig("X", validator=lambda x: float(x) >= 0 if x else False),
-                    TableColumnConfig("Y", validator=lambda x: float(x) >= 0 if x else False),
-                    TableColumnConfig("Width", validator=lambda x: float(x) > 0 if x else False),
-                    TableColumnConfig("Height", validator=lambda x: float(x) > 0 if x else False)
+                    TableColumnConfig("X", validator=lambda x: int(x) >= 0 if x else False),
+                    TableColumnConfig("Y", validator=lambda x: int(x) >= 0 if x else False),
+                    TableColumnConfig("Width", validator=lambda x: int(x) > 0 if x else False),
+                    TableColumnConfig("Height", validator=lambda x: int(x) > 0 if x else False)
                 ],
                 min_rows=0
             )

@@ -6,10 +6,10 @@ from typing import Dict, Any
 class TextBox:
     """Represents a text box that can be positioned anywhere on the chart."""
     textbox_id: int
-    x: float  # X coordinate relative to chart area origin (pixels)
-    y: float  # Y coordinate relative to chart area origin (pixels)
-    width: float  # Width of text box (pixels)
-    height: float  # Height of text box (pixels)
+    x: int  # X coordinate relative to chart area origin (pixels)
+    y: int  # Y coordinate relative to chart area origin (pixels)
+    width: int  # Width of text box (pixels)
+    height: int  # Height of text box (pixels)
     text: str = ""  # Text content (supports wrapping)
     
     @classmethod
@@ -21,21 +21,21 @@ class TextBox:
             if len(data) >= 3:
                 return cls(
                     textbox_id=0,  # No ID in old format
-                    x=float(data[1]) if data[1] else 0.0,
-                    y=float(data[2]) if data[2] else 0.0,
-                    width=100.0,  # Default width
-                    height=50.0,  # Default height
+                    x=int(float(data[1])) if data[1] else 0,  # Convert float to int for backward compatibility
+                    y=int(float(data[2])) if data[2] else 0,  # Convert float to int for backward compatibility
+                    width=100,  # Default width
+                    height=50,  # Default height
                     text=str(data[0]) if data[0] else ""
                 )
             else:
-                return cls(textbox_id=0, x=0.0, y=0.0, width=100.0, height=50.0, text="")
+                return cls(textbox_id=0, x=0, y=0, width=100, height=50, text="")
         
         return cls(
             textbox_id=int(data["textbox_id"]),
-            x=float(data.get("x", 0.0)),
-            y=float(data.get("y", 0.0)),
-            width=float(data.get("width", 100.0)),
-            height=float(data.get("height", 50.0)),
+            x=int(data.get("x", 0)),
+            y=int(data.get("y", 0)),
+            width=int(data.get("width", 100)),
+            height=int(data.get("height", 50)),
             text=data.get("text", "")
         )
     
