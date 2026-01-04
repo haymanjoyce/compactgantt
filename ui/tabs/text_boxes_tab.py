@@ -15,8 +15,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class TextBoxesTab(BaseTab):
     data_updated = pyqtSignal(dict)
     
-    # Read-only cell background color (light gray)
-    READ_ONLY_BG = QColor(240, 240, 240)
 
     def __init__(self, project_data, app_config):
         self.table_config = app_config.get_table_config("text_boxes")
@@ -67,14 +65,7 @@ class TextBoxesTab(BaseTab):
         self.text_boxes_table.verticalHeader().setVisible(False)
         
         # Add bottom border to header row
-        self.text_boxes_table.setStyleSheet("""
-            QHeaderView::section {
-                border-bottom: 1px solid #c0c0c0;
-                border-top: none;
-                border-left: none;
-                border-right: none;
-            }
-        """)
+        self.text_boxes_table.setStyleSheet(self.app_config.general.table_header_stylesheet)
         
         # Column sizing
         header = self.text_boxes_table.horizontalHeader()
@@ -346,7 +337,7 @@ class TextBoxesTab(BaseTab):
             else:
                 item = NumericTableWidgetItem(str(textbox.textbox_id))
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                item.setBackground(QBrush(self.READ_ONLY_BG))
+                item.setBackground(QBrush(self.app_config.general.read_only_bg_color))
                 item.setData(Qt.UserRole, textbox.textbox_id)
                 self.text_boxes_table.setItem(row_idx, id_col, item)
         

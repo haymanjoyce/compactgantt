@@ -9,8 +9,6 @@ import logging
 from utils.conversion import normalize_display_date, safe_int, display_to_internal_date, internal_to_display_date
 from models import Task
 
-# Read-only cell background color (light gray)
-READ_ONLY_BG = QColor(240, 240, 240)
 from ui.table_utils import NumericTableWidgetItem, DateTableWidgetItem, add_row, remove_row, CheckBoxWidget, highlight_table_errors, extract_table_data
 from .base_tab import BaseTab
 
@@ -83,14 +81,7 @@ class TasksTab(BaseTab):
         self.tasks_table.verticalHeader().setVisible(False)
         
         # Add bottom border to header row
-        self.tasks_table.setStyleSheet("""
-            QHeaderView::section {
-                border-bottom: 1px solid #c0c0c0;
-                border-top: none;
-                border-left: none;
-                border-right: none;
-            }
-        """)
+        self.tasks_table.setStyleSheet(self.app_config.general.table_header_stylesheet)
         
         # Column sizing
         header = self.tasks_table.horizontalHeader()
@@ -402,7 +393,7 @@ class TasksTab(BaseTab):
                 else:
                     item = NumericTableWidgetItem(str(task.task_id))
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                    item.setBackground(QBrush(READ_ONLY_BG))
+                    item.setBackground(QBrush(self.app_config.general.read_only_bg_color))
                     item.setData(Qt.UserRole, task.task_id)
                     self.tasks_table.setItem(row_idx, id_vis_col, item)
             
@@ -490,7 +481,7 @@ class TasksTab(BaseTab):
                 else:
                     item = QTableWidgetItem(valid_status)
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                    item.setBackground(QBrush(READ_ONLY_BG))
+                    item.setBackground(QBrush(self.app_config.general.read_only_bg_color))
                     self.tasks_table.setItem(row_idx, valid_vis_col, item)
         finally:
             self.tasks_table.blockSignals(was_blocked)
@@ -596,7 +587,7 @@ class TasksTab(BaseTab):
                 logging.debug("_on_item_changed: Processing Task ID column")
                 # Ensure Task ID is read-only with gray background
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                item.setBackground(QBrush(READ_ONLY_BG))  # Gray background
+                item.setBackground(QBrush(self.app_config.general.read_only_bg_color))  # Gray background
                 try:
                     val_str = item.text().strip()
                     item.setData(Qt.UserRole, int(val_str) if val_str else 0)
@@ -738,14 +729,14 @@ class TasksTab(BaseTab):
                 item = self.tasks_table.item(row, id_col_vis_idx)
                 if item:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                    item.setBackground(QBrush(READ_ONLY_BG))
+                    item.setBackground(QBrush(self.app_config.general.read_only_bg_color))
         
         if valid_col_vis_idx is not None:
             for row in range(self.tasks_table.rowCount()):
                 item = self.tasks_table.item(row, valid_col_vis_idx)
                 if item:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                    item.setBackground(QBrush(READ_ONLY_BG))
+                    item.setBackground(QBrush(self.app_config.general.read_only_bg_color))
 
     def _update_valid_column_only(self):
         """Update only the Valid column without reloading the entire table."""
@@ -822,7 +813,7 @@ class TasksTab(BaseTab):
                         else:
                             item = QTableWidgetItem(str(valid_status))
                             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                            item.setBackground(QBrush(READ_ONLY_BG))
+                            item.setBackground(QBrush(self.app_config.general.read_only_bg_color))
                             self.tasks_table.setItem(row_idx, valid_col_vis_idx, item)
                 finally:
                     # Reconnect itemChanged signal

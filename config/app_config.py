@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import List, Dict, Callable, Any, Tuple, Optional
 from PyQt5.QtCore import QDate
+from PyQt5.QtGui import QColor
 import logging
 import json
 import os
@@ -9,14 +10,16 @@ from pathlib import Path
 from utils.conversion import internal_to_display_date, display_to_internal_date, is_valid_display_date
 from config.window_config import WindowConfig
 from config.chart_config import ChartConfig
+from config.ui_config import UIConfig
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 @dataclass
 class GeneralConfig:
-    """General configuration that composes window and chart configs for backward compatibility."""
+    """General configuration that composes window, chart, and UI configs for backward compatibility."""
     window: WindowConfig = field(default_factory=WindowConfig)
     chart: ChartConfig = field(default_factory=ChartConfig)
+    ui: UIConfig = field(default_factory=UIConfig)
 
     # Backward compatibility properties - delegate to window and chart configs
     @property
@@ -182,6 +185,14 @@ class GeneralConfig:
     @property
     def frame_border_color(self) -> str:
         return self.chart.frame_border_color
+    
+    @property
+    def read_only_bg_color(self) -> QColor:
+        return self.ui.read_only_bg_color
+    
+    @property
+    def table_header_stylesheet(self) -> str:
+        return self.ui.table_header_stylesheet
 
 @dataclass
 class TableColumnConfig:

@@ -16,8 +16,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class PipesTab(BaseTab):
     data_updated = pyqtSignal(dict)
     
-    # Read-only cell background color (light gray)
-    READ_ONLY_BG = QColor(240, 240, 240)
 
     def __init__(self, project_data, app_config):
         self.table_config = app_config.get_table_config("pipes")
@@ -68,14 +66,7 @@ class PipesTab(BaseTab):
         self.pipes_table.verticalHeader().setVisible(False)
         
         # Add bottom border to header row
-        self.pipes_table.setStyleSheet("""
-            QHeaderView::section {
-                border-bottom: 1px solid #c0c0c0;
-                border-top: none;
-                border-left: none;
-                border-right: none;
-            }
-        """)
+        self.pipes_table.setStyleSheet(self.app_config.general.table_header_stylesheet)
         
         # Column sizing
         header = self.pipes_table.horizontalHeader()
@@ -295,7 +286,7 @@ class PipesTab(BaseTab):
             else:
                 item = NumericTableWidgetItem(str(pipe.pipe_id))
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                item.setBackground(QBrush(self.READ_ONLY_BG))
+                item.setBackground(QBrush(self.app_config.general.read_only_bg_color))
                 item.setData(Qt.UserRole, pipe.pipe_id)
                 self.pipes_table.setItem(row_idx, id_col, item)
         

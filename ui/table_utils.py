@@ -3,9 +3,11 @@ from PyQt5.QtCore import Qt, QDate
 from PyQt5.QtGui import QBrush, QColor
 from datetime import datetime
 import logging
+from config.ui_config import UIConfig
 
-# Read-only cell background color (light gray)
-READ_ONLY_BG = QColor(240, 240, 240)
+# Read-only cell background color (light gray) - centralized in UIConfig
+_ui_config = UIConfig()
+READ_ONLY_BG = _ui_config.read_only_bg_color
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
