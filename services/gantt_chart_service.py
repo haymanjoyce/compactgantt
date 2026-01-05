@@ -90,6 +90,12 @@ class GanttChartService(QObject):
         margins = self._get_frame_config("margins", (10, 10, 10, 10))
         width = self._get_frame_config("outer_width", self.config.general.outer_width) - margins[1] - margins[3]
         height = self._get_frame_config("header_height", 20)
+        
+        # Skip rendering if height is 0
+        if height <= 0:
+            logging.debug("Header skipped (height is 0)")
+            return
+        
         self.dwg.add(self.dwg.rect(insert=(margins[3], margins[0]), size=(width, height),
                                    fill="lightgrey", 
                                    stroke=self.config.general.frame_border_color, 
@@ -106,6 +112,12 @@ class GanttChartService(QObject):
         margins = self._get_frame_config("margins", (10, 10, 10, 10))
         width = self._get_frame_config("outer_width", self.config.general.outer_width) - margins[1] - margins[3]
         height = self._get_frame_config("footer_height", 20)
+        
+        # Skip rendering if height is 0
+        if height <= 0:
+            logging.debug("Footer skipped (height is 0)")
+            return
+        
         y = self._get_frame_config("outer_height", self.config.general.outer_height) - margins[2] - height
         self.dwg.add(self.dwg.rect(insert=(margins[3], y), size=(width, height),
                                    fill="lightgrey", 
@@ -1180,6 +1192,22 @@ class GanttChartService(QObject):
         self.dwg.add(self.dwg.line((x + width, row_y), (x + width, row_y + row_frame_height),
                                    stroke=self.config.general.frame_border_color,
                                    stroke_width=self.config.general.frame_border_width_light))
+        
+        # Conditionally add top border if header is 0 and no scales are shown
+        header_height = self._get_frame_config("header_height", 20)
+        if header_height <= 0 and len(scale_configs) == 0:
+            # Draw top border
+            self.dwg.add(self.dwg.line((x, row_y), (x + width, row_y),
+                                       stroke=self.config.general.frame_border_color,
+                                       stroke_width=self.config.general.frame_border_width_light))
+        
+        # Conditionally add bottom border if footer is 0
+        footer_height = self._get_frame_config("footer_height", 20)
+        if footer_height <= 0:
+            # Draw bottom border
+            self.dwg.add(self.dwg.line((x, row_y + row_frame_height), (x + width, row_y + row_frame_height),
+                                       stroke=self.config.general.frame_border_color,
+                                       stroke_width=self.config.general.frame_border_width_light))
 
         if self._get_frame_config("horizontal_gridlines", False):
             for i in range(1, num_rows):  # Exclude first and last to avoid overlapping row frame border

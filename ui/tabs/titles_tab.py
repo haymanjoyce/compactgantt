@@ -35,7 +35,7 @@ class TitlesTab(BaseTab):
         header_height_label = QLabel("Header Height:")
         header_height_label.setFixedWidth(label_width)
         self.header_height = QLineEdit("20")
-        self.header_height.setToolTip("Height of the header section in pixels")
+        self.header_height.setToolTip("Height of the header section in pixels (0 to hide header)")
 
         # Header text
         header_text_label = QLabel("Header Text:")
@@ -61,7 +61,7 @@ class TitlesTab(BaseTab):
         footer_height_label = QLabel("Footer Height:")
         footer_height_label.setFixedWidth(label_width)
         self.footer_height = QLineEdit("20")
-        self.footer_height.setToolTip("Height of the footer section in pixels")
+        self.footer_height.setToolTip("Height of the footer section in pixels (0 to hide footer)")
 
         # Footer text
         footer_text_label = QLabel("Footer Text:")
@@ -110,10 +110,10 @@ class TitlesTab(BaseTab):
 
         for field_name, value in numeric_fields.items():
             try:
-                if not value.strip() or int(value) <= 0:
-                    raise ValueError(f"{field_name.replace('_', ' ').title()} must be a positive number")
+                if not value.strip() or int(value) < 0:
+                    raise ValueError(f"{field_name.replace('_', ' ').title()} must be a non-negative number")
             except ValueError as e:
-                if "must be a positive number" not in str(e):
+                if "must be a" not in str(e):
                     raise ValueError(f"{field_name.replace('_', ' ').title()} must be a valid number")
                 raise
 
