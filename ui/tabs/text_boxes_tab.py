@@ -76,6 +76,11 @@ class TextBoxesTab(BaseTab):
         header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Y
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Width
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Height
+        # Text Align and Vertical Align columns use ResizeToContents (handled by table_utils)
+        # Text Preview column (last column) uses Stretch to take remaining width
+        text_preview_col = self._get_column_index("Text Preview")
+        if text_preview_col is not None:
+            header.setSectionResizeMode(text_preview_col, QHeaderView.Stretch)  # Text Preview
         
         # Enable horizontal scroll bar
         self.text_boxes_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -209,6 +214,11 @@ class TextBoxesTab(BaseTab):
         # Sync the data
         self._sync_data_if_not_initializing()
         
+        # Update Text Preview column in table after saving text
+        if self._selected_row is not None and self._selected_row < len(self.project_data.text_boxes):
+            textbox = self.project_data.text_boxes[self._selected_row]
+            self._update_table_row_from_textbox(self._selected_row, textbox)
+        
         # Return to read-only mode
         self.detail_text.setReadOnly(True)
         self.edit_button.setEnabled(True)
@@ -224,6 +234,14 @@ class TextBoxesTab(BaseTab):
             if col_config.name == column_name:
                 return idx
         return None
+    
+    def _truncate_text(self, text: str, max_length: int = 80) -> str:
+        """Truncate text to max_length and add ellipsis if needed."""
+        if not text:
+            return ""
+        if len(text) <= max_length:
+            return text
+        return text[:max_length - 3] + "..."
     
     def _get_column_name_from_item(self, item) -> Optional[str]:
         """Get the column name (key) from a table item."""
@@ -256,8 +274,8 @@ class TextBoxesTab(BaseTab):
             if col_name is None:
                 return
             
-            # Don't trigger sync for ID column changes (it's read-only)
-            if col_name == "ID":
+            # Don't trigger sync for read-only columns (ID, Text Preview)
+            if col_name in ["ID", "Text Preview"]:
                 return
             
             # Update UserRole for numeric columns (X, Y, Width, Height)
@@ -418,6 +436,22 @@ class TextBoxesTab(BaseTab):
                 combo.setCurrentText(textbox.vertical_align)
                 combo.currentTextChanged.connect(self._sync_data_if_not_initializing)
                 self.text_boxes_table.setCellWidget(row_idx, vertical_align_col, combo)
+        
+        # Update Text Preview column (read-only, truncated text)
+        text_preview_col = self._get_column_index("Text Preview")
+        if text_preview_col is not None:
+            full_text = textbox.text if textbox.text else ""
+            display_text = self._truncate_text(full_text)
+            item = self.text_boxes_table.item(row_idx, text_preview_col)
+            if item:
+                item.setText(display_text)
+                item.setToolTip(full_text)  # Show full text in tooltip
+            else:
+                item = QTableWidgetItem(display_text)
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Read-only
+                item.setBackground(QBrush(self.app_config.general.read_only_bg_color))
+                item.setToolTip(full_text)  # Show full text in tooltip
+                self.text_boxes_table.setItem(row_idx, text_preview_col, item)
 
     def _textbox_from_table_row(self, row_idx: int) -> Optional[TextBox]:
         """Extract a TextBox object from a table row."""

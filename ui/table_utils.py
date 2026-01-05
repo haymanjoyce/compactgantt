@@ -270,6 +270,12 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
                 item.setBackground(QBrush(READ_ONLY_BG))  # Gray background
                 table.setItem(row_index, col_idx, item)
+            # Text Preview column for text boxes - read-only text
+            elif header_text == "Text Preview":
+                item = QTableWidgetItem("")
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
+                item.setBackground(QBrush(READ_ONLY_BG))  # Gray background
+                table.setItem(row_index, col_idx, item)
             # Numeric column (optional: check for numeric type)
             elif col_config and getattr(col_config, "widget_type", None) == "numeric":
                 item = NumericTableWidgetItem("")
