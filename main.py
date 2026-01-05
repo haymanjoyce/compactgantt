@@ -18,9 +18,9 @@ def main():
     app.setWindowIcon(QIcon(str(icon_path)))
     app_config = AppConfig()  # Single instance
     project_data = ProjectData()
-    gantt_chart_service = GanttChartService()
+    gantt_chart_service = GanttChartService(app_config)  # Pass the shared instance
     svg_display = SvgDisplay(app_config)
-    data_entry = MainWindow(project_data, svg_display)  # Pass project_data and svg_display
+    data_entry = MainWindow(project_data, svg_display, app_config)  # Pass project_data, svg_display, and app_config
 
     def handle_svg_path(svg_path):
         if svg_path:

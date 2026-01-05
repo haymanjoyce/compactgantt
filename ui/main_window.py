@@ -19,18 +19,19 @@ from .tabs.titles_tab import TitlesTab
 from .tabs.timeline_tab import TimelineTab
 from .tabs.swimlanes_tab import SwimlanesTab
 from .tabs.text_boxes_tab import TextBoxesTab
+from .tabs.typography_tab import TypographyTab
 
 class MainWindow(QMainWindow):
     data_updated = pyqtSignal(dict)
 
-    def __init__(self, project_data, svg_display=None):
+    def __init__(self, project_data, svg_display=None, app_config=None):
         super().__init__()
         self.setWindowTitle("Compact Gantt | Chart Data Window")
         # Use ICO so Windows title bar matches taskbar icon
         self.setWindowIcon(QIcon("assets/favicon.ico"))
         self.setMinimumSize(600, 700)
         self.project_data = project_data  # Use passed project_data instance
-        self.app_config = AppConfig()  # Initialize centralized config
+        self.app_config = app_config if app_config else AppConfig()  # Use passed instance or create new
         self.repository = ProjectRepository()
         self.excel_repository = ExcelRepository()
         self.svg_display = svg_display  # Reference to SVG display window
@@ -122,6 +123,7 @@ class MainWindow(QMainWindow):
         self.pipes_tab = PipesTab(self.project_data, self.app_config)
         self.curtains_tab = CurtainsTab(self.project_data, self.app_config)
         self.text_boxes_tab = TextBoxesTab(self.project_data, self.app_config)
+        self.typography_tab = TypographyTab(self.project_data, self.app_config)
 
     def _add_all_tabs(self):
         self.tab_widget.addTab(self.windows_tab, "Windows")
@@ -134,6 +136,7 @@ class MainWindow(QMainWindow):
         self.tab_widget.addTab(self.pipes_tab, "Pipes")
         self.tab_widget.addTab(self.curtains_tab, "Curtains")
         self.tab_widget.addTab(self.text_boxes_tab, "Text Boxes")
+        self.tab_widget.addTab(self.typography_tab, "Typography")
 
     def save_to_json(self):
         # Use last directory if available, otherwise use empty string (current directory)
@@ -247,6 +250,8 @@ class MainWindow(QMainWindow):
                 self.curtains_tab._sync_data()
             if hasattr(self.text_boxes_tab, '_sync_data'):
                 self.text_boxes_tab._sync_data()
+            if hasattr(self.typography_tab, '_sync_data'):
+                self.typography_tab._sync_data()
         except Exception as e:
             logging.error(f"Error syncing tab data: {e}", exc_info=True)
             # Continue anyway - emit with whatever data we have

@@ -18,14 +18,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class GanttChartService(QObject):
     svg_generated = pyqtSignal(str)
 
-    def __init__(self, output_folder: str = None, output_filename: str = None):
+    def __init__(self, app_config=None, output_folder: str = None, output_filename: str = None):
         super().__init__()
-        self.config = AppConfig()
+        self.config = app_config if app_config else AppConfig()  # Use passed instance or create new
         self.output_folder = output_folder or self.config.general.svg_output_folder
         self.output_filename = output_filename or self.config.general.svg_output_filename
         self.dwg = None
         self.data = {"frame_config": {}, "tasks": []}
-        self.font = QFont("Arial", self.config.general.task_font_size)
+        self.font = QFont(self.config.general.font_family, self.config.general.task_font_size)
         self.font_metrics = QFontMetrics(self.font)
         logging.debug("GanttChartService initialized")
 
@@ -36,6 +36,9 @@ class GanttChartService(QObject):
     @pyqtSlot(dict)
     def generate_svg(self, data):
         logging.debug("Starting generate_svg")
+        # Update font and font_metrics to use current config values
+        self.font = QFont(self.config.general.font_family, self.config.general.task_font_size)
+        self.font_metrics = QFontMetrics(self.font)
         if not data or "frame_config" not in data:
             logging.warning("Skipping SVG generation: Invalid or empty data")
             self.svg_generated.emit("")
@@ -102,10 +105,10 @@ class GanttChartService(QObject):
                                    stroke_width=self.config.general.frame_border_width_light))
         header_text = self._get_frame_config("header_text", "")
         if header_text:
-            header_y = margins[0] + height * self.config.general.text_vertical_alignment_factor
+            header_y = margins[0] + height * self.config.general.header_footer_vertical_alignment_factor
             self.dwg.add(self.dwg.text(header_text,
                                        insert=(margins[3] + width / 2, header_y),
-                                       text_anchor="middle", font_size=str(self.config.general.header_footer_font_size), dominant_baseline="middle"))
+                                       text_anchor="middle", font_size=str(self.config.general.header_footer_font_size), font_family=self.config.general.font_family, dominant_baseline="middle"))
         logging.debug("Header rendered")
 
     def render_footer(self):
@@ -125,10 +128,10 @@ class GanttChartService(QObject):
                                    stroke_width=self.config.general.frame_border_width_light))
         footer_text = self._get_frame_config("footer_text", "")
         if footer_text:
-            footer_y = y + height * self.config.general.text_vertical_alignment_factor
+            footer_y = y + height * self.config.general.header_footer_vertical_alignment_factor
             self.dwg.add(self.dwg.text(footer_text,
                                        insert=(margins[3] + width / 2, footer_y),
-                                       text_anchor="middle", font_size=str(self.config.general.header_footer_font_size), dominant_baseline="middle"))
+                                       text_anchor="middle", font_size=str(self.config.general.header_footer_font_size), font_family=self.config.general.font_family, dominant_baseline="middle"))
         logging.debug("Footer rendered")
 
     def render_inner_frame(self):
@@ -236,7 +239,7 @@ class GanttChartService(QObject):
         text_color = self._get_inside_label_text_color(fill_color)
         logging.debug(f"_render_inside_label: text='{task_name_display}', x={label_x}, y={label_y_base}, width={width_task}, fill_color={fill_color}, text_color={text_color}, original_text='{task_name}'")
         self.dwg.add(self.dwg.text(task_name_display, insert=(label_x, label_y_base),
-                                   font_size=str(self.config.general.task_font_size), font_family="Arial", fill=text_color,
+                                   font_size=str(self.config.general.task_font_size), font_family=self.config.general.font_family, fill=text_color,
                                    text_anchor="middle", dominant_baseline="middle"))
         logging.debug(f"  Text element added to SVG at position ({label_x}, {label_y_base})")
 
@@ -261,7 +264,7 @@ class GanttChartService(QObject):
         
         # Render label text
         self.dwg.add(self.dwg.text(task_name, insert=(label_x, label_y_base), 
-                                   font_size=str(self.config.general.task_font_size), font_family="Arial", fill="black",
+                                   font_size=str(self.config.general.task_font_size), font_family=self.config.general.font_family, fill="black",
                                    text_anchor="start", dominant_baseline="middle"))
         
         # Render leader line only if user offset > 0
@@ -357,7 +360,7 @@ class GanttChartService(QObject):
                 
                 if not label_hide and label_placement == "Outside":
                     # Use proportional positioning: center_y is at row_height * 0.5, apply factor to row_height
-                    label_y_base = y_task + row_height * self.config.general.text_vertical_alignment_factor
+                    label_y_base = y_task + row_height * self.config.general.row_based_vertical_alignment_factor
                     milestone_right = center_x + half_size
                     self._render_outside_label(task_name, milestone_right, center_y, label_y_base, label_horizontal_offset)
             else:
@@ -372,8 +375,8 @@ class GanttChartService(QObject):
                     
                     if not label_hide:
                         # Use proportional positioning within task bar
-                        label_y_base = rect_y + task_height * self.config.general.text_vertical_alignment_factor
-                        logging.debug(f"  Calculated label_y_base={label_y_base} for task '{task_name}' (rect_y={rect_y}, task_height={task_height}, alignment_factor={self.config.general.text_vertical_alignment_factor})")
+                        label_y_base = rect_y + task_height * self.config.general.row_based_vertical_alignment_factor
+                        logging.debug(f"  Calculated label_y_base={label_y_base} for task '{task_name}' (rect_y={rect_y}, task_height={task_height}, alignment_factor={self.config.general.row_based_vertical_alignment_factor})")
                         
                         if label_placement == "Inside":
                             # Simple inside label rendering - no multi-time-frame logic needed
@@ -540,7 +543,7 @@ class GanttChartService(QObject):
                         text_anchor="start",
                         dominant_baseline="middle",
                         font_size=str(self.config.general.task_font_size),
-                        font_family="Arial",
+                        font_family=self.config.general.font_family,
                         fill=pipe.color if pipe.color else "red"
                     ))
 
@@ -620,7 +623,7 @@ class GanttChartService(QObject):
                     insert=(label_x, label_y),
                     fill="grey",
                     font_size="14px",
-                    font_family="Arial, sans-serif",
+                    font_family=f"{self.config.general.font_family}, sans-serif",
                     text_anchor="end",
                     dominant_baseline="auto"
                 )
@@ -715,7 +718,7 @@ class GanttChartService(QObject):
                     text_anchor="start",
                     dominant_baseline="middle",
                     font_size=str(self.config.general.task_font_size),
-                    font_family="Arial",
+                    font_family=self.config.general.font_family,
                     fill=curtain.color if curtain.color else "red"
                 ))
 
@@ -1220,7 +1223,7 @@ class GanttChartService(QObject):
             for i in range(num_rows):
                 # Calculate Y position using the same alignment factor as scales
                 row_top = row_y + i * row_height
-                row_center_y = row_top + row_height * self.config.general.text_vertical_alignment_factor
+                row_center_y = row_top + row_height * self.config.general.row_based_vertical_alignment_factor
                 # Position text 5px from left edge
                 text_x = x + 5
                 # Create text element with grey color
@@ -1228,8 +1231,8 @@ class GanttChartService(QObject):
                     str(i + 1),  # 1-based row number
                     insert=(text_x, row_center_y),
                     fill="grey",
-                    font_size="11px",
-                    font_family="Arial, sans-serif",
+                    font_size=str(self.config.general.row_number_font_size) + "px",
+                    font_family=f"{self.config.general.font_family}, sans-serif",
                     text_anchor="start",
                     dominant_baseline="middle"
                 )
@@ -1312,7 +1315,7 @@ class GanttChartService(QObject):
                                            stroke="grey", stroke_width=0.5))
             if prev_x < x + width and x_pos > x:
                 label_x = (max(x, prev_x) + min(x + width, x_pos)) / 2
-                label_y = y + height * self.config.general.text_vertical_alignment_factor
+                label_y = y + height * self.config.general.row_based_vertical_alignment_factor
                 label = ""
                 if interval == "years":
                     if interval_width >= self.config.general.full_label_width:
@@ -1335,7 +1338,7 @@ class GanttChartService(QObject):
                         label = current_date.strftime("%a")[0]
                 if label:
                     self.dwg.add(self.dwg.text(label, insert=(label_x, label_y), text_anchor="middle",
-                                               font_size=str(self.config.general.scale_font_size), dominant_baseline="middle"))
+                                               font_size=str(self.config.general.scale_font_size), font_family=self.config.general.font_family, dominant_baseline="middle"))
             prev_x = x_pos
             current_date = next_date
 
@@ -1350,8 +1353,10 @@ class GanttChartService(QObject):
         Returns:
             List of text lines that fit within max_width
         """
-        # Create font metrics for text box font (10px Arial)
-        text_box_font = QFont("Arial", font_size)
+        if font_size is None:
+            font_size = self.config.general.text_box_font_size
+        # Create font metrics for text box font
+        text_box_font = QFont(self.config.general.font_family, font_size)
         text_box_font_metrics = QFontMetrics(text_box_font)
         
         lines = []
@@ -1422,8 +1427,8 @@ class GanttChartService(QObject):
         
         logging.debug(f"Rendering {len(text_boxes)} text boxes")
         
-        # Create font for text boxes (10px Arial)
-        text_box_font = QFont("Arial", 10)
+        # Create font for text boxes
+        text_box_font = QFont(self.config.general.font_family, self.config.general.text_box_font_size)
         text_box_font_metrics = QFontMetrics(text_box_font)
         line_height = text_box_font_metrics.height()
         
@@ -1454,7 +1459,7 @@ class GanttChartService(QObject):
             font_metrics_correction = 1.2  # Adjust if SVG renders more compactly than Qt measures
             available_width = max(1, (textbox.width - (2 * padding)) * font_metrics_correction)
             logging.debug(f"Text box width: {textbox.width}, padding: {padding}, available_width: {available_width} (with {font_metrics_correction}x correction)")
-            text_lines = self._wrap_text_to_lines(textbox.text, available_width, font_size=10)
+            text_lines = self._wrap_text_to_lines(textbox.text, available_width, font_size=self.config.general.text_box_font_size)
             logging.debug(f"Wrapped text into {len(text_lines)} lines: {text_lines}")
             
             if not text_lines:
@@ -1489,8 +1494,8 @@ class GanttChartService(QObject):
                 self.dwg.add(self.dwg.text(
                     line,
                     insert=(text_x, line_y),
-                    font_size="10px",
-                    font_family="Arial",
+                    font_size=str(self.config.general.text_box_font_size) + "px",
+                    font_family=self.config.general.font_family,
                     fill="black",
                     text_anchor=text_anchor,
                     dominant_baseline="auto"

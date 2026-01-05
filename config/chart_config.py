@@ -32,23 +32,30 @@ class ChartConfig:
     leader_line_horizontal_default: float = 3.0  # Default close offset for outside labels (base distance before user offset)
     label_horizontal_offset_factor: float = 0.0
     label_text_width_factor: float = 0.55
-    text_vertical_alignment_factor: float = 0.7  # Vertical position for all text (0.0=top, 0.5=center, 1.0=bottom). Used for header, footer, scales, and task labels.
+    row_based_vertical_alignment_factor: float = 0.7  # Vertical position for row-based text (0.0=top, 0.5=center, 1.0=bottom). Used for scales, tasks, and row numbers.
+    header_footer_vertical_alignment_factor: float = 0.7  # Vertical position for header and footer text (0.0=top, 0.5=center, 1.0=bottom)
     
     # Frame border settings
     frame_border_width_heavy: float = 1.0  # Outer frame border width
     frame_border_width_light: float = 0.5  # Header, footer, scale, and row frame border width
     frame_border_color: str = "grey"  # Border color for all frames
     
+    # Font settings
+    font_family: str = "Arial"  # Font family for all text elements
+    
     # Font sizes
     task_font_size: int = 10  # Font size for task labels
     scale_font_size: int = 10  # Font size for scale labels
     header_footer_font_size: int = 10  # Font size for header and footer text
+    row_number_font_size: int = 10  # Font size for row numbers
+    text_box_font_size: int = 10  # Font size for text boxes
 
     def __post_init__(self):
         # Validate positive integers
         for field_name in ["outer_width", "outer_height", "full_label_width", 
                           "short_label_width", "tasks_rows", "pipes_rows", "curtains_rows",
-                          "task_font_size", "scale_font_size", "header_footer_font_size"]:
+                          "task_font_size", "scale_font_size", "header_footer_font_size",
+                          "row_number_font_size", "text_box_font_size"]:
             value = getattr(self, field_name)
             if not isinstance(value, int) or value < 0:
                 raise ValueError(f"{field_name} must be a non-negative integer")
@@ -58,9 +65,14 @@ class ChartConfig:
                           "scale_proportion_weeks", "scale_proportion_days",
                           "leader_line_vertical_default", "leader_line_horizontal_default",
                           "label_horizontal_offset_factor",
-                          "label_text_width_factor", "text_vertical_alignment_factor",
+                          "label_text_width_factor", "row_based_vertical_alignment_factor",
+                          "header_footer_vertical_alignment_factor",
                           "frame_border_width_heavy", "frame_border_width_light"]:
             value = getattr(self, field_name)
             if not isinstance(value, float) or value < 0:
                 raise ValueError(f"{field_name} must be a non-negative float")
+        
+        # Validate font_family is a non-empty string
+        if not isinstance(self.font_family, str) or not self.font_family.strip():
+            raise ValueError("font_family must be a non-empty string")
 

@@ -159,8 +159,16 @@ class GeneralConfig:
         return self.chart.label_text_width_factor
 
     @property
-    def text_vertical_alignment_factor(self) -> float:
-        return self.chart.text_vertical_alignment_factor
+    def row_based_vertical_alignment_factor(self) -> float:
+        return self.chart.row_based_vertical_alignment_factor
+
+    @property
+    def header_footer_vertical_alignment_factor(self) -> float:
+        return self.chart.header_footer_vertical_alignment_factor
+
+    @property
+    def font_family(self) -> str:
+        return self.chart.font_family
 
     @property
     def task_font_size(self) -> int:
@@ -173,6 +181,14 @@ class GeneralConfig:
     @property
     def header_footer_font_size(self) -> int:
         return self.chart.header_footer_font_size
+
+    @property
+    def row_number_font_size(self) -> int:
+        return self.chart.row_number_font_size
+
+    @property
+    def text_box_font_size(self) -> int:
+        return self.chart.text_box_font_size
 
     @property
     def frame_border_width_heavy(self) -> float:
