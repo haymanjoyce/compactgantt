@@ -1,9 +1,11 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QGridLayout, QGroupBox, QLineEdit, 
                            QLabel, QMessageBox)
 from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtGui import QIntValidator
 from typing import Dict, Any
 import logging
 from .base_tab import BaseTab
+from validators.validators import DataValidator
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -36,6 +38,9 @@ class TitlesTab(BaseTab):
         header_height_label.setFixedWidth(label_width)
         self.header_height = QLineEdit("20")
         self.header_height.setToolTip("Height of the header section in pixels (0 to hide header)")
+        # Add validator to only allow non-negative integers
+        validator = QIntValidator(0, 999999, self)
+        self.header_height.setValidator(validator)
 
         # Header text
         header_text_label = QLabel("Header Text:")
@@ -62,6 +67,9 @@ class TitlesTab(BaseTab):
         footer_height_label.setFixedWidth(label_width)
         self.footer_height = QLineEdit("20")
         self.footer_height.setToolTip("Height of the footer section in pixels (0 to hide footer)")
+        # Add validator to only allow non-negative integers
+        validator = QIntValidator(0, 999999, self)
+        self.footer_height.setValidator(validator)
 
         # Footer text
         footer_text_label = QLabel("Footer Text:")
@@ -109,13 +117,10 @@ class TitlesTab(BaseTab):
         }
 
         for field_name, value in numeric_fields.items():
-            try:
-                if not value.strip() or int(value) < 0:
-                    raise ValueError(f"{field_name.replace('_', ' ').title()} must be a non-negative number")
-            except ValueError as e:
-                if "must be a" not in str(e):
-                    raise ValueError(f"{field_name.replace('_', ' ').title()} must be a valid number")
-                raise
+            display_name = field_name.replace('_', ' ').title()
+            errors = DataValidator.validate_non_negative_integer_string(value, display_name)
+            if errors:
+                raise ValueError(errors[0])  # Raise first error
 
         # Update frame config
         self.project_data.frame_config.header_height = int(self.header_height.text())

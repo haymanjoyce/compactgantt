@@ -47,6 +47,32 @@ class DataValidator:
         return errors
 
     @staticmethod
+    def validate_non_negative_integer_string(value: str, field_name: str) -> List[str]:
+        """Validate that a string represents a non-negative integer.
+        
+        Args:
+            value: The string value to validate
+            field_name: The name of the field (for error messages)
+            
+        Returns:
+            List of error messages (empty if valid)
+        """
+        errors = []
+        try:
+            # Check for empty string first
+            if not value.strip():
+                errors.append(f"{field_name} must be a non-negative number")
+                return errors
+            # Then try to convert and validate
+            num_value = int(value)
+            if num_value < 0:
+                errors.append(f"{field_name} must be a non-negative number")
+        except ValueError:
+            # Conversion failed - not a valid number
+            errors.append(f"{field_name} must be a valid number")
+        return errors
+
+    @staticmethod
     def validate_unique_id(id_value: int, used_ids: Set[int], entity_name: str) -> List[str]:
         errors = []
         if id_value in used_ids:

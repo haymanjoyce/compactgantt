@@ -1,9 +1,11 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QGridLayout, QGroupBox, QLineEdit, 
                            QLabel, QMessageBox, QComboBox)
 from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtGui import QIntValidator
 from typing import Dict, Any, Tuple
 import logging
 from .base_tab import BaseTab
+from validators.validators import DataValidator
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -40,12 +42,18 @@ class LayoutTab(BaseTab):
         width_label.setFixedWidth(label_width)
         self.outer_width = QLineEdit(str(self.app_config.general.outer_width))
         self.outer_width.setToolTip("Total width of the chart in pixels")
+        # Add validator to only allow non-negative integers
+        validator = QIntValidator(0, 999999, self)
+        self.outer_width.setValidator(validator)
 
         # Height
         height_label = QLabel("Outer Height:")
         height_label.setFixedWidth(label_width)
         self.outer_height = QLineEdit(str(self.app_config.general.outer_height))
         self.outer_height.setToolTip("Total height of the chart in pixels")
+        # Add validator to only allow non-negative integers
+        validator = QIntValidator(0, 999999, self)
+        self.outer_height.setValidator(validator)
 
         layout.addWidget(width_label, 0, 0)
         layout.addWidget(self.outer_width, 0, 1)
@@ -66,6 +74,9 @@ class LayoutTab(BaseTab):
         rows_label.setFixedWidth(label_width)
         self.num_rows = QLineEdit(str(self.app_config.general.tasks_rows))
         self.num_rows.setToolTip("Number of rows in the chart")
+        # Add validator to only allow non-negative integers
+        validator = QIntValidator(0, 999999, self)
+        self.num_rows.setValidator(validator)
 
         # Show Row Numbers (using combobox instead of checkbox)
         row_numbers_label = QLabel("Row Numbers:")
@@ -100,11 +111,14 @@ class LayoutTab(BaseTab):
         # Create margin inputs
         margin_labels = ["Top:", "Bottom:", "Left:", "Right:"]
         self.margin_inputs = []
+        validator = QIntValidator(0, 999999, self)  # Create validator once for all margins
         for i, label_text in enumerate(margin_labels):
             label = QLabel(label_text)
             label.setFixedWidth(label_width)
             input_field = QLineEdit("10")
             input_field.setToolTip(f"{label_text.strip(':')} margin in pixels")
+            # Add validator to only allow non-negative integers
+            input_field.setValidator(validator)
             layout.addWidget(label, i, 0)
             layout.addWidget(input_field, i, 1)
             self.margin_inputs.append(input_field)
@@ -154,18 +168,10 @@ class LayoutTab(BaseTab):
         }
 
         for field_name, value in numeric_fields.items():
-            try:
-                # Check for empty string first
-                if not value.strip():
-                    raise ValueError(f"{field_name.replace('_', ' ').title()} must be a non-negative number")
-                # Then try to convert and validate
-                num_value = int(value)
-                if num_value < 0:
-                    raise ValueError(f"{field_name.replace('_', ' ').title()} must be a non-negative number")
-            except ValueError as e:
-                if "must be a" not in str(e):
-                    raise ValueError(f"{field_name.replace('_', ' ').title()} must be a valid number")
-                raise
+            display_name = field_name.replace('_', ' ').title()
+            errors = DataValidator.validate_non_negative_integer_string(value, display_name)
+            if errors:
+                raise ValueError(errors[0])  # Raise first error
 
         # Update frame config
         self.project_data.frame_config.outer_width = int(self.outer_width.text())
