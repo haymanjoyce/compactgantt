@@ -280,10 +280,13 @@ class MainWindow(QMainWindow):
         self.project_data.chart_config.header_footer_font_size = chart_config.header_footer_font_size
         self.project_data.chart_config.row_number_font_size = chart_config.row_number_font_size
         self.project_data.chart_config.text_box_font_size = chart_config.text_box_font_size
+        self.project_data.chart_config.swimlane_font_size = chart_config.swimlane_font_size
         self.project_data.chart_config.scale_vertical_alignment_factor = chart_config.scale_vertical_alignment_factor
         self.project_data.chart_config.task_vertical_alignment_factor = chart_config.task_vertical_alignment_factor
         self.project_data.chart_config.row_number_vertical_alignment_factor = chart_config.row_number_vertical_alignment_factor
         self.project_data.chart_config.header_footer_vertical_alignment_factor = chart_config.header_footer_vertical_alignment_factor
+        self.project_data.chart_config.swimlane_top_vertical_alignment_factor = chart_config.swimlane_top_vertical_alignment_factor
+        self.project_data.chart_config.swimlane_bottom_vertical_alignment_factor = chart_config.swimlane_bottom_vertical_alignment_factor
     
     def _sync_chart_config_from_project_data(self):
         """Sync chart_config from project_data to app_config (after loading)."""
@@ -294,10 +297,13 @@ class MainWindow(QMainWindow):
         chart_config.header_footer_font_size = self.project_data.chart_config.header_footer_font_size
         chart_config.row_number_font_size = self.project_data.chart_config.row_number_font_size
         chart_config.text_box_font_size = self.project_data.chart_config.text_box_font_size
+        chart_config.swimlane_font_size = self.project_data.chart_config.swimlane_font_size
         chart_config.scale_vertical_alignment_factor = self.project_data.chart_config.scale_vertical_alignment_factor
         chart_config.task_vertical_alignment_factor = self.project_data.chart_config.task_vertical_alignment_factor
         chart_config.row_number_vertical_alignment_factor = self.project_data.chart_config.row_number_vertical_alignment_factor
         chart_config.header_footer_vertical_alignment_factor = self.project_data.chart_config.header_footer_vertical_alignment_factor
+        chart_config.swimlane_top_vertical_alignment_factor = self.project_data.chart_config.swimlane_top_vertical_alignment_factor
+        chart_config.swimlane_bottom_vertical_alignment_factor = self.project_data.chart_config.swimlane_bottom_vertical_alignment_factor
 
     def _emit_data_updated(self):
         """Only called when Update Image button is clicked"""
