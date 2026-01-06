@@ -19,7 +19,9 @@ class SwimlanesTab(BaseTab):
     def __init__(self, project_data, app_config):
         self.table_config = app_config.get_table_config("swimlanes")
         self._selected_row = None  # Track currently selected row
+        self._selected_swimlane_id = None  # Track selected swimlane ID for detail form matching
         self._updating_form = False  # Prevent circular updates
+        self.detail_label_position = None  # Will be initialized in setup_ui
         super().__init__(project_data, app_config)
 
     def setup_ui(self):
@@ -109,13 +111,96 @@ class SwimlanesTab(BaseTab):
         self.setLayout(layout)
 
     def _create_detail_form(self) -> QGroupBox:
-        """Create the detail form for editing swimlane properties (empty for now)."""
+        """Create the detail form for editing swimlane properties."""
+        from PyQt5.QtWidgets import QLabel, QComboBox, QGridLayout
+        
         group = QGroupBox("Swimlane Properties")
-        layout = QVBoxLayout()
+        layout = QGridLayout()
+        layout.setHorizontalSpacing(10)
+        layout.setVerticalSpacing(5)
         layout.setContentsMargins(10, 10, 10, 10)
-        # Empty for now - reserved for future properties
+        
+        LABEL_WIDTH = 120
+        
+        # Label Position
+        position_label = QLabel("Label Position:")
+        position_label.setFixedWidth(LABEL_WIDTH)
+        self.detail_label_position = QComboBox()
+        self.detail_label_position.addItems(["Bottom Right", "Bottom Left", "Top Left", "Top Right"])
+        self.detail_label_position.setToolTip("Position of the swimlane title label")
+        self.detail_label_position.currentTextChanged.connect(self._on_detail_form_changed)
+        
+        layout.addWidget(position_label, 0, 0)
+        layout.addWidget(self.detail_label_position, 0, 1)
+        layout.setColumnStretch(1, 1)
+        
         group.setLayout(layout)
         return group
+    
+    def _on_detail_form_changed(self):
+        """Handle changes in detail form - update selected swimlane."""
+        logging.debug(f"_on_detail_form_changed: _updating_form={self._updating_form}, _selected_swimlane_id={self._selected_swimlane_id}, _selected_row={self._selected_row}")
+        if self._updating_form or self._selected_swimlane_id is None:
+            logging.debug(f"_on_detail_form_changed: Early return - _updating_form={self._updating_form}, _selected_swimlane_id={self._selected_swimlane_id}")
+            return
+        
+        if hasattr(self, 'detail_label_position') and self.detail_label_position:
+            current_value = self.detail_label_position.currentText()
+            logging.debug(f"_on_detail_form_changed: Triggering sync for swimlane_id={self._selected_swimlane_id}, label_position={current_value}")
+        
+        # Trigger sync to update the data
+        self._sync_data_if_not_initializing()
+    
+    def _populate_detail_form(self, row: int):
+        """Populate detail form with data from selected swimlane."""
+        self._updating_form = True
+        
+        try:
+            if row < len(self.project_data.swimlanes):
+                swimlane = self.project_data.swimlanes[row]
+                label_position = swimlane.label_position if hasattr(swimlane, 'label_position') else "Bottom Right"
+                self.detail_label_position.setCurrentText(label_position)
+            else:
+                self.detail_label_position.setCurrentText("Bottom Right")
+        finally:
+            self._updating_form = False
+    
+    def _clear_detail_form(self):
+        """Clear the detail form when no swimlane is selected."""
+        self._updating_form = True
+        try:
+            self.detail_label_position.setCurrentText("Bottom Right")
+        finally:
+            self._updating_form = False
+    
+    def _on_table_selection_changed(self):
+        """Handle table selection changes - populate detail form."""
+        selected_rows = self.swimlanes_table.selectionModel().selectedRows()
+        if not selected_rows:
+            # Don't clear _selected_row if we're just losing focus (user might be editing detail form)
+            # Only clear if explicitly deselected (e.g., clicking elsewhere or pressing Escape)
+            # For now, preserve _selected_row to allow detail form changes to sync correctly
+            # The row will be cleared when explicitly needed (e.g., when switching tabs)
+            return
+        
+        row = selected_rows[0].row()
+        self._selected_row = row
+        
+        # Track the swimlane ID for this row (using key-based access)
+        id_col = self._get_column_index("ID")
+        if id_col is not None:
+            id_item = self.swimlanes_table.item(row, id_col)
+            if id_item:
+                self._selected_swimlane_id = safe_int(id_item.text())
+                logging.debug(f"_on_table_selection_changed: Selected row={row}, swimlane_id={self._selected_swimlane_id}")
+            else:
+                self._selected_swimlane_id = None
+                logging.debug(f"_on_table_selection_changed: Selected row={row}, but no ID item found")
+        else:
+            self._selected_swimlane_id = None
+            logging.debug(f"_on_table_selection_changed: Selected row={row}, but ID column not found")
+        
+        self._populate_detail_form(row)
 
     def _move_up(self):
         """Move selected row(s) up by one position."""
@@ -247,6 +332,7 @@ class SwimlanesTab(BaseTab):
 
     def _connect_signals(self):
         self.swimlanes_table.itemChanged.connect(self._on_item_changed)
+        self.swimlanes_table.selectionModel().selectionChanged.connect(self._on_table_selection_changed)
     
     def _get_column_index(self, column_name: str) -> Optional[int]:
         """Get the column index for a given column name."""
@@ -337,7 +423,7 @@ class SwimlanesTab(BaseTab):
         # Get column indices using key-based access
         id_col = self._get_column_index("ID")
         row_count_col = self._get_column_index("Row Count")
-        name_col = self._get_column_index("Name")
+        title_col = self._get_column_index("Title")  # Changed from "Name"
         
         # Update ID column
         if id_col is not None:
@@ -363,14 +449,15 @@ class SwimlanesTab(BaseTab):
                 item.setData(Qt.UserRole, swimlane.row_count)
                 self.swimlanes_table.setItem(row_idx, row_count_col, item)
         
-        # Update Name column
-        if name_col is not None:
-            item = self.swimlanes_table.item(row_idx, name_col)
+        # Update Title column (changed from Name)
+        title_col = self._get_column_index("Title")
+        if title_col is not None:
+            item = self.swimlanes_table.item(row_idx, title_col)
             if item:
-                item.setText(swimlane.name if swimlane.name else "")
+                item.setText(swimlane.title if swimlane.title else "")
             else:
-                item = QTableWidgetItem(swimlane.name if swimlane.name else "")
-                self.swimlanes_table.setItem(row_idx, name_col, item)
+                item = QTableWidgetItem(swimlane.title if swimlane.title else "")
+                self.swimlanes_table.setItem(row_idx, title_col, item)
 
     def _swimlane_from_table_row(self, row_idx: int) -> Optional[Swimlane]:
         """Extract a Swimlane object from a table row."""
@@ -378,7 +465,7 @@ class SwimlanesTab(BaseTab):
             # Get column indices using key-based access
             id_col = self._get_column_index("ID")
             row_count_col = self._get_column_index("Row Count")
-            name_col = self._get_column_index("Name")
+            title_col = self._get_column_index("Title")  # Changed from "Name"
             
             if id_col is None or row_count_col is None:
                 return None
@@ -399,17 +486,43 @@ class SwimlanesTab(BaseTab):
             if row_count <= 0:
                 return None
             
-            # Extract Name
-            name = ""
-            if name_col is not None:
-                name_item = self.swimlanes_table.item(row_idx, name_col)
-                if name_item:
-                    name = name_item.text().strip()
+            # Extract Title (changed from Name)
+            title = ""
+            if title_col is not None:
+                title_item = self.swimlanes_table.item(row_idx, title_col)
+                if title_item:
+                    title = title_item.text().strip()
+            
+            # Get label_position from detail form if this swimlane ID matches the selected one
+            # Otherwise, get from existing Swimlane object
+            # Use key-based matching by ID instead of row index for reliability
+            label_position = "Bottom Right"
+            
+            logging.debug(f"_swimlane_from_table_row(row_idx={row_idx}): swimlane_id={swimlane_id}, _selected_swimlane_id={self._selected_swimlane_id}")
+            
+            # Check if this swimlane's ID matches the one in the detail form
+            if (self._selected_swimlane_id is not None and 
+                swimlane_id == self._selected_swimlane_id and
+                hasattr(self, 'detail_label_position') and 
+                self.detail_label_position):
+                label_position = self.detail_label_position.currentText()
+                logging.debug(f"_swimlane_from_table_row(row_idx={row_idx}): Matched by ID, using detail form value: label_position={label_position}")
+            else:
+                # Get from existing swimlane (key-based lookup by ID)
+                existing_swimlane = next((s for s in self.project_data.swimlanes if s.swimlane_id == swimlane_id), None)
+                if existing_swimlane:
+                    label_position = existing_swimlane.label_position if hasattr(existing_swimlane, 'label_position') else "Bottom Right"
+                    logging.debug(f"_swimlane_from_table_row(row_idx={row_idx}): Using existing swimlane value: label_position={label_position}")
+                else:
+                    logging.debug(f"_swimlane_from_table_row(row_idx={row_idx}): No match, using default: label_position={label_position}")
+            
+            logging.debug(f"_swimlane_from_table_row(row_idx={row_idx}): Final swimlane - id={swimlane_id}, title={title}, label_position={label_position}")
             
             return Swimlane(
                 swimlane_id=swimlane_id,
                 row_count=row_count,
-                name=name
+                title=title,
+                label_position=label_position
             )
         except (ValueError, AttributeError, Exception) as e:
             logging.error(f"Error extracting swimlane from table row {row_idx}: {e}")
@@ -431,6 +544,8 @@ class SwimlanesTab(BaseTab):
         if self._initializing:
             return
         
+        logging.debug(f"_sync_data_impl: Starting sync, _selected_swimlane_id={self._selected_swimlane_id}, _selected_row={self._selected_row}")
+        
         try:
             # Extract Swimlane objects from table rows (order matters!)
             swimlanes = []
@@ -439,6 +554,7 @@ class SwimlanesTab(BaseTab):
                     swimlane = self._swimlane_from_table_row(row_idx)
                     if swimlane:
                         swimlanes.append(swimlane)
+                        logging.debug(f"_sync_data_impl: Extracted swimlane id={swimlane.swimlane_id}, label_position={swimlane.label_position}")
                 except Exception as e:
                     # Log error for this specific row but continue processing other rows
                     logging.error(f"Error extracting swimlane from row {row_idx}: {e}")
@@ -454,7 +570,11 @@ class SwimlanesTab(BaseTab):
                 return
             
             # Update project data with Swimlane objects directly (order is preserved)
+            logging.debug(f"_sync_data_impl: Updating project_data.swimlanes with {len(swimlanes)} swimlanes")
+            for s in swimlanes:
+                logging.debug(f"_sync_data_impl: Final swimlane id={s.swimlane_id}, title={s.title}, label_position={s.label_position}")
             self.project_data.swimlanes = swimlanes
+            logging.debug(f"_sync_data_impl: Sync complete")
         except Exception as e:
             # Catch any unexpected exceptions during sync
             logging.error(f"Error in _sync_data_impl: {e}", exc_info=True)

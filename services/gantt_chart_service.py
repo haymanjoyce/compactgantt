@@ -684,25 +684,52 @@ class GanttChartService(QObject):
                     stroke_width=0.5
                 ))
             
-            # Render label in bottom-right corner of the swimlane area
-            if swimlane.name:
+            # Render label based on label_position
+            if swimlane.title:
                 # Calculate the swimlane area bounds
                 swimlane_top = row_y + first_row_0based * row_height
                 swimlane_bottom = row_y + (last_row_0based + 1) * row_height
                 
-                # Position label 5px from right, 5px from bottom
-                label_x = x + width - 5
-                label_y = swimlane_bottom - 5
+                # Determine position based on label_position
+                offset = 5  # Fixed 5px offset from edges
+                label_position = swimlane.label_position if hasattr(swimlane, 'label_position') else "Bottom Right"
+                
+                if label_position == "Bottom Right":
+                    label_x = x + width - offset
+                    label_y = swimlane_bottom - offset
+                    text_anchor = "end"
+                    dominant_baseline = "auto"
+                elif label_position == "Bottom Left":
+                    label_x = x + offset
+                    label_y = swimlane_bottom - offset
+                    text_anchor = "start"
+                    dominant_baseline = "auto"
+                elif label_position == "Top Left":
+                    label_x = x + offset
+                    label_y = swimlane_top + offset
+                    text_anchor = "start"
+                    dominant_baseline = "hanging"
+                elif label_position == "Top Right":
+                    label_x = x + width - offset
+                    label_y = swimlane_top + offset
+                    text_anchor = "end"
+                    dominant_baseline = "hanging"
+                else:
+                    # Default to Bottom Right if invalid
+                    label_x = x + width - offset
+                    label_y = swimlane_bottom - offset
+                    text_anchor = "end"
+                    dominant_baseline = "auto"
                 
                 # Create text element
                 text_element = self.dwg.text(
-                    swimlane.name,
+                    swimlane.title,
                     insert=(label_x, label_y),
                     fill="grey",
                     font_size="14px",
                     font_family=f"{self.config.general.font_family}, sans-serif",
-                    text_anchor="end",
-                    dominant_baseline="auto"
+                    text_anchor=text_anchor,
+                    dominant_baseline=dominant_baseline
                 )
                 self.dwg.add(text_element)
             

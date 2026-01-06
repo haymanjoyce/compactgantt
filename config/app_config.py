@@ -288,7 +288,7 @@ class AppConfig:
                     TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("ID", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Row Count", validator=lambda x: int(x) > 0 if x else False),
-                    TableColumnConfig("Name")
+                    TableColumnConfig("Title")
                 ],
                 min_rows=0
             ),

@@ -89,7 +89,7 @@ class ExcelRepository:
             project.links = self._read_links_sheet(wb["Links"])
         
         if "Swimlanes" in wb.sheetnames:
-            project.swimlanes = self._read_table_sheet(wb["Swimlanes"])
+            project.swimlanes = self._read_swimlanes_sheet(wb["Swimlanes"])
         
         if "Pipes" in wb.sheetnames:
             project.pipes = self._read_pipes_sheet(wb["Pipes"])
@@ -299,14 +299,16 @@ class ExcelRepository:
     def _create_swimlanes_sheet(self, wb: Workbook, swimlanes: List[Swimlane]) -> None:
         """Create Swimlanes worksheet."""
         ws = wb.create_sheet("Swimlanes")
-        ws.append(["ID", "Row Count", "Name"])
+        ws.append(["ID", "Row Count", "Title"])
         self._format_header_row(ws, 1)
         
         for swimlane in swimlanes:
+            # Use title if available, fall back to name for backward compatibility
+            title = swimlane.title if hasattr(swimlane, 'title') else (swimlane.name if hasattr(swimlane, 'name') else "")
             ws.append([
                 swimlane.swimlane_id,
                 swimlane.row_count,
-                swimlane.name if swimlane.name else ""
+                title if title else ""
             ])
     
     def _create_pipes_sheet(self, wb: Workbook, pipes: List[Pipe]) -> None:
@@ -464,8 +466,9 @@ class ExcelRepository:
                     swimlane_data["swimlane_id"] = int(value) if value else 0
                 elif header == "Row Count":
                     swimlane_data["row_count"] = int(value) if value else 0
-                elif header == "Name":
-                    swimlane_data["name"] = str(value) if value else ""
+                elif header == "Name" or header == "Title":
+                    # Backward compatibility: support both 'Name' and 'Title'
+                    swimlane_data["title"] = str(value) if value else ""
                 # Backward compatibility: support old First Row/Last Row format
                 elif header == "First Row":
                     swimlane_data["first_row"] = int(value) if value else 0
