@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Set
-from models import FrameConfig, Task, Link, Pipe, Curtain, Swimlane, TextBox
+from models import FrameConfig, Task, Link, Pipe, Curtain, Swimlane, Note
 from validators import DataValidator
 from datetime import datetime
 import logging
@@ -20,7 +20,7 @@ class ProjectData:
             scale_font_size=app_config.general.chart.scale_font_size,
             header_footer_font_size=app_config.general.chart.header_footer_font_size,
             row_number_font_size=app_config.general.chart.row_number_font_size,
-            text_box_font_size=app_config.general.chart.text_box_font_size,
+            note_font_size=app_config.general.chart.note_font_size,
             swimlane_font_size=app_config.general.chart.swimlane_font_size,
             scale_vertical_alignment_factor=app_config.general.chart.scale_vertical_alignment_factor,
             task_vertical_alignment_factor=app_config.general.chart.task_vertical_alignment_factor,
@@ -34,7 +34,7 @@ class ProjectData:
         self.swimlanes: List[Swimlane] = []
         self.pipes: List[Pipe] = []
         self.curtains: List[Curtain] = []
-        self.text_boxes: List[TextBox] = []
+        self.notes: List[Note] = []
         self.validator = DataValidator()
 
     def to_json(self) -> Dict[str, Any]:
@@ -74,7 +74,7 @@ class ProjectData:
         pipes_data = [pipe.to_dict() for pipe in self.pipes]
         curtains_data = [curtain.to_dict() for curtain in self.curtains]
         swimlanes_data = [swimlane.to_dict() for swimlane in self.swimlanes]
-        text_boxes_data = [textbox.to_dict() for textbox in self.text_boxes]
+        notes_data = [note.to_dict() for note in self.notes]
         
         # Serialize chart_config (only typography-related fields to keep JSON size manageable)
         chart_config_data = {
@@ -83,7 +83,7 @@ class ProjectData:
             "scale_font_size": self.chart_config.scale_font_size,
             "header_footer_font_size": self.chart_config.header_footer_font_size,
             "row_number_font_size": self.chart_config.row_number_font_size,
-            "text_box_font_size": self.chart_config.text_box_font_size,
+            "note_font_size": self.chart_config.note_font_size,
             "swimlane_font_size": self.chart_config.swimlane_font_size,
             "scale_vertical_alignment_factor": self.chart_config.scale_vertical_alignment_factor,
             "task_vertical_alignment_factor": self.chart_config.task_vertical_alignment_factor,
@@ -101,7 +101,7 @@ class ProjectData:
             "swimlanes": swimlanes_data,
             "pipes": pipes_data,
             "curtains": curtains_data,
-            "text_boxes": text_boxes_data
+            "notes": notes_data
         }
 
     @classmethod
@@ -119,7 +119,7 @@ class ProjectData:
         if chart_config_data:
             # Update project's chart_config with loaded values (only typography fields)
             for key in ["font_family", "task_font_size", "scale_font_size", "header_footer_font_size",
-                       "row_number_font_size", "text_box_font_size", "swimlane_font_size",
+                       "row_number_font_size", "note_font_size", "swimlane_font_size",
                        "scale_vertical_alignment_factor", "task_vertical_alignment_factor",
                        "row_number_vertical_alignment_factor", "header_footer_vertical_alignment_factor",
                        "swimlane_top_vertical_alignment_factor", "swimlane_bottom_vertical_alignment_factor"]:
@@ -131,6 +131,10 @@ class ProjectData:
                 old_factor = chart_config_data["swimlane_vertical_alignment_factor"]
                 project.chart_config.swimlane_top_vertical_alignment_factor = old_factor
                 project.chart_config.swimlane_bottom_vertical_alignment_factor = old_factor
+            
+            # Handle backward compatibility: if old text_box_font_size exists, map it to note_font_size
+            if "text_box_font_size" in chart_config_data and "note_font_size" not in chart_config_data:
+                project.chart_config.note_font_size = chart_config_data["text_box_font_size"]
         
         # Load tasks
         for task_data in data.get("tasks", []):
@@ -164,15 +168,16 @@ class ProjectData:
             # Backward compatibility: old list format
             project.swimlanes = []
         
-        # Load text boxes - convert dicts to TextBox objects (with backward compatibility for old list format)
-        text_boxes_data = data.get("text_boxes", [])
-        if text_boxes_data and isinstance(text_boxes_data[0], dict):
-            project.text_boxes = [TextBox.from_dict(textbox_data) for textbox_data in text_boxes_data if isinstance(textbox_data, dict)]
-        elif text_boxes_data and isinstance(text_boxes_data[0], list):
+        # Load notes - convert dicts to Note objects (with backward compatibility for old formats)
+        # Support both "notes" and old "text_boxes" key names
+        notes_data = data.get("notes", data.get("text_boxes", []))
+        if notes_data and isinstance(notes_data[0], dict):
+            project.notes = [Note.from_dict(note_data) for note_data in notes_data if isinstance(note_data, dict)]
+        elif notes_data and isinstance(notes_data[0], list):
             # Backward compatibility: old list format
-            project.text_boxes = [TextBox.from_dict(textbox_data) for textbox_data in text_boxes_data if isinstance(textbox_data, list)]
+            project.notes = [Note.from_dict(note_data) for note_data in notes_data if isinstance(note_data, list)]
         else:
-            project.text_boxes = []
+            project.notes = []
         
         return project
     

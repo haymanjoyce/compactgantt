@@ -203,8 +203,8 @@ class GeneralConfig:
         return self.chart.row_number_font_size
 
     @property
-    def text_box_font_size(self) -> int:
-        return self.chart.text_box_font_size
+    def note_font_size(self) -> int:
+        return self.chart.note_font_size
 
     @property
     def swimlane_font_size(self) -> int:
@@ -325,8 +325,8 @@ class AppConfig:
                 ],
                 min_rows=0
             ),
-            "text_boxes": TableConfig(
-                key="text_boxes",
+            "notes": TableConfig(
+                key="notes",
                 columns=[
                     TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("ID", validator=lambda x: int(x) > 0 if x else False),

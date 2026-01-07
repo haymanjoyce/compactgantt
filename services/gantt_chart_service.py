@@ -11,7 +11,7 @@ from utils.conversion import is_valid_internal_date
 from models.pipe import Pipe
 from models.curtain import Curtain
 from models.swimlane import Swimlane
-from models.text_box import TextBox
+from models.note import Note
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -1474,10 +1474,10 @@ class GanttChartService(QObject):
             List of text lines that fit within max_width
         """
         if font_size is None:
-            font_size = self.config.general.text_box_font_size
-        # Create font metrics for text box font
-        text_box_font = QFont(self.config.general.font_family, font_size)
-        text_box_font_metrics = QFontMetrics(text_box_font)
+            font_size = self.config.general.note_font_size
+        # Create font metrics for note font
+        note_font = QFont(self.config.general.font_family, font_size)
+        note_font_metrics = QFontMetrics(note_font)
         
         lines = []
         # First, split by explicit line breaks (newlines)
@@ -1496,7 +1496,7 @@ class GanttChartService(QObject):
             for word in words:
                 # Test if adding this word would exceed max_width
                 test_line = current_line + (" " if current_line else "") + word
-                test_width = text_box_font_metrics.horizontalAdvance(test_line)
+                test_width = note_font_metrics.horizontalAdvance(test_line)
                 
                 if test_width <= max_width:
                     # Word fits - add it to current line
@@ -1512,7 +1512,7 @@ class GanttChartService(QObject):
                         # Find how many characters fit
                         char_count = 0
                         for i in range(1, len(word) + 1):
-                            if text_box_font_metrics.horizontalAdvance(word[:i]) <= max_width:
+                            if note_font_metrics.horizontalAdvance(word[:i]) <= max_width:
                                 char_count = i
                             else:
                                 break
@@ -1535,78 +1535,78 @@ class GanttChartService(QObject):
         
         return lines
 
-    def render_text_boxes(self):
-        """Render text boxes (rectangles with text) above all other elements.
+    def render_notes(self):
+        """Render notes (rectangles with text) above all other elements.
         
-        Text boxes are positioned absolutely on the chart and render last so they appear on top.
+        Notes are positioned absolutely on the chart and render last so they appear on top.
         Supports multi-line text with word wrapping and explicit line breaks.
         """
-        text_boxes = self.data.get("text_boxes", [])
-        if not text_boxes:
+        notes = self.data.get("notes", [])
+        if not notes:
             return
         
-        logging.debug(f"Rendering {len(text_boxes)} text boxes")
+        logging.debug(f"Rendering {len(notes)} notes")
         
-        # Create font for text boxes
-        text_box_font = QFont(self.config.general.font_family, self.config.general.text_box_font_size)
-        text_box_font_metrics = QFontMetrics(text_box_font)
-        line_height = text_box_font_metrics.height()
+        # Create font for notes
+        note_font = QFont(self.config.general.font_family, self.config.general.note_font_size)
+        note_font_metrics = QFontMetrics(note_font)
+        line_height = note_font_metrics.height()
         
-        for textbox_data in text_boxes:
-            # Convert dict to TextBox object if needed
-            if isinstance(textbox_data, dict):
-                textbox = TextBox.from_dict(textbox_data)
+        for note_data in notes:
+            # Convert dict to Note object if needed
+            if isinstance(note_data, dict):
+                note = Note.from_dict(note_data)
             else:
-                textbox = textbox_data
+                note = note_data
             
-            if not textbox or not textbox.text:
+            if not note or not note.text:
                 continue
             
             # Render rectangle with border and background
             self.dwg.add(self.dwg.rect(
-                insert=(textbox.x, textbox.y),
-                size=(textbox.width, textbox.height),
+                insert=(note.x, note.y),
+                size=(note.width, note.height),
                 fill="white",
                 stroke="grey",
                 stroke_width=0.5
             ))
             
-            # Wrap text into lines that fit within the text box width
+            # Wrap text into lines that fit within the note width
             # Leave some padding (e.g., 2px on each side)
             # Note: Qt font metrics may measure text wider than SVG renders,
             # so we add a small correction factor to account for this mismatch
             padding = 2
             font_metrics_correction = 1.2  # Adjust if SVG renders more compactly than Qt measures
-            available_width = max(1, (textbox.width - (2 * padding)) * font_metrics_correction)
-            logging.debug(f"Text box width: {textbox.width}, padding: {padding}, available_width: {available_width} (with {font_metrics_correction}x correction)")
-            text_lines = self._wrap_text_to_lines(textbox.text, available_width, font_size=self.config.general.text_box_font_size)
+            available_width = max(1, (note.width - (2 * padding)) * font_metrics_correction)
+            logging.debug(f"Note width: {note.width}, padding: {padding}, available_width: {available_width} (with {font_metrics_correction}x correction)")
+            text_lines = self._wrap_text_to_lines(note.text, available_width, font_size=self.config.general.note_font_size)
             logging.debug(f"Wrapped text into {len(text_lines)} lines: {text_lines}")
             
             if not text_lines:
                 continue
             
             # Calculate horizontal alignment and text_x position
-            text_align = textbox.text_align
+            text_align = note.text_align
             if text_align == "Left":
-                text_x = textbox.x + padding
+                text_x = note.x + padding
                 text_anchor = "start"
             elif text_align == "Right":
-                text_x = textbox.x + textbox.width - padding
+                text_x = note.x + note.width - padding
                 text_anchor = "end"
             else:  # Center (default)
-                text_x = textbox.x + textbox.width / 2
+                text_x = note.x + note.width / 2
                 text_anchor = "middle"
             
             # Calculate vertical alignment and start_y position
-            vertical_align = textbox.vertical_align
+            vertical_align = note.vertical_align
             total_text_height = len(text_lines) * line_height
             
             if vertical_align == "Top":
-                start_y = textbox.y + padding + line_height * 0.75  # 0.75 for baseline adjustment
+                start_y = note.y + padding + line_height * 0.75  # 0.75 for baseline adjustment
             elif vertical_align == "Bottom":
-                start_y = textbox.y + textbox.height - total_text_height - padding + line_height * 0.75
+                start_y = note.y + note.height - total_text_height - padding + line_height * 0.75
             else:  # Middle (default)
-                start_y = textbox.y + (textbox.height - total_text_height) / 2 + line_height * 0.75
+                start_y = note.y + (note.height - total_text_height) / 2 + line_height * 0.75
             
             # Render each line
             for i, line in enumerate(text_lines):
@@ -1614,7 +1614,7 @@ class GanttChartService(QObject):
                 self.dwg.add(self.dwg.text(
                     line,
                     insert=(text_x, line_y),
-                    font_size=str(self.config.general.text_box_font_size) + "px",
+                    font_size=str(self.config.general.note_font_size) + "px",
                     font_family=self.config.general.font_family,
                     fill="black",
                     text_anchor=text_anchor,
@@ -1629,7 +1629,7 @@ class GanttChartService(QObject):
         self.render_footer()
         self.render_inner_frame()
         self.render_single_timeline()
-        self.render_text_boxes()  # Render text boxes after all other elements
+        self.render_notes()  # Render notes after all other elements
         self.render_outer_frame_border()  # Border rendered last
         self.dwg.save()
         logging.debug("Render completed")

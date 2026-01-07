@@ -85,12 +85,12 @@ class TypographyTab(BaseTab):
         self.row_number_font_size.setToolTip("Font size for row numbers in pixels")
         self.row_number_font_size.setValidator(validator)
 
-        # Text Boxes
-        text_box_font_size_label = QLabel("Text Boxes:")
-        text_box_font_size_label.setFixedWidth(label_width)
-        self.text_box_font_size = QLineEdit("10")
-        self.text_box_font_size.setToolTip("Font size for text boxes in pixels")
-        self.text_box_font_size.setValidator(validator)
+        # Notes
+        note_font_size_label = QLabel("Notes:")
+        note_font_size_label.setFixedWidth(label_width)
+        self.note_font_size = QLineEdit("10")
+        self.note_font_size.setToolTip("Font size for notes in pixels")
+        self.note_font_size.setValidator(validator)
 
         # Swimlanes
         swimlane_font_size_label = QLabel("Swimlanes:")
@@ -107,8 +107,8 @@ class TypographyTab(BaseTab):
         layout.addWidget(self.header_footer_font_size, 2, 1)
         layout.addWidget(row_number_font_size_label, 3, 0)
         layout.addWidget(self.row_number_font_size, 3, 1)
-        layout.addWidget(text_box_font_size_label, 4, 0)
-        layout.addWidget(self.text_box_font_size, 4, 1)
+        layout.addWidget(note_font_size_label, 4, 0)
+        layout.addWidget(self.note_font_size, 4, 1)
         layout.addWidget(swimlane_font_size_label, 5, 0)
         layout.addWidget(self.swimlane_font_size, 5, 1)
         layout.setColumnStretch(1, 1)
@@ -191,7 +191,7 @@ class TypographyTab(BaseTab):
         self.scale_font_size.textChanged.connect(self._sync_data_if_not_initializing)
         self.header_footer_font_size.textChanged.connect(self._sync_data_if_not_initializing)
         self.row_number_font_size.textChanged.connect(self._sync_data_if_not_initializing)
-        self.text_box_font_size.textChanged.connect(self._sync_data_if_not_initializing)
+        self.note_font_size.textChanged.connect(self._sync_data_if_not_initializing)
         self.swimlane_font_size.textChanged.connect(self._sync_data_if_not_initializing)
         
         # Vertical Adjustment
@@ -218,7 +218,7 @@ class TypographyTab(BaseTab):
         self.scale_font_size.setText(str(chart_config.scale_font_size))
         self.header_footer_font_size.setText(str(chart_config.header_footer_font_size))
         self.row_number_font_size.setText(str(chart_config.row_number_font_size))
-        self.text_box_font_size.setText(str(chart_config.text_box_font_size))
+        self.note_font_size.setText(str(chart_config.note_font_size))
         self.swimlane_font_size.setText(str(chart_config.swimlane_font_size))
 
         # Load Vertical Adjustment
@@ -238,7 +238,7 @@ class TypographyTab(BaseTab):
             "scale_font_size": self.scale_font_size.text(),
             "header_footer_font_size": self.header_footer_font_size.text(),
             "row_number_font_size": self.row_number_font_size.text(),
-            "text_box_font_size": self.text_box_font_size.text(),
+            "note_font_size": self.note_font_size.text(),
             "swimlane_font_size": self.swimlane_font_size.text(),
         }
 
@@ -283,7 +283,7 @@ class TypographyTab(BaseTab):
         chart_config.scale_font_size = int(self.scale_font_size.text()) if self.scale_font_size.text().strip() else chart_config.scale_font_size
         chart_config.header_footer_font_size = int(self.header_footer_font_size.text()) if self.header_footer_font_size.text().strip() else chart_config.header_footer_font_size
         chart_config.row_number_font_size = int(self.row_number_font_size.text()) if self.row_number_font_size.text().strip() else chart_config.row_number_font_size
-        chart_config.text_box_font_size = int(self.text_box_font_size.text()) if self.text_box_font_size.text().strip() else chart_config.text_box_font_size
+        chart_config.note_font_size = int(self.note_font_size.text()) if self.note_font_size.text().strip() else chart_config.note_font_size
         chart_config.swimlane_font_size = int(self.swimlane_font_size.text()) if self.swimlane_font_size.text().strip() else chart_config.swimlane_font_size
 
         chart_config.scale_vertical_alignment_factor = float(self.scale_vertical_alignment.text()) if self.scale_vertical_alignment.text().strip() else chart_config.scale_vertical_alignment_factor

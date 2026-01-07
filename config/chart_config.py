@@ -52,7 +52,7 @@ class ChartConfig:
     scale_font_size: int = 10  # Font size for scale labels
     header_footer_font_size: int = 10  # Font size for header and footer text
     row_number_font_size: int = 10  # Font size for row numbers
-    text_box_font_size: int = 10  # Font size for text boxes
+    note_font_size: int = 10  # Font size for notes
     swimlane_font_size: int = 10  # Font size for swimlane labels
 
     def __post_init__(self):
@@ -60,7 +60,7 @@ class ChartConfig:
         for field_name in ["outer_width", "outer_height", "full_label_width", 
                           "short_label_width", "tasks_rows", "pipes_rows", "curtains_rows",
                           "task_font_size", "scale_font_size", "header_footer_font_size",
-                          "row_number_font_size", "text_box_font_size", "swimlane_font_size"]:
+                          "row_number_font_size", "note_font_size", "swimlane_font_size"]:
             value = getattr(self, field_name)
             if not isinstance(value, int) or value < 0:
                 raise ValueError(f"{field_name} must be a non-negative integer")

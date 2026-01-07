@@ -4,4 +4,4 @@ from .link import Link
 from .pipe import Pipe
 from .curtain import Curtain
 from .swimlane import Swimlane
-from .text_box import TextBox
+from .note import Note

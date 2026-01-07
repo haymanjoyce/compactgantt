@@ -18,7 +18,7 @@ from .tabs.windows_tab import WindowsTab
 from .tabs.titles_tab import TitlesTab
 from .tabs.timeline_tab import TimelineTab
 from .tabs.swimlanes_tab import SwimlanesTab
-from .tabs.text_boxes_tab import TextBoxesTab
+from .tabs.notes_tab import NotesTab
 from .tabs.typography_tab import TypographyTab
 
 class MainWindow(QMainWindow):
@@ -122,7 +122,7 @@ class MainWindow(QMainWindow):
         self.swimlanes_tab = SwimlanesTab(self.project_data, self.app_config)
         self.pipes_tab = PipesTab(self.project_data, self.app_config)
         self.curtains_tab = CurtainsTab(self.project_data, self.app_config)
-        self.text_boxes_tab = TextBoxesTab(self.project_data, self.app_config)
+        self.notes_tab = NotesTab(self.project_data, self.app_config)
         self.typography_tab = TypographyTab(self.project_data, self.app_config)
 
     def _add_all_tabs(self):
@@ -135,7 +135,7 @@ class MainWindow(QMainWindow):
         self.tab_widget.addTab(self.swimlanes_tab, "Swimlanes")
         self.tab_widget.addTab(self.pipes_tab, "Pipes")
         self.tab_widget.addTab(self.curtains_tab, "Curtains")
-        self.tab_widget.addTab(self.text_boxes_tab, "Text Boxes")
+        self.tab_widget.addTab(self.notes_tab, "Notes")
         self.tab_widget.addTab(self.typography_tab, "Typography")
 
     def save_to_json(self):
@@ -261,8 +261,8 @@ class MainWindow(QMainWindow):
                 self.pipes_tab._sync_data()
             if hasattr(self.curtains_tab, '_sync_data'):
                 self.curtains_tab._sync_data()
-            if hasattr(self.text_boxes_tab, '_sync_data'):
-                self.text_boxes_tab._sync_data()
+            if hasattr(self.notes_tab, '_sync_data'):
+                self.notes_tab._sync_data()
             if hasattr(self.typography_tab, '_sync_data'):
                 self.typography_tab._sync_data()
             # After syncing typography tab, sync chart_config to project_data
@@ -279,7 +279,7 @@ class MainWindow(QMainWindow):
         self.project_data.chart_config.scale_font_size = chart_config.scale_font_size
         self.project_data.chart_config.header_footer_font_size = chart_config.header_footer_font_size
         self.project_data.chart_config.row_number_font_size = chart_config.row_number_font_size
-        self.project_data.chart_config.text_box_font_size = chart_config.text_box_font_size
+        self.project_data.chart_config.note_font_size = chart_config.note_font_size
         self.project_data.chart_config.swimlane_font_size = chart_config.swimlane_font_size
         self.project_data.chart_config.scale_vertical_alignment_factor = chart_config.scale_vertical_alignment_factor
         self.project_data.chart_config.task_vertical_alignment_factor = chart_config.task_vertical_alignment_factor
@@ -296,7 +296,7 @@ class MainWindow(QMainWindow):
         chart_config.scale_font_size = self.project_data.chart_config.scale_font_size
         chart_config.header_footer_font_size = self.project_data.chart_config.header_footer_font_size
         chart_config.row_number_font_size = self.project_data.chart_config.row_number_font_size
-        chart_config.text_box_font_size = self.project_data.chart_config.text_box_font_size
+        chart_config.note_font_size = self.project_data.chart_config.note_font_size
         chart_config.swimlane_font_size = self.project_data.chart_config.swimlane_font_size
         chart_config.scale_vertical_alignment_factor = self.project_data.chart_config.scale_vertical_alignment_factor
         chart_config.task_vertical_alignment_factor = self.project_data.chart_config.task_vertical_alignment_factor

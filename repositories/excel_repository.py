@@ -11,7 +11,7 @@ from models.link import Link
 from models.pipe import Pipe
 from models.curtain import Curtain
 from models.swimlane import Swimlane
-from models.text_box import TextBox
+from models.note import Note
 from utils.conversion import internal_to_display_date, display_to_internal_date
 
 
@@ -34,7 +34,7 @@ class ExcelRepository:
         self._create_swimlanes_sheet(wb, project_data.swimlanes)
         self._create_pipes_sheet(wb, project_data.pipes)
         self._create_curtains_sheet(wb, project_data.curtains)
-        self._create_text_boxes_sheet(wb, project_data.text_boxes)
+        self._create_notes_sheet(wb, project_data.notes)
         
         wb.save(file_path)
     
@@ -97,8 +97,11 @@ class ExcelRepository:
         if "Curtains" in wb.sheetnames:
             project.curtains = self._read_curtains_sheet(wb["Curtains"])
         
-        if "Text Boxes" in wb.sheetnames:
-            project.text_boxes = self._read_text_boxes_sheet(wb["Text Boxes"])
+        # Support both "Notes" and old "Text Boxes" sheet names
+        if "Notes" in wb.sheetnames:
+            project.notes = self._read_notes_sheet(wb["Notes"])
+        elif "Text Boxes" in wb.sheetnames:
+            project.notes = self._read_notes_sheet(wb["Text Boxes"])
         
         # Load Typography sheet
         if "Typography" in wb.sheetnames:
@@ -196,7 +199,7 @@ class ExcelRepository:
         ws.append(["Scale Font Size", chart_config.scale_font_size])
         ws.append(["Header & Footer Font Size", chart_config.header_footer_font_size])
         ws.append(["Row Number Font Size", chart_config.row_number_font_size])
-        ws.append(["Text Box Font Size", chart_config.text_box_font_size])
+        ws.append(["Note Font Size", chart_config.note_font_size])
         ws.append(["Swimlane Font Size", chart_config.swimlane_font_size])
         
         # Vertical Alignment Factors
@@ -491,22 +494,22 @@ class ExcelRepository:
         
         return swimlanes
     
-    def _create_text_boxes_sheet(self, wb: Workbook, text_boxes: List[TextBox]) -> None:
-        """Create Text Boxes worksheet."""
-        ws = wb.create_sheet("Text Boxes")
+    def _create_notes_sheet(self, wb: Workbook, notes: List[Note]) -> None:
+        """Create Notes worksheet."""
+        ws = wb.create_sheet("Notes")
         ws.append(["ID", "X", "Y", "Width", "Height", "Text Align", "Vertical Align", "Text"])
         self._format_header_row(ws, 1)
         
-        for textbox in text_boxes:
+        for note in notes:
             ws.append([
-                textbox.textbox_id,
-                textbox.x,
-                textbox.y,
-                textbox.width,
-                textbox.height,
-                textbox.text_align,
-                textbox.vertical_align,
-                textbox.text
+                note.note_id,
+                note.x,
+                note.y,
+                note.width,
+                note.height,
+                note.text_align,
+                note.vertical_align,
+                note.text
             ])
     
     def _format_header_row(self, ws, row_num: int) -> None:
@@ -807,9 +810,9 @@ class ExcelRepository:
         
         return links
     
-    def _read_text_boxes_sheet(self, ws) -> List[TextBox]:
-        """Read Text Boxes worksheet and return list of TextBox objects."""
-        text_boxes = []
+    def _read_notes_sheet(self, ws) -> List[Note]:
+        """Read Notes worksheet and return list of Note objects."""
+        notes = []
         headers = None
         
         for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
@@ -821,42 +824,42 @@ class ExcelRepository:
             if not any(row):  # Skip empty rows
                 continue
             
-            # Create textbox dict from row data using header mapping
-            textbox_data = {}
+            # Create note dict from row data using header mapping
+            note_data = {}
             for col_idx, value in enumerate(row):
                 if col_idx < len(headers) and headers[col_idx]:
                     header = headers[col_idx]
                     
-                    # Map Excel headers to textbox fields
+                    # Map Excel headers to note fields
                     if header == "ID":
-                        textbox_data["textbox_id"] = int(value) if value is not None else 0
+                        note_data["note_id"] = int(value) if value is not None else 0
                     elif header == "X":
-                        textbox_data["x"] = int(value) if value is not None else 0
+                        note_data["x"] = int(value) if value is not None else 0
                     elif header == "Y":
-                        textbox_data["y"] = int(value) if value is not None else 0
+                        note_data["y"] = int(value) if value is not None else 0
                     elif header == "Width":
-                        textbox_data["width"] = int(value) if value is not None else 100
+                        note_data["width"] = int(value) if value is not None else 100
                     elif header == "Height":
-                        textbox_data["height"] = int(value) if value is not None else 50
+                        note_data["height"] = int(value) if value is not None else 50
                     elif header == "Text Align":
-                        textbox_data["text_align"] = str(value) if value is not None else "Center"
+                        note_data["text_align"] = str(value) if value is not None else "Center"
                     elif header == "Vertical Align":
-                        textbox_data["vertical_align"] = str(value) if value is not None else "Middle"
+                        note_data["vertical_align"] = str(value) if value is not None else "Middle"
                     elif header == "Text":
-                        textbox_data["text"] = str(value) if value is not None else ""
+                        note_data["text"] = str(value) if value is not None else ""
             
-            # Only create textbox if we have required fields
-            if ("textbox_id" in textbox_data and textbox_data["textbox_id"] > 0 and
-                "x" in textbox_data and "y" in textbox_data and
-                "width" in textbox_data and "height" in textbox_data):
+            # Only create note if we have required fields
+            if ("note_id" in note_data and note_data["note_id"] > 0 and
+                "x" in note_data and "y" in note_data and
+                "width" in note_data and "height" in note_data):
                 try:
-                    textbox = TextBox.from_dict(textbox_data)
-                    text_boxes.append(textbox)
+                    note = Note.from_dict(note_data)
+                    notes.append(note)
                 except (KeyError, ValueError) as e:
-                    # Skip invalid textboxes
+                    # Skip invalid notes
                     continue
         
-        return text_boxes
+        return notes
     
     def _read_typography_sheet(self, ws) -> Dict[str, Any]:
         """Read Typography worksheet and return dict of chart_config fields."""
@@ -873,7 +876,8 @@ class ExcelRepository:
                     "Scale Font Size": "scale_font_size",
                     "Header & Footer Font Size": "header_footer_font_size",
                     "Row Number Font Size": "row_number_font_size",
-                    "Text Box Font Size": "text_box_font_size",
+                    "Note Font Size": "note_font_size",
+                    "Text Box Font Size": "note_font_size",  # Backward compatibility
                     "Swimlane Font Size": "swimlane_font_size",
                     "Scale Vertical Alignment Factor": "scale_vertical_alignment_factor",
                     "Task Vertical Alignment Factor": "task_vertical_alignment_factor",
