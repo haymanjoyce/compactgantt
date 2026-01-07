@@ -238,6 +238,7 @@ class LinksTab(BaseTab):
             return
         
         col = item.column()
+        row = item.row()
         col_config = self.table_config.columns[col] if col < len(self.table_config.columns) else None
         
         # Don't trigger sync for Valid or ID column changes (they're read-only and auto-calculated)
@@ -252,8 +253,60 @@ class LinksTab(BaseTab):
             except (ValueError, AttributeError):
                 item.setData(Qt.UserRole, 0)
         
+        # Immediately update task name when a task ID is entered
+        if col_config and col_config.name == "From Task ID":
+            self._update_task_name_immediately(row, "From")
+        elif col_config and col_config.name == "To Task ID":
+            self._update_task_name_immediately(row, "To")
+        
         # Trigger sync
         self._sync_data_if_not_initializing()
+
+    def _update_task_name_immediately(self, row: int, direction: str):
+        """Update task name field immediately when task ID is entered."""
+        # Build task name mapping
+        task_name_map = {task.task_id: task.task_name for task in self.project_data.tasks}
+        
+        # Get column indices
+        if direction == "From":
+            id_col = self._get_column_index("From Task ID")
+            name_col = self._get_column_index("From Task Name")
+        else:  # "To"
+            id_col = self._get_column_index("To Task ID")
+            name_col = self._get_column_index("To Task Name")
+        
+        if id_col is None or name_col is None:
+            return
+        
+        # Get task ID from the table
+        id_item = self.links_table.item(row, id_col)
+        if not id_item:
+            return
+        
+        task_id = safe_int(id_item.text())
+        if task_id <= 0:
+            # Clear the name if invalid ID
+            task_name = ""
+        else:
+            # Look up task name
+            task_name = task_name_map.get(task_id, "")
+        
+        # Update the name field
+        self.links_table.blockSignals(True)
+        try:
+            name_item = self.links_table.item(row, name_col)
+            display_text = self._truncate_text(task_name)
+            if name_item:
+                name_item.setText(display_text)
+                name_item.setToolTip(task_name)
+            else:
+                name_item = QTableWidgetItem(display_text)
+                name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
+                name_item.setBackground(QBrush(self.app_config.general.read_only_bg_color))
+                name_item.setToolTip(task_name)
+                self.links_table.setItem(row, name_col, name_item)
+        finally:
+            self.links_table.blockSignals(False)
 
     def _load_initial_data_impl(self):
         """Load initial data into the table using Link objects directly."""
