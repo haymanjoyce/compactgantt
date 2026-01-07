@@ -543,27 +543,31 @@ class LinksTab(BaseTab):
             if valid_col is not None:
                 # Calculate valid status if not already set
                 if link.valid is None:
-                    from_task = next((t for t in self.project_data.tasks if t.task_id == link.from_task_id), None)
-                    to_task = next((t for t in self.project_data.tasks if t.task_id == link.to_task_id), None)
-                    
-                    if from_task and to_task:
-                        from_finish_date = from_task.finish_date or from_task.start_date
-                        to_start_date = to_task.start_date or to_task.finish_date
+                    # Check if both task IDs are provided
+                    if link.from_task_id <= 0 or link.to_task_id <= 0:
+                        link.valid = "No"
+                    else:
+                        from_task = next((t for t in self.project_data.tasks if t.task_id == link.from_task_id), None)
+                        to_task = next((t for t in self.project_data.tasks if t.task_id == link.to_task_id), None)
                         
-                        if from_finish_date and to_start_date:
-                            try:
-                                from_finish = datetime.strptime(from_finish_date, "%Y-%m-%d")
-                                to_start = datetime.strptime(to_start_date, "%Y-%m-%d")
-                                link.valid = "No" if to_start < from_finish else "Yes"
-                            except (ValueError, TypeError):
+                        if from_task and to_task:
+                            from_finish_date = from_task.finish_date or from_task.start_date
+                            to_start_date = to_task.start_date or to_task.finish_date
+                            
+                            if from_finish_date and to_start_date:
+                                try:
+                                    from_finish = datetime.strptime(from_finish_date, "%Y-%m-%d")
+                                    to_start = datetime.strptime(to_start_date, "%Y-%m-%d")
+                                    link.valid = "No" if to_start < from_finish else "Yes"
+                                except (ValueError, TypeError):
+                                    link.valid = "No"
+                            else:
                                 link.valid = "No"
                         else:
                             link.valid = "No"
-                    else:
-                        link.valid = "No"
                 
                 item = self.links_table.item(row_idx, valid_col)
-                valid_value = link.valid or "Yes"
+                valid_value = link.valid or "No"  # Default to "No" instead of "Yes"
                 if item:
                     item.setText(valid_value)
                 else:

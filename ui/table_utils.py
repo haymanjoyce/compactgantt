@@ -222,7 +222,10 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
                 table.setItem(row_index, col_idx, id_item)
             # Valid column for links and tasks - read-only text (check BEFORE combo box to ensure it's never a combo)
             elif header_text == "Valid":
-                item = QTableWidgetItem("Yes")  # Default to "Yes", will be calculated later
+                # Default to "No" for links (will be calculated when both task IDs are entered)
+                # Default to "Yes" for tasks (will be calculated based on validation)
+                default_value = "No" if is_links_table else "Yes"
+                item = QTableWidgetItem(default_value)  # Will be calculated later
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make read-only
                 item.setBackground(QBrush(READ_ONLY_BG))  # Gray background
                 table.setItem(row_index, col_idx, item)
