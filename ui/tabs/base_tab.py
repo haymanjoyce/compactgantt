@@ -58,4 +58,20 @@ class BaseTab(QWidget):
 
     def _sync_data_impl(self):
         """Override this method to implement specific data sync logic."""
-        pass 
+        pass
+    
+    def _set_detail_form_enabled(self, widgets, enabled):
+        """Helper method to enable/disable multiple detail form widgets.
+        
+        Args:
+            widgets: List of QWidget objects (QComboBox, QLineEdit, etc.) to enable/disable.
+                     Can also be a single widget or None (will be safely ignored).
+            enabled: Boolean indicating whether widgets should be enabled
+        """
+        if widgets is None:
+            return
+        if not isinstance(widgets, list):
+            widgets = [widgets]
+        for widget in widgets:
+            if widget is not None:
+                widget.setEnabled(enabled)

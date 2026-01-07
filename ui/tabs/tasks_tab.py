@@ -23,6 +23,7 @@ class TasksTab(BaseTab):
         self._selected_row = None  # Track currently selected row
         self._updating_form = False  # Prevent circular updates
         self._syncing = False  # Prevent recursive syncs
+        self._detail_form_widgets = []  # Will be populated in _create_detail_form
         super().__init__(project_data, app_config)
 
     def setup_ui(self):
@@ -136,6 +137,7 @@ class TasksTab(BaseTab):
         self.detail_label_content.addItems(["None", "Name only", "Date only", "Name and Date"])
         self.detail_label_content.setToolTip("What to display in the task label")
         self.detail_label_content.currentTextChanged.connect(self._on_detail_form_changed)
+        self.detail_label_content.setEnabled(False)
         
         # Label Placement
         placement_label = QLabel("Label Placement:")
@@ -144,6 +146,7 @@ class TasksTab(BaseTab):
         self.detail_placement.addItems(["Inside", "Outside"])
         self.detail_placement.setToolTip("Label placement (Inside or Outside task bar)")
         self.detail_placement.currentTextChanged.connect(self._on_detail_form_changed)
+        self.detail_placement.setEnabled(False)
         
         # Label Offset
         offset_label = QLabel("Label Offset:")
@@ -154,6 +157,7 @@ class TasksTab(BaseTab):
         validator = QIntValidator(0, 999999, self)
         self.detail_offset.setValidator(validator)
         self.detail_offset.textChanged.connect(self._on_detail_form_changed)
+        self.detail_offset.setEnabled(False)
         
         # Fill Color
         color_label = QLabel("Fill Color:")
@@ -162,6 +166,10 @@ class TasksTab(BaseTab):
         self.detail_fill_color.addItems(["blue", "red", "green", "yellow", "orange", "purple", "gray", "black", "white", "cyan", "magenta", "brown"])
         self.detail_fill_color.setToolTip("Fill color for task bar or milestone circle")
         self.detail_fill_color.currentTextChanged.connect(self._on_detail_form_changed)
+        self.detail_fill_color.setEnabled(False)
+        
+        # Store list of detail form widgets for easy enable/disable
+        self._detail_form_widgets = [self.detail_label_content, self.detail_placement, self.detail_offset, self.detail_fill_color]
         
         # Layout form fields vertically (like titles tab)
         layout.addWidget(label_label, 0, 0)
@@ -202,12 +210,15 @@ class TasksTab(BaseTab):
                 self.detail_placement.setCurrentText(task.label_placement if task.label_placement else "Inside")
                 self.detail_offset.setText(str(int(task.label_horizontal_offset)) if task.label_horizontal_offset is not None else "0")
                 self.detail_fill_color.setCurrentText(task.fill_color if task.fill_color else "blue")
+                # Enable detail form widgets when a valid task is selected
+                self._set_detail_form_enabled(self._detail_form_widgets, True)
             else:
                 # Use defaults if task doesn't exist
                 self.detail_label_content.setCurrentText("Name only")
                 self.detail_placement.setCurrentText("Inside")
                 self.detail_offset.setText("0")
                 self.detail_fill_color.setCurrentText("blue")
+                self._set_detail_form_enabled(self._detail_form_widgets, False)
         finally:
             self._updating_form = False
 
@@ -219,6 +230,8 @@ class TasksTab(BaseTab):
             self.detail_placement.setCurrentText("Inside")
             self.detail_offset.setText("0")
             self.detail_fill_color.setCurrentText("blue")
+            # Disable detail form widgets when no task is selected
+            self._set_detail_form_enabled(self._detail_form_widgets, False)
         finally:
             self._updating_form = False
 
@@ -683,6 +696,10 @@ class TasksTab(BaseTab):
         self._ensure_read_only_styling()
         
         self._initializing = False
+        
+        # Disable detail form if no tasks exist or no selection
+        if row_count == 0 or self._selected_row is None:
+            self._clear_detail_form()
         
         # Calculate and update Valid column for all rows
         self._update_valid_column_only()

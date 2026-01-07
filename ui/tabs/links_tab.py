@@ -21,6 +21,7 @@ class LinksTab(BaseTab):
         self.table_config = app_config.get_table_config("links")
         self._selected_row = None  # Track currently selected row
         self._updating_form = False  # Prevent circular updates
+        self._detail_form_widgets = []  # Will be populated in _create_detail_form
         super().__init__(project_data, app_config)
 
     def setup_ui(self):
@@ -116,6 +117,7 @@ class LinksTab(BaseTab):
         self.detail_line_color.addItems(["black", "red"])
         self.detail_line_color.setToolTip("Color of the link line and arrowhead")
         self.detail_line_color.currentTextChanged.connect(self._on_detail_form_changed)
+        self.detail_line_color.setEnabled(False)
         
         # Line Style
         style_label = QLabel("Line Style:")
@@ -124,6 +126,7 @@ class LinksTab(BaseTab):
         self.detail_line_style.addItems(["solid", "dotted", "dashed"])
         self.detail_line_style.setToolTip("Style of the link line (solid, dotted, or dashed)")
         self.detail_line_style.currentTextChanged.connect(self._on_detail_form_changed)
+        self.detail_line_style.setEnabled(False)
         
         # Link Routing
         routing_label = QLabel("Link Routing:")
@@ -132,6 +135,10 @@ class LinksTab(BaseTab):
         self.detail_link_routing.addItems(["auto", "HV", "VH"])
         self.detail_link_routing.setToolTip("Routing pattern: Auto (automatic), HV (horizontal then vertical), or VH (vertical then horizontal)")
         self.detail_link_routing.currentTextChanged.connect(self._on_detail_form_changed)
+        self.detail_link_routing.setEnabled(False)
+        
+        # Store list of detail form widgets for easy enable/disable
+        self._detail_form_widgets = [self.detail_line_color, self.detail_line_style, self.detail_link_routing]
         
         # Layout form fields vertically (like tasks tab)
         layout.addWidget(color_label, 0, 0)
@@ -163,17 +170,41 @@ class LinksTab(BaseTab):
         self._updating_form = True
         
         try:
-            # Get Link object directly from project_data
-            if row < len(self.project_data.links):
-                link = self.project_data.links[row]
+            # Get link ID from the table row (works even after sorting)
+            id_col = self._get_column_index("ID")
+            if id_col is None:
+                self._set_detail_form_enabled(self._detail_form_widgets, False)
+                return
+            
+            id_item = self.links_table.item(row, id_col)
+            if not id_item:
+                self._set_detail_form_enabled(self._detail_form_widgets, False)
+                return
+            
+            link_id = safe_int(id_item.text())
+            if link_id <= 0:
+                self._set_detail_form_enabled(self._detail_form_widgets, False)
+                return
+            
+            # Find the link in project_data by ID (key-based access)
+            link = None
+            for l in self.project_data.links:
+                if l.link_id == link_id:
+                    link = l
+                    break
+            
+            if link:
                 self.detail_line_color.setCurrentText(link.line_color if link.line_color else "black")
                 self.detail_line_style.setCurrentText(link.line_style if link.line_style else "solid")
                 self.detail_link_routing.setCurrentText(link.link_routing if link.link_routing else "auto")
+                # Enable detail form widgets when a valid link is selected
+                self._set_detail_form_enabled(self._detail_form_widgets, True)
             else:
-                # Use defaults if link doesn't exist
+                # Use defaults if link not found
                 self.detail_line_color.setCurrentText("black")
                 self.detail_line_style.setCurrentText("solid")
                 self.detail_link_routing.setCurrentText("auto")
+                self._set_detail_form_enabled(self._detail_form_widgets, False)
         finally:
             self._updating_form = False
 
@@ -184,6 +215,8 @@ class LinksTab(BaseTab):
             self.detail_line_color.setCurrentText("black")
             self.detail_line_style.setCurrentText("solid")
             self.detail_link_routing.setCurrentText("auto")
+            # Disable detail form widgets when no link is selected
+            self._set_detail_form_enabled(self._detail_form_widgets, False)
         finally:
             self._updating_form = False
 
@@ -246,6 +279,10 @@ class LinksTab(BaseTab):
         self.links_table.sortItems(1, Qt.AscendingOrder)  # Column 1 = ID
         
         self._initializing = False
+        
+        # Disable detail form if no links exist or no selection
+        if row_count == 0 or self._selected_row is None:
+            self._clear_detail_form()
         
         # Calculate and update Valid column for all rows (including those populated from defaults)
         self._update_valid_column_only()

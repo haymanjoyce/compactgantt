@@ -22,6 +22,7 @@ class SwimlanesTab(BaseTab):
         self._selected_swimlane_id = None  # Track selected swimlane ID for detail form matching
         self._updating_form = False  # Prevent circular updates
         self.detail_label_position = None  # Will be initialized in setup_ui
+        self._detail_form_widgets = []  # Will be populated in _create_detail_form
         super().__init__(project_data, app_config)
 
     def setup_ui(self):
@@ -132,6 +133,9 @@ class SwimlanesTab(BaseTab):
         # Disable by default - will be enabled when a swimlane is selected
         self.detail_label_position.setEnabled(False)
         
+        # Store list of detail form widgets for easy enable/disable
+        self._detail_form_widgets = [self.detail_label_position]
+        
         layout.addWidget(position_label, 0, 0)
         layout.addWidget(self.detail_label_position, 0, 1)
         layout.setColumnStretch(1, 1)
@@ -162,10 +166,11 @@ class SwimlanesTab(BaseTab):
                 swimlane = self.project_data.swimlanes[row]
                 label_position = swimlane.label_position if hasattr(swimlane, 'label_position') else "Bottom Right"
                 self.detail_label_position.setCurrentText(label_position)
-                self.detail_label_position.setEnabled(True)
+                # Enable detail form widgets when a valid swimlane is selected
+                self._set_detail_form_enabled(self._detail_form_widgets, True)
             else:
                 self.detail_label_position.setCurrentText("Bottom Right")
-                self.detail_label_position.setEnabled(False)
+                self._set_detail_form_enabled(self._detail_form_widgets, False)
         finally:
             self._updating_form = False
     
@@ -174,7 +179,8 @@ class SwimlanesTab(BaseTab):
         self._updating_form = True
         try:
             self.detail_label_position.setCurrentText("Bottom Right")
-            self.detail_label_position.setEnabled(False)
+            # Disable detail form widgets when no swimlane is selected
+            self._set_detail_form_enabled(self._detail_form_widgets, False)
         finally:
             self._updating_form = False
     

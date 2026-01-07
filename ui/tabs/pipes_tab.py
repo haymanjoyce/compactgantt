@@ -21,6 +21,7 @@ class PipesTab(BaseTab):
         self.table_config = app_config.get_table_config("pipes")
         self._selected_row = None  # Track currently selected row
         self._updating_form = False  # Prevent circular updates
+        self._detail_form_widgets = []  # Will be populated in _create_detail_form
         super().__init__(project_data, app_config)
 
     def setup_ui(self):
@@ -114,6 +115,11 @@ class PipesTab(BaseTab):
         self.detail_color.addItems(["blue", "red", "green", "yellow", "orange", "purple", "gray", "black", "cyan", "magenta", "brown"])
         self.detail_color.setToolTip("Color of the pipe line")
         self.detail_color.currentTextChanged.connect(self._on_detail_form_changed)
+        # Disable by default - will be enabled when a pipe is selected
+        self.detail_color.setEnabled(False)
+        
+        # Store list of detail form widgets for easy enable/disable
+        self._detail_form_widgets = [self.detail_color]
         
         layout.addWidget(color_label, 0, 0)
         layout.addWidget(self.detail_color, 0, 1)
@@ -143,9 +149,12 @@ class PipesTab(BaseTab):
             if row < len(self.project_data.pipes):
                 pipe = self.project_data.pipes[row]
                 self.detail_color.setCurrentText(pipe.color if pipe.color else "red")
+                # Enable detail form widgets when a valid pipe is selected
+                self._set_detail_form_enabled(self._detail_form_widgets, True)
             else:
                 # Use defaults if pipe doesn't exist
                 self.detail_color.setCurrentText("red")
+                self._set_detail_form_enabled(self._detail_form_widgets, False)
         finally:
             self._updating_form = False
 
@@ -154,6 +163,8 @@ class PipesTab(BaseTab):
         self._updating_form = True
         try:
             self.detail_color.setCurrentText("red")
+            # Disable detail form widgets when no pipe is selected
+            self._set_detail_form_enabled(self._detail_form_widgets, False)
         finally:
             self._updating_form = False
 
@@ -267,6 +278,10 @@ class PipesTab(BaseTab):
             self.pipes_table.sortItems(id_col, Qt.AscendingOrder)
         
         self._initializing = False
+        
+        # Disable detail form if no pipes exist or no selection
+        if row_count == 0 or self._selected_row is None:
+            self._clear_detail_form()
 
     def _update_table_row_from_pipe(self, row_idx: int, pipe: Pipe) -> None:
         """Populate a table row from a Pipe object."""

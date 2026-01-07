@@ -21,6 +21,7 @@ class CurtainsTab(BaseTab):
         self.table_config = app_config.get_table_config("curtains")
         self._selected_row = None  # Track currently selected row
         self._updating_form = False  # Prevent circular updates
+        self._detail_form_widgets = []  # Will be populated in _create_detail_form
         super().__init__(project_data, app_config)
 
     def setup_ui(self):
@@ -114,6 +115,11 @@ class CurtainsTab(BaseTab):
         self.detail_color.addItems(["blue", "red", "green", "yellow", "orange", "purple", "gray", "black", "cyan", "magenta", "brown"])
         self.detail_color.setToolTip("Color of the curtain lines and hatching")
         self.detail_color.currentTextChanged.connect(self._on_detail_form_changed)
+        # Disable by default - will be enabled when a curtain is selected
+        self.detail_color.setEnabled(False)
+        
+        # Store list of detail form widgets for easy enable/disable
+        self._detail_form_widgets = [self.detail_color]
         
         layout.addWidget(color_label, 0, 0)
         layout.addWidget(self.detail_color, 0, 1)
@@ -143,9 +149,12 @@ class CurtainsTab(BaseTab):
             if row < len(self.project_data.curtains):
                 curtain = self.project_data.curtains[row]
                 self.detail_color.setCurrentText(curtain.color if curtain.color else "red")
+                # Enable detail form widgets when a valid curtain is selected
+                self._set_detail_form_enabled(self._detail_form_widgets, True)
             else:
                 # Use defaults if curtain doesn't exist
                 self.detail_color.setCurrentText("red")
+                self._set_detail_form_enabled(self._detail_form_widgets, False)
         finally:
             self._updating_form = False
 
@@ -154,6 +163,8 @@ class CurtainsTab(BaseTab):
         self._updating_form = True
         try:
             self.detail_color.setCurrentText("red")
+            # Disable detail form widgets when no curtain is selected
+            self._set_detail_form_enabled(self._detail_form_widgets, False)
         finally:
             self._updating_form = False
 
@@ -267,6 +278,10 @@ class CurtainsTab(BaseTab):
             self.curtains_table.sortItems(id_col, Qt.AscendingOrder)
         
         self._initializing = False
+        
+        # Disable detail form if no curtains exist or no selection
+        if row_count == 0 or self._selected_row is None:
+            self._clear_detail_form()
 
     def _update_table_row_from_curtain(self, row_idx: int, curtain: Curtain) -> None:
         """Populate a table row from a Curtain object."""

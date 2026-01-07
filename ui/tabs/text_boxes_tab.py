@@ -20,6 +20,7 @@ class TextBoxesTab(BaseTab):
         self.table_config = app_config.get_table_config("text_boxes")
         self._selected_row = None  # Track currently selected row
         self._updating_form = False  # Prevent circular updates
+        self._detail_form_widgets = []  # Will be populated in _create_detail_form
         super().__init__(project_data, app_config)
 
     def setup_ui(self):
@@ -133,6 +134,10 @@ class TextBoxesTab(BaseTab):
         button_layout.addWidget(self.save_button)
         button_layout.addStretch()
         
+        # Store list of detail form widgets for easy enable/disable
+        # Note: detail_text uses setReadOnly() separately, so we only include the Edit button here
+        self._detail_form_widgets = [self.edit_button]
+        
         layout.addWidget(self.detail_text, 0, 0)  # Text area spans full width
         layout.addLayout(button_layout, 1, 0)  # Buttons below text area
         layout.setColumnStretch(0, 1)  # Make column 0 stretch
@@ -168,13 +173,13 @@ class TextBoxesTab(BaseTab):
                 # Update group box title to show which text box is selected
                 self.detail_group.setTitle(f"Text Box {textbox.textbox_id}")
                 # Enable Edit button only when a valid text box exists
-                self.edit_button.setEnabled(True)
+                self._set_detail_form_enabled(self._detail_form_widgets, True)
             else:
                 # Use defaults if textbox doesn't exist
                 self.detail_text.setPlainText("")
                 self.detail_group.setTitle("Text Box Content")
                 # Disable Edit button when no valid text box exists
-                self.edit_button.setEnabled(False)
+                self._set_detail_form_enabled(self._detail_form_widgets, False)
             
             # Reset to read-only mode and button states
             self.detail_text.setReadOnly(True)
@@ -192,7 +197,8 @@ class TextBoxesTab(BaseTab):
             self.detail_text.setPlainText("")
             self.detail_text.setReadOnly(True)
             self.detail_group.setTitle("Text Box Content")  # Reset title when no selection
-            self.edit_button.setEnabled(False)  # Disable when no selection
+            # Disable detail form widgets when no text box is selected
+            self._set_detail_form_enabled(self._detail_form_widgets, False)
             self.save_button.setEnabled(False)
         finally:
             self.detail_text.blockSignals(False)
