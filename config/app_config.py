@@ -362,7 +362,12 @@ class AppConfig:
                 with open(settings_file, 'r') as f:
                     data = json.load(f)
                     if 'window' in data:
-                        self.general.window = WindowConfig(**data['window'])
+                        window_data = data['window'].copy()
+                        # Handle tab_order separately if it exists
+                        if 'tab_order' in window_data:
+                            # tab_order is already a list, no conversion needed
+                            pass
+                        self.general.window = WindowConfig(**window_data)
             except Exception as e:
                 logging.warning(f"Failed to load settings: {e}")
 
@@ -384,6 +389,7 @@ class AppConfig:
                     'svg_display_y': self.general.window.svg_display_y,
                     'last_json_directory': self.general.window.last_json_directory,
                     'last_excel_directory': self.general.window.last_excel_directory,
+                    'tab_order': self.general.window.tab_order,
                 }
             }
             with open(settings_file, 'w') as f:

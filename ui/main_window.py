@@ -83,8 +83,15 @@ class MainWindow(QMainWindow):
 
         # Create and setup tab widget
         self.tab_widget = QTabWidget()
+        self.tab_widget.setMovable(True)  # Enable drag-and-drop tab reordering
+        # Connect to tab moved signal to save order when user reorders tabs
+        self.tab_widget.tabBar().tabMoved.connect(self._on_tab_moved)
         self._create_all_tabs()
         self._add_all_tabs()
+        # Temporarily block signals during restore to avoid triggering save
+        self.tab_widget.tabBar().blockSignals(True)
+        self._restore_tab_order()  # Restore saved tab order
+        self.tab_widget.tabBar().blockSignals(False)
         main_layout.addWidget(self.tab_widget)
 
         # Create Update Image button at the bottom
@@ -126,17 +133,61 @@ class MainWindow(QMainWindow):
         self.typography_tab = TypographyTab(self.project_data, self.app_config)
 
     def _add_all_tabs(self):
-        self.tab_widget.addTab(self.windows_tab, "Windows")
-        self.tab_widget.addTab(self.layout_tab, "Layout")
-        self.tab_widget.addTab(self.titles_tab, "Titles")
-        self.tab_widget.addTab(self.timeline_tab, "Timeline")
-        self.tab_widget.addTab(self.tasks_tab, "Tasks")
-        self.tab_widget.addTab(self.links_tab, "Links")
-        self.tab_widget.addTab(self.swimlanes_tab, "Swimlanes")
-        self.tab_widget.addTab(self.pipes_tab, "Pipes")
-        self.tab_widget.addTab(self.curtains_tab, "Curtains")
-        self.tab_widget.addTab(self.notes_tab, "Notes")
-        self.tab_widget.addTab(self.typography_tab, "Typography")
+        """Add all tabs to the tab widget in default order."""
+        # Create a mapping of tab names to tab widgets for easy lookup
+        self._tab_map = {
+            "Windows": self.windows_tab,
+            "Layout": self.layout_tab,
+            "Titles": self.titles_tab,
+            "Timeline": self.timeline_tab,
+            "Tasks": self.tasks_tab,
+            "Links": self.links_tab,
+            "Swimlanes": self.swimlanes_tab,
+            "Pipes": self.pipes_tab,
+            "Curtains": self.curtains_tab,
+            "Notes": self.notes_tab,
+            "Typography": self.typography_tab,
+        }
+        
+        # Add all tabs in default order (will be reordered by _restore_tab_order if needed)
+        for tab_name, tab_widget in self._tab_map.items():
+            self.tab_widget.addTab(tab_widget, tab_name)
+    
+    def _restore_tab_order(self):
+        """Restore tab order from saved preferences."""
+        saved_order = self.app_config.general.window.tab_order
+        
+        # Validate that saved order contains all expected tabs
+        expected_tabs = set(self._tab_map.keys())
+        saved_tabs = set(saved_order)
+        
+        # If saved order is missing tabs or has extra tabs, use default order
+        if saved_tabs != expected_tabs:
+            logging.warning(f"Tab order mismatch. Expected: {expected_tabs}, Got: {saved_tabs}. Using default order.")
+            return
+        
+        # Reorder tabs according to saved order
+        for target_index, tab_name in enumerate(saved_order):
+            current_index = None
+            for i in range(self.tab_widget.count()):
+                if self.tab_widget.tabText(i) == tab_name:
+                    current_index = i
+                    break
+            
+            if current_index is not None and current_index != target_index:
+                self.tab_widget.tabBar().moveTab(current_index, target_index)
+    
+    def _on_tab_moved(self, from_index: int, to_index: int):
+        """Handle tab moved event - save new tab order."""
+        # Get current tab order
+        current_order = []
+        for i in range(self.tab_widget.count()):
+            current_order.append(self.tab_widget.tabText(i))
+        
+        # Update config with new order
+        self.app_config.general.window.tab_order = current_order
+        # Save to settings file
+        self.app_config.save_settings()
 
     def save_to_json(self):
         # Use last directory if available, otherwise use empty string (current directory)
@@ -181,6 +232,7 @@ class MainWindow(QMainWindow):
                 self._create_all_tabs()
                 self.tab_widget.clear()
                 self._add_all_tabs()
+                self._restore_tab_order()  # Restore saved tab order
 
                 self.data_updated.emit(self.project_data.to_json())
                 QMessageBox.information(self, "Success", "Project loaded successfully!")
@@ -233,6 +285,7 @@ class MainWindow(QMainWindow):
                 self._create_all_tabs()
                 self.tab_widget.clear()
                 self._add_all_tabs()
+                self._restore_tab_order()  # Restore saved tab order
 
                 self.data_updated.emit(self.project_data.to_json())
                 QMessageBox.information(self, "Success", "Project loaded from Excel successfully!")

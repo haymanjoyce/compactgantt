@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import List
 
 @dataclass
 class WindowConfig:
@@ -20,6 +21,12 @@ class WindowConfig:
     # Last file directories (for file dialogs)
     last_json_directory: str = ""  # Last directory used for JSON file operations
     last_excel_directory: str = ""  # Last directory used for Excel file operations
+    
+    # Tab order (list of tab names in preferred order)
+    tab_order: List[str] = field(default_factory=lambda: [
+        "Windows", "Layout", "Titles", "Timeline", "Tasks", "Links", 
+        "Swimlanes", "Pipes", "Curtains", "Notes", "Typography"
+    ])
 
     def __post_init__(self):
         # Validate positive integers
