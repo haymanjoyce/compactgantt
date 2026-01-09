@@ -67,10 +67,21 @@ class SwimlanesTab(BaseTab):
         table_group_layout.setSpacing(5)
         table_group_layout.setContentsMargins(5, 10, 5, 5)
         
-        # Create table with columns: Select, ID, Row Count, Name
+        # Create table with all columns
         headers = [col.name for col in self.table_config.columns]
         self.swimlanes_table = QTableWidget(0, len(headers))
         self.swimlanes_table.setHorizontalHeaderLabels(headers)
+        
+        # Find ID column index and move it to the end (after Title)
+        id_col = headers.index("ID") if "ID" in headers else None
+        title_col = headers.index("Title") if "Title" in headers else None
+        if id_col is not None and title_col is not None:
+            # Move ID column to be after Title (at the end)
+            header = self.swimlanes_table.horizontalHeader()
+            # Move ID to the last position
+            last_col = self.swimlanes_table.columnCount() - 1
+            if id_col < last_col:
+                header.moveSection(id_col, last_col)
         
         # Table styling
         self.swimlanes_table.setAlternatingRowColors(False)
@@ -82,13 +93,32 @@ class SwimlanesTab(BaseTab):
         # Add bottom border to header row and gridline styling
         self.swimlanes_table.setStyleSheet(self.app_config.general.table_stylesheet)
         
-        # Column sizing
+        # Column sizing - find columns by name after move
         header = self.swimlanes_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Fixed)  # Select
         self.swimlanes_table.setColumnWidth(0, 50)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # ID
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Row Count
-        header.setSectionResizeMode(3, QHeaderView.Stretch)  # Name
+        header.setSectionResizeMode(1, QHeaderView.Fixed)  # Order
+        self.swimlanes_table.setColumnWidth(1, 60)
+        
+        # Find Row Count, Title, and ID columns by name (after move)
+        row_count_col = None
+        title_col = None
+        id_col = None
+        for i in range(self.swimlanes_table.columnCount()):
+            col_name = self.swimlanes_table.horizontalHeaderItem(i).text()
+            if col_name == "Row Count":
+                row_count_col = i
+            elif col_name == "Title":
+                title_col = i
+            elif col_name == "ID":
+                id_col = i
+        
+        if row_count_col is not None:
+            header.setSectionResizeMode(row_count_col, QHeaderView.ResizeToContents)  # Row Count
+        if title_col is not None:
+            header.setSectionResizeMode(title_col, QHeaderView.Stretch)  # Title
+        if id_col is not None:
+            header.setSectionResizeMode(id_col, QHeaderView.ResizeToContents)  # ID (at end)
         
         # Enable horizontal scroll bar
         self.swimlanes_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -251,6 +281,9 @@ class SwimlanesTab(BaseTab):
             self.swimlanes_table.blockSignals(False)
             self.swimlanes_table.setSortingEnabled(was_sorting)
         
+        # Refresh Order column after move
+        self._refresh_order_column()
+        
         # Sync data to update project_data
         self._sync_data_if_not_initializing()
 
@@ -293,6 +326,9 @@ class SwimlanesTab(BaseTab):
         finally:
             self.swimlanes_table.blockSignals(False)
             self.swimlanes_table.setSortingEnabled(was_sorting)
+        
+        # Refresh Order column after move
+        self._refresh_order_column()
         
         # Sync data to update project_data
         self._sync_data_if_not_initializing()
@@ -340,6 +376,26 @@ class SwimlanesTab(BaseTab):
         checkbox2_new.checkbox.setChecked(checkbox1_state)
         self.swimlanes_table.setCellWidget(row2, 0, checkbox2_new)
 
+    def _refresh_order_column(self):
+        """Refresh the Order column for all rows based on their current positions."""
+        order_col = self._get_column_index("Order")
+        if order_col is None:
+            return
+        
+        for row_idx in range(self.swimlanes_table.rowCount()):
+            order_value = row_idx + 1  # 1-based order
+            item = self.swimlanes_table.item(row_idx, order_col)
+            if item:
+                item.setText(str(order_value))
+                # Ensure it's read-only
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                item.setBackground(QBrush(self.app_config.general.read_only_bg_color))
+            else:
+                item = NumericTableWidgetItem(str(order_value))
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                item.setBackground(QBrush(self.app_config.general.read_only_bg_color))
+                self.swimlanes_table.setItem(row_idx, order_col, item)
+    
     def _connect_signals(self):
         self.swimlanes_table.itemChanged.connect(self._on_item_changed)
         self.swimlanes_table.selectionModel().selectionChanged.connect(self._on_table_selection_changed)
@@ -431,13 +487,32 @@ class SwimlanesTab(BaseTab):
         # Disable detail form if no swimlanes exist or no selection
         if row_count == 0 or self._selected_swimlane_id is None:
             self._clear_detail_form()
+        
+        # Refresh Order column to ensure all rows have correct order values
+        self._refresh_order_column()
 
     def _update_table_row_from_swimlane(self, row_idx: int, swimlane: Swimlane) -> None:
         """Populate a table row from a Swimlane object."""
         # Get column indices using key-based access
+        order_col = self._get_column_index("Order")
         id_col = self._get_column_index("ID")
         row_count_col = self._get_column_index("Row Count")
         title_col = self._get_column_index("Title")  # Changed from "Name"
+        
+        # Update Order column (read-only, calculated from row position)
+        if order_col is not None:
+            order_value = row_idx + 1  # 1-based order
+            item = self.swimlanes_table.item(row_idx, order_col)
+            if item:
+                item.setText(str(order_value))
+                # Ensure it's read-only even if item already exists
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                item.setBackground(QBrush(self.app_config.general.read_only_bg_color))
+            else:
+                item = NumericTableWidgetItem(str(order_value))
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                item.setBackground(QBrush(self.app_config.general.read_only_bg_color))
+                self.swimlanes_table.setItem(row_idx, order_col, item)
         
         # Update ID column
         if id_col is not None:
@@ -588,6 +663,10 @@ class SwimlanesTab(BaseTab):
             for s in swimlanes:
                 logging.debug(f"_sync_data_impl: Final swimlane id={s.swimlane_id}, title={s.title}, label_position={s.label_position}")
             self.project_data.swimlanes = swimlanes
+            
+            # Refresh Order column after sync (in case rows were added/removed)
+            self._refresh_order_column()
+            
             logging.debug(f"_sync_data_impl: Sync complete")
         except Exception as e:
             # Catch any unexpected exceptions during sync

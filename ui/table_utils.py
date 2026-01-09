@@ -357,6 +357,11 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
 
         # Sync data
         parent._sync_data()
+        
+        # Refresh Order column if parent has this method (for swimlanes table)
+        if hasattr(parent, '_refresh_order_column'):
+            parent._refresh_order_column()
+        
         logging.debug(f"Row added successfully at index {row_index}")
 
     except Exception as e:
@@ -391,6 +396,11 @@ def remove_row(table, table_key, table_configs, parent):
             for row in checked_rows:
                 table.removeRow(row)
             parent._sync_data()
+            
+            # Refresh Order column if parent has this method (for swimlanes table)
+            if hasattr(parent, '_refresh_order_column'):
+                parent._refresh_order_column()
+            
             logging.debug(f"Removed {len(checked_rows)} rows")
         elif not checked_rows:
             from PyQt5.QtWidgets import QMessageBox
