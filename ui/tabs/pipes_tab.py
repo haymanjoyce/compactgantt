@@ -136,9 +136,15 @@ class PipesTab(BaseTab):
             self._clear_detail_form()
             return
         
-        row = selected_rows[0].row()
-        self._selected_row = row
-        self._populate_detail_form(row)
+        # Show detail form only when exactly one row is selected
+        if len(selected_rows) == 1:
+            row = selected_rows[0].row()
+            self._selected_row = row
+            self._populate_detail_form(row)
+        else:
+            # Multiple rows selected - clear detail form
+            self._selected_row = None
+            self._clear_detail_form()
 
     def _populate_detail_form(self, row: int):
         """Populate detail form with data from selected pipe."""
@@ -267,9 +273,6 @@ class PipesTab(BaseTab):
         self._initializing = True
 
         for row_idx in range(row_count):
-            # Add checkbox first (Select column)
-            checkbox_widget = CheckBoxWidget()
-            self.pipes_table.setCellWidget(row_idx, 0, checkbox_widget)
 
             # Use helper method to populate row from Pipe object
             pipe = pipes[row_idx]

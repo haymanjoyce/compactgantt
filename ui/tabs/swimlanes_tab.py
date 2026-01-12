@@ -86,19 +86,26 @@ class SwimlanesTab(BaseTab):
         # Table styling
         self.swimlanes_table.setAlternatingRowColors(False)
         self.swimlanes_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.swimlanes_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.swimlanes_table.setSelectionMode(QTableWidget.ExtendedSelection)  # Extended selection for bulk operations, detail form shows first selected
         self.swimlanes_table.setShowGrid(True)
         self.swimlanes_table.verticalHeader().setVisible(False)
         
         # Add bottom border to header row and gridline styling
         self.swimlanes_table.setStyleSheet(self.app_config.general.table_stylesheet)
         
-        # Column sizing - find columns by name after move
+        # Column sizing - find columns by name (key-based, not positional)
         header = self.swimlanes_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Fixed)  # Select
-        self.swimlanes_table.setColumnWidth(0, 50)
-        header.setSectionResizeMode(1, QHeaderView.Fixed)  # Lane
-        self.swimlanes_table.setColumnWidth(1, 60)
+        
+        # Find Lane column by name
+        lane_col = None
+        for i in range(self.swimlanes_table.columnCount()):
+            if self.swimlanes_table.horizontalHeaderItem(i).text() == "Lane":
+                lane_col = i
+                break
+        
+        if lane_col is not None:
+            header.setSectionResizeMode(lane_col, QHeaderView.Fixed)  # Lane
+            self.swimlanes_table.setColumnWidth(lane_col, 60)
         
         # Find Row Count, Title, and ID columns by name (after move)
         row_count_col = None
@@ -223,38 +230,54 @@ class SwimlanesTab(BaseTab):
             self._clear_detail_form()
             return
         
-        row = selected_rows[0].row()
-        self._selected_row = row
-        
-        # Track the swimlane ID for this row (using key-based access)
-        id_col = self._get_column_index("ID")
-        if id_col is not None:
-            id_item = self.swimlanes_table.item(row, id_col)
-            if id_item:
-                self._selected_swimlane_id = safe_int(id_item.text())
-                logging.debug(f"_on_table_selection_changed: Selected row={row}, swimlane_id={self._selected_swimlane_id}")
+        # Show detail form only when exactly one row is selected
+        if len(selected_rows) == 1:
+            row = selected_rows[0].row()
+            self._selected_row = row
+            
+            # Track the swimlane ID for this row (using key-based access)
+            id_col = self._get_column_index("ID")
+            if id_col is not None:
+                id_item = self.swimlanes_table.item(row, id_col)
+                if id_item:
+                    self._selected_swimlane_id = safe_int(id_item.text())
+                    logging.debug(f"_on_table_selection_changed: Selected row={row}, swimlane_id={self._selected_swimlane_id}")
+                else:
+                    self._selected_swimlane_id = None
+                    logging.debug(f"_on_table_selection_changed: Selected row={row}, but no ID item found")
             else:
                 self._selected_swimlane_id = None
-                logging.debug(f"_on_table_selection_changed: Selected row={row}, but no ID item found")
+                logging.debug(f"_on_table_selection_changed: Selected row={row}, but ID column not found")
+            
+            self._populate_detail_form(row)
         else:
+            # Multiple rows selected - clear detail form
+            self._selected_row = None
             self._selected_swimlane_id = None
-            logging.debug(f"_on_table_selection_changed: Selected row={row}, but ID column not found")
-        
-        self._populate_detail_form(row)
+            self._clear_detail_form()
 
     def _move_up(self):
         """Move selected row(s) up by one position."""
-        # Get all checked rows (using checkboxes, consistent with Remove)
-        checked_rows = []
-        for row in range(self.swimlanes_table.rowCount()):
-            checkbox_widget = self.swimlanes_table.cellWidget(row, 0)
-            if checkbox_widget and isinstance(checkbox_widget, CheckBoxWidget):
-                if checkbox_widget.checkbox.isChecked():
-                    checked_rows.append(row)
-        
-        if not checked_rows:
-            QMessageBox.information(self, "No Selection", "Please select row(s) to move up by checking their checkboxes.")
+        # Get all selected rows
+        selected_rows = self.swimlanes_table.selectionModel().selectedRows()
+        if not selected_rows:
+            QMessageBox.information(self, "No Selection", "Please select row(s) to move up.")
             return
+        
+        checked_rows = [row.row() for row in selected_rows]
+        
+        # Store selected swimlane IDs before moving (for selection restoration)
+        id_col = self._get_column_index("ID")
+        selected_swimlane_ids = set()
+        if id_col is not None:
+            for row_idx in checked_rows:
+                item = self.swimlanes_table.item(row_idx, id_col)
+                if item:
+                    try:
+                        swimlane_id = int(item.text())
+                        selected_swimlane_ids.add(swimlane_id)
+                    except (ValueError, TypeError):
+                        continue
         
         # Get sorted row indices
         row_indices = sorted(checked_rows)
@@ -275,8 +298,6 @@ class SwimlanesTab(BaseTab):
                 if row_idx > 0:
                     # Swap rows by moving current row up
                     self._swap_table_rows(row_idx, row_idx - 1)
-            
-            # Checkboxes maintain their state after swap (they're swapped with the row)
         finally:
             self.swimlanes_table.blockSignals(False)
             self.swimlanes_table.setSortingEnabled(was_sorting)
@@ -286,20 +307,50 @@ class SwimlanesTab(BaseTab):
         
         # Sync data to update project_data
         self._sync_data_if_not_initializing()
+        
+        # Restore selection on moved rows
+        if selected_swimlane_ids and id_col is not None:
+            selection_model = self.swimlanes_table.selectionModel()
+            selection_model.clearSelection()
+            first_selected = True
+            for row_idx in range(self.swimlanes_table.rowCount()):
+                item = self.swimlanes_table.item(row_idx, id_col)
+                if item:
+                    try:
+                        swimlane_id = int(item.text())
+                        if swimlane_id in selected_swimlane_ids:
+                            # Select the entire row using selection model (adds to selection, doesn't replace)
+                            row_index = self.swimlanes_table.model().index(row_idx, 0)
+                            selection_model.select(row_index, selection_model.Select | selection_model.Rows)
+                            # Scroll to first selected row
+                            if first_selected:
+                                self.swimlanes_table.scrollToItem(item)
+                                first_selected = False
+                    except (ValueError, TypeError):
+                        continue
 
     def _move_down(self):
         """Move selected row(s) down by one position."""
-        # Get all checked rows (using checkboxes, consistent with Remove)
-        checked_rows = []
-        for row in range(self.swimlanes_table.rowCount()):
-            checkbox_widget = self.swimlanes_table.cellWidget(row, 0)
-            if checkbox_widget and isinstance(checkbox_widget, CheckBoxWidget):
-                if checkbox_widget.checkbox.isChecked():
-                    checked_rows.append(row)
-        
-        if not checked_rows:
-            QMessageBox.information(self, "No Selection", "Please select row(s) to move down by checking their checkboxes.")
+        # Get all selected rows
+        selected_rows = self.swimlanes_table.selectionModel().selectedRows()
+        if not selected_rows:
+            QMessageBox.information(self, "No Selection", "Please select row(s) to move down.")
             return
+        
+        checked_rows = [row.row() for row in selected_rows]
+        
+        # Store selected swimlane IDs before moving (for selection restoration)
+        id_col = self._get_column_index("ID")
+        selected_swimlane_ids = set()
+        if id_col is not None:
+            for row_idx in checked_rows:
+                item = self.swimlanes_table.item(row_idx, id_col)
+                if item:
+                    try:
+                        swimlane_id = int(item.text())
+                        selected_swimlane_ids.add(swimlane_id)
+                    except (ValueError, TypeError):
+                        continue
         
         # Get sorted row indices (reverse order for moving down)
         row_indices = sorted(checked_rows, reverse=True)
@@ -321,8 +372,6 @@ class SwimlanesTab(BaseTab):
                 if row_idx < max_row:
                     # Swap rows by moving current row down
                     self._swap_table_rows(row_idx, row_idx + 1)
-            
-            # Checkboxes maintain their state after swap (they're swapped with the row)
         finally:
             self.swimlanes_table.blockSignals(False)
             self.swimlanes_table.setSortingEnabled(was_sorting)
@@ -332,20 +381,31 @@ class SwimlanesTab(BaseTab):
         
         # Sync data to update project_data
         self._sync_data_if_not_initializing()
+        
+        # Restore selection on moved rows
+        if selected_swimlane_ids and id_col is not None:
+            selection_model = self.swimlanes_table.selectionModel()
+            selection_model.clearSelection()
+            first_selected = True
+            for row_idx in range(self.swimlanes_table.rowCount()):
+                item = self.swimlanes_table.item(row_idx, id_col)
+                if item:
+                    try:
+                        swimlane_id = int(item.text())
+                        if swimlane_id in selected_swimlane_ids:
+                            # Select the entire row using selection model (adds to selection, doesn't replace)
+                            row_index = self.swimlanes_table.model().index(row_idx, 0)
+                            selection_model.select(row_index, selection_model.Select | selection_model.Rows)
+                            # Scroll to first selected row
+                            if first_selected:
+                                self.swimlanes_table.scrollToItem(item)
+                                first_selected = False
+                    except (ValueError, TypeError):
+                        continue
 
     def _swap_table_rows(self, row1: int, row2: int):
         """Swap two table rows by exchanging all cell contents and widgets."""
         num_cols = self.swimlanes_table.columnCount()
-        
-        # Save checkbox states before removing widgets
-        checkbox1_state = False
-        checkbox2_state = False
-        checkbox_widget1 = self.swimlanes_table.cellWidget(row1, 0)
-        checkbox_widget2 = self.swimlanes_table.cellWidget(row2, 0)
-        if checkbox_widget1 and isinstance(checkbox_widget1, CheckBoxWidget):
-            checkbox1_state = checkbox_widget1.checkbox.isChecked()
-        if checkbox_widget2 and isinstance(checkbox_widget2, CheckBoxWidget):
-            checkbox2_state = checkbox_widget2.checkbox.isChecked()
         
         # Collect all items from both rows
         items1 = [self.swimlanes_table.takeItem(row1, col) for col in range(num_cols)]
@@ -366,15 +426,6 @@ class SwimlanesTab(BaseTab):
                 self.swimlanes_table.setItem(row1, col, items2[col])
             if items1[col]:
                 self.swimlanes_table.setItem(row2, col, items1[col])
-        
-        # Recreate checkboxes with swapped states (column 0 only)
-        checkbox1_new = CheckBoxWidget()
-        checkbox1_new.checkbox.setChecked(checkbox2_state)
-        self.swimlanes_table.setCellWidget(row1, 0, checkbox1_new)
-        
-        checkbox2_new = CheckBoxWidget()
-        checkbox2_new.checkbox.setChecked(checkbox1_state)
-        self.swimlanes_table.setCellWidget(row2, 0, checkbox2_new)
 
     def _refresh_lane_column(self):
         """Refresh the Lane column for all rows based on their current positions."""
@@ -401,9 +452,10 @@ class SwimlanesTab(BaseTab):
         self.swimlanes_table.selectionModel().selectionChanged.connect(self._on_table_selection_changed)
     
     def _get_column_index(self, column_name: str) -> Optional[int]:
-        """Get the column index for a given column name."""
-        for idx, col_config in enumerate(self.table_config.columns):
-            if col_config.name == column_name:
+        """Get the column index for a given column name (searches actual table headers)."""
+        for idx in range(self.swimlanes_table.columnCount()):
+            header_text = self.swimlanes_table.horizontalHeaderItem(idx).text()
+            if header_text == column_name:
                 return idx
         return None
     
@@ -472,9 +524,6 @@ class SwimlanesTab(BaseTab):
         self._initializing = True
 
         for row_idx in range(row_count):
-            # Add checkbox first (Select column)
-            checkbox_widget = CheckBoxWidget()
-            self.swimlanes_table.setCellWidget(row_idx, 0, checkbox_widget)
 
             # Use helper method to populate row from Swimlane object
             swimlane = swimlanes[row_idx]

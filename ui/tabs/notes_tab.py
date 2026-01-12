@@ -61,7 +61,7 @@ class NotesTab(BaseTab):
         # Table styling
         self.notes_table.setAlternatingRowColors(False)
         self.notes_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.notes_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.notes_table.setSelectionMode(QTableWidget.ExtendedSelection)  # Extended selection for bulk operations, detail form shows first selected
         self.notes_table.setShowGrid(True)
         self.notes_table.verticalHeader().setVisible(False)
         
@@ -154,9 +154,15 @@ class NotesTab(BaseTab):
             self._clear_detail_form()
             return
         
-        row = selected_rows[0].row()
-        self._selected_row = row
-        self._populate_detail_form(row)
+        # Show detail form only when exactly one row is selected
+        if len(selected_rows) == 1:
+            row = selected_rows[0].row()
+            self._selected_row = row
+            self._populate_detail_form(row)
+        else:
+            # Multiple rows selected - clear detail form
+            self._selected_row = None
+            self._clear_detail_form()
 
     def _populate_detail_form(self, row: int):
         """Populate detail form with data from selected note."""
@@ -310,9 +316,6 @@ class NotesTab(BaseTab):
         self._initializing = True
 
         for row_idx in range(row_count):
-            # Add checkbox first (Select column)
-            checkbox_widget = CheckBoxWidget()
-            self.notes_table.setCellWidget(row_idx, 0, checkbox_widget)
 
             # Use helper method to populate row from Note object
             note = notes[row_idx]

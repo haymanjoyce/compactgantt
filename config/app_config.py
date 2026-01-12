@@ -269,7 +269,6 @@ class AppConfig:
             "tasks": TableConfig(
                 key="tasks",
                 columns=[
-                    TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("ID", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Row", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Name"),
@@ -285,7 +284,6 @@ class AppConfig:
             "links": TableConfig(
                 key="links",
                 columns=[
-                    TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("ID", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("From Task ID", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("From Task Name", widget_type="text"),
@@ -298,7 +296,6 @@ class AppConfig:
             "swimlanes": TableConfig(
                 key="swimlanes",
                 columns=[
-                    TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("Lane", widget_type="text"),  # Read-only, calculated from row position
                     TableColumnConfig("ID", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Row Count", validator=lambda x: int(x) > 0 if x else False),
@@ -309,7 +306,6 @@ class AppConfig:
             "pipes": TableConfig(
                 key="pipes",
                 columns=[
-                    TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("ID", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Date", validator=validate_display_date),
                     TableColumnConfig("Name")
@@ -319,7 +315,6 @@ class AppConfig:
             "curtains": TableConfig(
                 key="curtains",
                 columns=[
-                    TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("ID", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Start Date", validator=validate_display_date),
                     TableColumnConfig("End Date", validator=validate_display_date),
@@ -330,7 +325,6 @@ class AppConfig:
             "notes": TableConfig(
                 key="notes",
                 columns=[
-                    TableColumnConfig("Select", widget_type="checkbox"),
                     TableColumnConfig("ID", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("X", validator=lambda x: int(x) >= 0 if x else False),
                     TableColumnConfig("Y", validator=lambda x: int(x) >= 0 if x else False),

@@ -92,7 +92,7 @@ def highlight_table_errors(table, errors):
     # Clear all highlights first
     table.blockSignals(True)
     for row in range(table.rowCount()):
-        for col in range(1, table.columnCount()):  # Skip checkbox column
+        for col in range(table.columnCount()):
             item = table.item(row, col)
             if item:
                 item.setBackground(QBrush())
@@ -106,7 +106,7 @@ def highlight_table_errors(table, errors):
                     row_str = error.split(":")[0].replace("Row ", "")
                     row_idx = int(row_str) - 1
                     # Highlight the entire row
-                    for col in range(1, table.columnCount()):
+                    for col in range(table.columnCount()):
                         item = table.item(row_idx, col)
                         if item:
                             item.setBackground(QBrush(Qt.yellow))
@@ -133,8 +133,8 @@ def extract_table_data(table, include_widgets=True):
     data = []
     for row in range(table.rowCount()):
         row_data = []
-        # Start from column 1 to skip checkbox column
-        for col in range(1, table.columnCount()):
+        # Extract data from all columns
+        for col in range(table.columnCount()):
             if include_widgets:
                 widget = table.cellWidget(row, col)
                 if widget and isinstance(widget, QComboBox):
@@ -199,15 +199,11 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
             row_index = table.rowCount()
         table.insertRow(row_index)
 
-        # Add checkbox first (assume first column is always checkbox)
-        checkbox_widget = CheckBoxWidget()
-        table.setCellWidget(row_index, 0, checkbox_widget)
-
         # Special handling for links table - both fields should be editable and blank
         is_links_table = (table_key == "links")
 
-        # Set default values for each column (skip checkbox column)
-        for col_idx in range(1, table.columnCount()):
+        # Set default values for each column
+        for col_idx in range(table.columnCount()):
             header_text = table.horizontalHeaderItem(col_idx).text()
             col_config = None
             if hasattr(config, "columns"):
@@ -217,8 +213,8 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
                         col_config = col
                         break
 
-            # Set ID column - use NumericTableWidgetItem for numeric sorting
-            if col_idx == id_column:
+            # Set ID column - use header text to identify it (key-based, not positional)
+            if header_text == id_field_name:
                 # For links, ID should be auto-generated and read-only (like tasks)
                 if is_links_table:
                     id_item = NumericTableWidgetItem(str(next_id))
@@ -329,7 +325,7 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
             # Find Start Date and Finish Date columns
             start_date_col = None
             finish_date_col = None
-            for col_idx in range(1, table.columnCount()):
+            for col_idx in range(table.columnCount()):  # Check all columns
                 header_text = table.horizontalHeaderItem(col_idx).text()
                 if header_text == "Start Date":
                     start_date_col = col_idx
@@ -344,7 +340,7 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
             # Find Start Date and End Date columns
             start_date_col = None
             end_date_col = None
-            for col_idx in range(1, table.columnCount()):
+            for col_idx in range(table.columnCount()):
                 header_text = table.horizontalHeaderItem(col_idx).text()
                 if header_text == "Start Date":
                     start_date_col = col_idx
@@ -379,20 +375,21 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
         table.setSortingEnabled(was_sorting)
 
 def remove_row(table, table_key, table_configs, parent):
-    """Remove checked rows from the table."""
+    """Remove selected rows from the table."""
     logging.debug(f"Starting remove_row for table_key: {table_key}")
     try:
         table_config = table_configs.get(table_key)
         if not table_config:
             return
 
-        # Get all checked rows
-        checked_rows = []
-        for row in range(table.rowCount()):
-            checkbox_widget = table.cellWidget(row, 0)
-            if checkbox_widget and isinstance(checkbox_widget, CheckBoxWidget):
-                if checkbox_widget.checkbox.isChecked():
-                    checked_rows.append(row)
+        # Get all selected rows
+        selected_rows = table.selectionModel().selectedRows()
+        if not selected_rows:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.information(parent, "No Selection", "Please select rows to remove.")
+            return
+        
+        checked_rows = [row.row() for row in selected_rows]
 
         # Sort in reverse order to avoid index shifting
         checked_rows.sort(reverse=True)
@@ -403,14 +400,11 @@ def remove_row(table, table_key, table_configs, parent):
                 table.removeRow(row)
             parent._sync_data()
             
-            # Refresh Order column if parent has this method (for swimlanes table)
-            if hasattr(parent, '_refresh_order_column'):
-                parent._refresh_order_column()
+            # Refresh Lane column if parent has this method (for swimlanes table)
+            if hasattr(parent, '_refresh_lane_column'):
+                parent._refresh_lane_column()
             
             logging.debug(f"Removed {len(checked_rows)} rows")
-        elif not checked_rows:
-            from PyQt5.QtWidgets import QMessageBox
-            QMessageBox.information(parent, "No Selection", "Please select rows to remove by checking their checkboxes.")
         else:
             from PyQt5.QtWidgets import QMessageBox
             QMessageBox.warning(parent, "Cannot Remove", 

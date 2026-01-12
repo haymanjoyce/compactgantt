@@ -112,9 +112,9 @@ class TasksTab(BaseTab):
         table_group_layout.setSpacing(5)
         table_group_layout.setContentsMargins(5, 10, 5, 5)
         
-        # Create table - show: Select, Lane, ID, Row, Name, Start Date, Finish Date, Valid
+        # Create table - show: Lane, ID, Row, Name, Start Date, Finish Date, Valid
         headers = [col.name for col in self.table_config.columns]
-        visible_columns = ["Select", "Lane", "ID", "Row", "Name", "Start Date", "Finish Date", "Valid"]
+        visible_columns = ["Lane", "ID", "Row", "Name", "Start Date", "Finish Date", "Valid"]
         visible_indices = [headers.index(col) for col in visible_columns if col in headers]
         
         self.tasks_table = QTableWidget(0, len(visible_indices))
@@ -128,7 +128,7 @@ class TasksTab(BaseTab):
         # Enhanced table styling
         self.tasks_table.setAlternatingRowColors(False)  # Disabled to avoid conflict with read-only cell backgrounds
         self.tasks_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.tasks_table.setSelectionMode(QTableWidget.SingleSelection)  # Single selection for detail form
+        self.tasks_table.setSelectionMode(QTableWidget.ExtendedSelection)  # Extended selection for bulk operations, detail form shows first selected
         self.tasks_table.setShowGrid(True)
         self.tasks_table.verticalHeader().setVisible(False)
         
@@ -251,9 +251,15 @@ class TasksTab(BaseTab):
             self._clear_detail_form()
             return
         
-        row = selected_rows[0].row()
-        self._selected_row = row
-        self._populate_detail_form(row)
+        # Show detail form only when exactly one row is selected
+        if len(selected_rows) == 1:
+            row = selected_rows[0].row()
+            self._selected_row = row
+            self._populate_detail_form(row)
+        else:
+            # Multiple rows selected - clear detail form
+            self._selected_row = None
+            self._clear_detail_form()
 
     def _populate_detail_form(self, row: int):
         """Populate detail form with data from selected task."""
@@ -437,14 +443,19 @@ class TasksTab(BaseTab):
         self.tasks_table.setSortingEnabled(False)
         
         try:
-            # Store current checkbox states by task_id (for restoration after sort)
-            checkbox_states = {}
-            for row_idx in range(self.tasks_table.rowCount()):
-                checkbox_widget = self.tasks_table.cellWidget(row_idx, 0)
-                if checkbox_widget and isinstance(checkbox_widget, CheckBoxWidget):
-                    task = self._task_from_table_row(row_idx)
-                    if task is not None:
-                        checkbox_states[task.task_id] = checkbox_widget.checkbox.isChecked()
+            # Store current selection by task_id (for restoration after sort)
+            selected_task_ids = set()
+            id_col = self._get_column_index("ID")
+            id_vis_col = self._reverse_column_mapping.get(id_col) if id_col is not None else None
+            if id_vis_col is not None:
+                for row_idx in range(self.tasks_table.rowCount()):
+                    if self.tasks_table.item(row_idx, id_vis_col) and self.tasks_table.isRowSelected(row_idx):
+                        item = self.tasks_table.item(row_idx, id_vis_col)
+                        try:
+                            task_id = int(item.text())
+                            selected_task_ids.add(task_id)
+                        except (ValueError, TypeError):
+                            continue
             
             # Get tasks from project_data and sort them
             tasks = list(self.project_data.tasks)
@@ -458,14 +469,12 @@ class TasksTab(BaseTab):
             self.tasks_table.setRowCount(len(tasks))
             
             for new_row_idx, task in enumerate(tasks):
-                # Restore checkbox state
-                checkbox_widget = CheckBoxWidget()
-                if task.task_id in checkbox_states:
-                    checkbox_widget.checkbox.setChecked(checkbox_states[task.task_id])
-                self.tasks_table.setCellWidget(new_row_idx, 0, checkbox_widget)
-                
                 # Populate row from task
                 self._update_table_row_from_task(new_row_idx, task)
+                
+                # Restore selection if this task was selected
+                if task.task_id in selected_task_ids:
+                    self.tasks_table.selectRow(new_row_idx)
             
             self.tasks_table.blockSignals(False)
             
@@ -1075,11 +1084,6 @@ class TasksTab(BaseTab):
         self._initializing = True
 
         for row_idx in range(row_count):
-            # Add checkbox first (Select column)
-            if 0 in self._column_mapping:  # Select column
-                checkbox_widget = CheckBoxWidget()
-                self.tasks_table.setCellWidget(row_idx, 0, checkbox_widget)
-
             # Use helper method to populate row from Task object
             task = tasks[row_idx]
             self._update_table_row_from_task(row_idx, task)
@@ -1260,17 +1264,13 @@ class TasksTab(BaseTab):
 
     def _duplicate_tasks(self):
         """Duplicate selected tasks with new IDs."""
-        # Get all checked rows
-        checked_rows = []
-        for row in range(self.tasks_table.rowCount()):
-            checkbox_widget = self.tasks_table.cellWidget(row, 0)
-            if checkbox_widget and isinstance(checkbox_widget, CheckBoxWidget):
-                if checkbox_widget.checkbox.isChecked():
-                    checked_rows.append(row)
-        
-        if not checked_rows:
-            QMessageBox.information(self, "No Selection", "Please select task(s) to duplicate by checking their checkboxes.")
+        # Get all selected rows
+        selected_rows = self.tasks_table.selectionModel().selectedRows()
+        if not selected_rows:
+            QMessageBox.information(self, "No Selection", "Please select task(s) to duplicate.")
             return
+        
+        checked_rows = [row.row() for row in selected_rows]
         
         # Get all used task IDs from project_data
         used_ids = {task.task_id for task in self.project_data.tasks}
@@ -1341,10 +1341,6 @@ class TasksTab(BaseTab):
                 new_row_idx = orig_row_idx + 1
                 self.tasks_table.insertRow(new_row_idx)
                 
-                # Add checkbox
-                checkbox_widget = CheckBoxWidget()
-                self.tasks_table.setCellWidget(new_row_idx, 0, checkbox_widget)
-                
                 # Populate the new row from the Task object
                 self._update_table_row_from_task(new_row_idx, new_task)
         finally:
@@ -1356,17 +1352,13 @@ class TasksTab(BaseTab):
     
     def _move_up(self):
         """Move selected task(s) up by one row (decrease row_number by 1)."""
-        # Get all checked rows
-        checked_rows = []
-        for row in range(self.tasks_table.rowCount()):
-            checkbox_widget = self.tasks_table.cellWidget(row, 0)
-            if checkbox_widget and isinstance(checkbox_widget, CheckBoxWidget):
-                if checkbox_widget.checkbox.isChecked():
-                    checked_rows.append(row)
-        
-        if not checked_rows:
-            QMessageBox.information(self, "No Selection", "Please select task(s) to move up by checking their checkboxes.")
+        # Get all selected rows
+        selected_rows = self.tasks_table.selectionModel().selectedRows()
+        if not selected_rows:
+            QMessageBox.information(self, "No Selection", "Please select task(s) to move up.")
             return
+        
+        checked_rows = [row.row() for row in selected_rows]
         
         # Block signals and disable sorting during move
         self.tasks_table.blockSignals(True)
@@ -1435,30 +1427,22 @@ class TasksTab(BaseTab):
                         try:
                             task_id = int(item.text())
                             if task_id in moved_task_ids:
-                                # Restore checkbox state
-                                checkbox_widget = self.tasks_table.cellWidget(row_idx, 0)
-                                if checkbox_widget and isinstance(checkbox_widget, CheckBoxWidget):
-                                    checkbox_widget.checkbox.setChecked(True)
                                 # Select and scroll to first moved task
                                 self.tasks_table.selectRow(row_idx)
-                                self.tasks_table.scrollToItem(self.tasks_table.item(row_idx, 0))
+                                self.tasks_table.scrollToItem(self.tasks_table.item(row_idx, id_vis_col))
                                 break
                         except (ValueError, TypeError):
                             continue
     
     def _move_down(self):
         """Move selected task(s) down by one row (increase row_number by 1)."""
-        # Get all checked rows
-        checked_rows = []
-        for row in range(self.tasks_table.rowCount()):
-            checkbox_widget = self.tasks_table.cellWidget(row, 0)
-            if checkbox_widget and isinstance(checkbox_widget, CheckBoxWidget):
-                if checkbox_widget.checkbox.isChecked():
-                    checked_rows.append(row)
-        
-        if not checked_rows:
-            QMessageBox.information(self, "No Selection", "Please select task(s) to move down by checking their checkboxes.")
+        # Get all selected rows
+        selected_rows = self.tasks_table.selectionModel().selectedRows()
+        if not selected_rows:
+            QMessageBox.information(self, "No Selection", "Please select task(s) to move down.")
             return
+        
+        checked_rows = [row.row() for row in selected_rows]
         
         # Block signals and disable sorting during move
         self.tasks_table.blockSignals(True)

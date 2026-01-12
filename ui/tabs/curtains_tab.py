@@ -62,7 +62,7 @@ class CurtainsTab(BaseTab):
         # Table styling
         self.curtains_table.setAlternatingRowColors(False)
         self.curtains_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.curtains_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.curtains_table.setSelectionMode(QTableWidget.ExtendedSelection)  # Extended selection for bulk operations, detail form shows first selected
         self.curtains_table.setShowGrid(True)
         self.curtains_table.verticalHeader().setVisible(False)
         
@@ -136,9 +136,15 @@ class CurtainsTab(BaseTab):
             self._clear_detail_form()
             return
         
-        row = selected_rows[0].row()
-        self._selected_row = row
-        self._populate_detail_form(row)
+        # Show detail form only when exactly one row is selected
+        if len(selected_rows) == 1:
+            row = selected_rows[0].row()
+            self._selected_row = row
+            self._populate_detail_form(row)
+        else:
+            # Multiple rows selected - clear detail form
+            self._selected_row = None
+            self._clear_detail_form()
 
     def _populate_detail_form(self, row: int):
         """Populate detail form with data from selected curtain."""
@@ -271,9 +277,6 @@ class CurtainsTab(BaseTab):
         self._initializing = True
 
         for row_idx in range(row_count):
-            # Add checkbox first (Select column)
-            checkbox_widget = CheckBoxWidget()
-            self.curtains_table.setCellWidget(row_idx, 0, checkbox_widget)
 
             # Use helper method to populate row from Curtain object
             curtain = curtains[row_idx]

@@ -161,9 +161,15 @@ class LinksTab(BaseTab):
             self._clear_detail_form()
             return
         
-        row = selected_rows[0].row()
-        self._selected_row = row
-        self._populate_detail_form(row)
+        # Show detail form only when exactly one row is selected
+        if len(selected_rows) == 1:
+            row = selected_rows[0].row()
+            self._selected_row = row
+            self._populate_detail_form(row)
+        else:
+            # Multiple rows selected - clear detail form
+            self._selected_row = None
+            self._clear_detail_form()
 
     def _populate_detail_form(self, row: int):
         """Populate detail form with data from selected link."""
@@ -320,9 +326,6 @@ class LinksTab(BaseTab):
         task_name_map = {task.task_id: task.task_name for task in self.project_data.tasks}
         
         for row_idx in range(row_count):
-            # Add checkbox first (Select column)
-            checkbox_widget = CheckBoxWidget()
-            self.links_table.setCellWidget(row_idx, 0, checkbox_widget)
 
             # Use helper method to populate row from Link object
             link = links[row_idx]
