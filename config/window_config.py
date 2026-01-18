@@ -23,9 +23,10 @@ class WindowConfig:
     last_excel_directory: str = ""  # Last directory used for Excel file operations
     
     # Tab order (list of tab names in preferred order)
+    # Content-first logical grouping: structure/data → configuration → styling → system
     tab_order: List[str] = field(default_factory=lambda: [
-        "Preferences", "Layout", "Titles", "Timeline", "Tasks", "Links", 
-        "Swimlanes", "Pipes", "Curtains", "Notes", "Typography"
+        "Swimlanes", "Tasks", "Links", "Pipes", "Curtains", "Notes",
+        "Layout", "Timeline", "Titles", "Typography", "Preferences"
     ])
 
     def __post_init__(self):
