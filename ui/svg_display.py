@@ -2,10 +2,13 @@ from PyQt5.QtWidgets import (
     QMainWindow, QVBoxLayout, QScrollArea, QPushButton, QHBoxLayout, QLabel, QApplication, QStatusBar, QWidget, QAction, QFileDialog, QMessageBox, QFrame
 )
 from PyQt5.QtSvg import QSvgRenderer
-from PyQt5.QtGui import QIcon, QPixmap, QPainter, QPalette
+from PyQt5.QtGui import QIcon, QPixmap, QPainter, QPalette, QImage
 from pathlib import Path
 from PyQt5.QtCore import Qt, QSize
 import os
+import tempfile
+import re
+import logging
 from config.app_config import AppConfig
 from ui.window_utils import move_window_according_to_preferences
 
@@ -93,13 +96,15 @@ class SvgDisplay(QMainWindow):
         self.menu_bar = self.menuBar()
         file_menu = self.menu_bar.addMenu("File")
         
-        self.save_png_action = QAction("Save Image (PNG)", self)
+        self.save_png_action = QAction("Save Image (PNG - Transparent)", self)
         self.save_png_action.setShortcut("Ctrl+Shift+S")
+        self.save_png_action.setStatusTip("Save as PNG with transparent background (ideal for overlays)")
         self.save_png_action.triggered.connect(lambda: self.save_as_raster("PNG"))
         file_menu.addAction(self.save_png_action)
         
-        self.save_jpeg_action = QAction("Save Image (JPEG)", self)
+        self.save_jpeg_action = QAction("Save Image (JPEG - Opaque)", self)
         self.save_jpeg_action.setShortcut("Ctrl+Shift+J")
+        self.save_jpeg_action.setStatusTip("Save as JPEG with white opaque background")
         self.save_jpeg_action.triggered.connect(lambda: self.save_as_raster("JPEG"))
         file_menu.addAction(self.save_jpeg_action)
         
@@ -311,15 +316,64 @@ class SvgDisplay(QMainWindow):
         try:
             # Render SVG at native size for high quality
             native_size = self._svg_size
-            pixmap = QPixmap(native_size)
-            pixmap.fill(Qt.white)  # White background for raster formats
-            painter = QPainter(pixmap)
-            painter.setRenderHint(QPainter.Antialiasing)
-            self.svg_renderer.render(painter)
-            painter.end()
             
-            # Save the pixmap
-            if pixmap.save(file_path, format_type):
+            if format_type == "PNG":
+                # For PNG, we need to remove the white background rectangle from SVG
+                # to achieve transparency. Modify SVG temporarily.
+                try:
+                    # Read SVG as text and remove white background rectangle using regex
+                    with open(self._svg_path, 'r', encoding='utf-8') as f:
+                        svg_content = f.read()
+                    
+                    # Remove white background rectangle: <rect fill="white" ... x="0" y="0" ... />
+                    # The background rect has: fill="white", x="0", y="0", and stroke="none"
+                    # Use lookaheads to ensure all required attributes are present in any order
+                    # Pattern matches rect with fill="white", x="0", y="0" (any order)
+                    pattern = r'<rect(?=[^>]*fill="white")(?=[^>]*x="0")(?=[^>]*y="0")[^>]*?/>'
+                    modified_content = re.sub(pattern, '', svg_content, count=1)  # Only replace first match
+                    
+                    # Write modified SVG to temporary file
+                    temp_svg = tempfile.NamedTemporaryFile(mode='w', suffix='.svg', delete=False, encoding='utf-8')
+                    temp_svg.write(modified_content)
+                    temp_svg.close()
+                    
+                    # Create new renderer for modified SVG
+                    temp_renderer = QSvgRenderer(temp_svg.name)
+                    
+                    # Use QImage with ARGB32 format for transparency support
+                    image = QImage(native_size, QImage.Format_ARGB32)
+                    image.fill(Qt.transparent)
+                    painter = QPainter(image)
+                    painter.setRenderHint(QPainter.Antialiasing)
+                    temp_renderer.render(painter)
+                    painter.end()
+                    
+                    # Clean up temporary file
+                    os.unlink(temp_svg.name)
+                    
+                    success = image.save(file_path, format_type)
+                except Exception as e:
+                    # Fallback: render original SVG if modification fails
+                    logging.warning(f"Failed to modify SVG for transparency: {e}")
+                    image = QImage(native_size, QImage.Format_ARGB32)
+                    image.fill(Qt.transparent)
+                    painter = QPainter(image)
+                    painter.setRenderHint(QPainter.Antialiasing)
+                    self.svg_renderer.render(painter)
+                    painter.end()
+                    success = image.save(file_path, format_type)
+            else:  # JPEG
+                # Use QPixmap for JPEG (no transparency needed)
+                pixmap = QPixmap(native_size)
+                pixmap.fill(Qt.white)
+                painter = QPainter(pixmap)
+                painter.setRenderHint(QPainter.Antialiasing)
+                self.svg_renderer.render(painter)
+                painter.end()
+                success = pixmap.save(file_path, format_type)
+            
+            # Save and show confirmation
+            if success:
                 # Show confirmation dialog with file path
                 QMessageBox.information(
                     self, 
