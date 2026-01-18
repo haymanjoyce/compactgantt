@@ -320,6 +320,12 @@ class SvgDisplay(QMainWindow):
             
             # Save the pixmap
             if pixmap.save(file_path, format_type):
+                # Show confirmation dialog with file path
+                QMessageBox.information(
+                    self, 
+                    "Image Saved", 
+                    f"Image successfully saved as {format_type}:\n{file_path}"
+                )
                 self.status_bar.showMessage(f"Image saved as {format_type}")
             else:
                 QMessageBox.critical(self, "Error", f"Failed to save image to {file_path}")
