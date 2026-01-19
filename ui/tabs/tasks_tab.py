@@ -938,8 +938,6 @@ class TasksTab(BaseTab):
     
     def _on_item_changed(self, item):
         """Handle item changes - update UserRole for numeric and date columns to maintain proper sorting."""
-        logging.debug("_on_item_changed: START")
-        
         # Skip auto-population during initialization to preserve invalid dates
         if self._initializing:
             return
@@ -949,18 +947,15 @@ class TasksTab(BaseTab):
         try:
             self.tasks_table.itemChanged.disconnect(self._on_item_changed)
             was_connected = True
-            logging.debug("_on_item_changed: Disconnected signal at start")
         except:
             pass  # Signal might not be connected
         
         try:
             if item is None:
-                logging.debug("_on_item_changed: item is None, returning")
                 return
             
             col = item.column()
             row = item.row()
-            logging.debug(f"_on_item_changed: row={row}, col={col}")
             
             headers = [col.name for col in self.table_config.columns]
             
@@ -972,11 +967,9 @@ class TasksTab(BaseTab):
                     break
             
             if actual_col_idx is None:
-                logging.debug(f"_on_item_changed: actual_col_idx is None for col={col}, returning")
                 return
             
             col_name = headers[actual_col_idx] if actual_col_idx < len(headers) else ""
-            logging.debug(f"_on_item_changed: col_name={col_name}, actual_col_idx={actual_col_idx}")
             
             # Skip date columns - QDateEdit widgets handle their own changes via dateChanged signal
             if col_name in ["Start Date", "Finish Date"]:
@@ -985,19 +978,15 @@ class TasksTab(BaseTab):
                 date_widget = self.tasks_table.cellWidget(row, actual_col_idx)
                 if isinstance(date_widget, QDateEdit):
                     # QDateEdit handles its own changes, skip processing
-                    logging.debug(f"_on_item_changed: Skipping date column {col_name} (handled by QDateEdit)")
                     return
                 # Fallback: if it's a text item (backward compatibility), process it
-                logging.debug(f"_on_item_changed: Processing date column as text item: {col_name}")
                 try:
                     val_str = item.text().strip()
-                    logging.debug(f"_on_item_changed: date value='{val_str}'")
                     if val_str:
                         try:
                             # Use normalize_display_date to handle flexible formats
                             normalized = normalize_display_date(val_str)
                             date_obj = datetime.strptime(normalized, "%d/%m/%Y")
-                            logging.debug(f"_on_item_changed: Parsed date successfully: {date_obj}")
                             
                             # Auto-populate the other date field for milestones (if only one date is provided)
                             other_col_name = "Finish Date" if col_name == "Start Date" else "Start Date"
@@ -1012,7 +1001,6 @@ class TasksTab(BaseTab):
                                         other_date_widget.blockSignals(True)
                                         other_date_widget.setDate(other_qdate)
                                         other_date_widget.blockSignals(False)
-                                        logging.debug(f"_on_item_changed: Auto-populated {other_col_name} QDateEdit with {normalized}")
                                     else:
                                         # Fallback to text item
                                         other_date_item = self.tasks_table.item(row, other_col_vis_idx)
@@ -1021,32 +1009,24 @@ class TasksTab(BaseTab):
                                             if not other_date_text:
                                                 other_date_item.setText(normalized)
                                                 other_date_item.setData(Qt.UserRole, date_obj)
-                                                logging.debug(f"_on_item_changed: Auto-populated {other_col_name} with {normalized}")
                                         else:
                                             other_date_item = DateTableWidgetItem(normalized)
                                             other_date_item.setData(Qt.UserRole, date_obj)
                                             self.tasks_table.setItem(row, other_col_vis_idx, other_date_item)
-                                            logging.debug(f"_on_item_changed: Created and auto-populated {other_col_name} with {normalized}")
                         except ValueError as e:
-                            logging.debug(f"_on_item_changed: Date parsing failed: {e}")
                             date_obj = None
                         
                         # Check if UserRole already has the same value to avoid unnecessary updates
                         current_role = item.data(Qt.UserRole)
                         if current_role != date_obj:
-                            logging.debug(f"_on_item_changed: Setting UserRole with date_obj={date_obj} (was {current_role})")
                             item.setData(Qt.UserRole, date_obj)
-                        else:
-                            logging.debug(f"_on_item_changed: UserRole already set to {date_obj}, skipping")
                     else:
-                        logging.debug("_on_item_changed: Empty date value, setting UserRole to None")
                         item.setData(Qt.UserRole, None)
                 except (ValueError, AttributeError, Exception) as e:
                     logging.error(f"_on_item_changed: Error parsing date: {e}", exc_info=True)
                     item.setData(Qt.UserRole, None)
             # Update UserRole for numeric columns (ID, Row)
             elif actual_col_idx == 1:  # Task ID
-                logging.debug("_on_item_changed: Processing Task ID column")
                 # Ensure Task ID is read-only with gray background
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                 item.setBackground(QBrush(self.app_config.general.read_only_bg_color))  # Gray background
@@ -1056,7 +1036,6 @@ class TasksTab(BaseTab):
                 except (ValueError, AttributeError):
                     item.setData(Qt.UserRole, 0)
             elif actual_col_idx == 2:  # Row number
-                logging.debug("_on_item_changed: Processing Row column")
                 try:
                     val_str = item.text().strip()
                     item.setData(Qt.UserRole, int(val_str) if val_str else 1)
@@ -1069,41 +1048,25 @@ class TasksTab(BaseTab):
             
             # Don't trigger sync for Valid column changes (it's read-only and auto-calculated)
             if actual_col_idx < len(headers) and headers[actual_col_idx] != "Valid":
-                logging.debug(f"_on_item_changed: Column is not Valid, checking if should sync")
                 # Trigger sync with error handling to prevent crashes
                 if not self._syncing:
-                    logging.debug("_on_item_changed: Not syncing, proceeding with sync")
                     try:
                         self._syncing = True
-                        logging.debug("_on_item_changed: Set _syncing=True")
-                        
                         try:
-                            logging.debug("_on_item_changed: Calling _sync_data_if_not_initializing")
                             self._sync_data_if_not_initializing()
-                            logging.debug("_on_item_changed: _sync_data_if_not_initializing completed")
                         except Exception as e:
                             logging.error(f"_on_item_changed: Error in sync: {e}", exc_info=True)
                     finally:
                         self._syncing = False
-                        logging.debug("_on_item_changed: Set _syncing=False")
-                else:
-                    logging.debug("_on_item_changed: Already syncing, skipping")
-            else:
-                logging.debug("_on_item_changed: Column is Valid, skipping sync")
-            
-            logging.debug("_on_item_changed: END (success)")
         except Exception as e:
             logging.error(f"_on_item_changed: Unexpected error: {e}", exc_info=True)
             raise
         finally:
             # Reconnect itemChanged signal
             if was_connected:
-                logging.debug("_on_item_changed: Reconnecting itemChanged signal")
                 try:
                     self.tasks_table.itemChanged.connect(self._on_item_changed)
-                    logging.debug("_on_item_changed: itemChanged signal reconnected")
-                except Exception as e:
-                    logging.debug(f"_on_item_changed: Failed to reconnect signal: {e}")
+                except Exception:
                     pass  # Signal might already be connected
 
     def _load_initial_data(self):
@@ -1152,7 +1115,6 @@ class TasksTab(BaseTab):
 
     def _sync_data_impl(self):
         """Extract data from table and update project_data using Task objects directly."""
-        logging.debug("_sync_data_impl: START")
         try:
             # Avoid emitting during initialization to prevent recursive updates
             if self._initializing:
@@ -1170,14 +1132,11 @@ class TasksTab(BaseTab):
             
             # Update only the Valid column (computed field) - don't overwrite user-edited fields
             self._update_valid_column_only()
-            
-            logging.debug("_sync_data_impl: END (success)")
         except Exception as e:
             logging.error(f"Error in _sync_data_impl: {e}", exc_info=True)
 
     def _sync_data_if_not_initializing(self):
         if not self._initializing:
-            logging.debug("Calling _sync_data from itemChanged")
             self._sync_data()
     
     def _ensure_read_only_styling(self):
@@ -1203,11 +1162,9 @@ class TasksTab(BaseTab):
 
     def _update_valid_column_only(self):
         """Update only the Valid column without reloading the entire table."""
-        logging.debug("_update_valid_column_only: START")
         try:
             # Check if table is valid and has rows
             if not self.tasks_table or self.tasks_table.rowCount() == 0:
-                logging.debug("_update_valid_column_only: Table invalid or empty, returning")
                 return
             
             # Find Valid column visible index
@@ -1215,7 +1172,6 @@ class TasksTab(BaseTab):
             valid_col_vis_idx = self._reverse_column_mapping.get(valid_col) if valid_col is not None else None
             
             if valid_col_vis_idx is None:
-                logging.debug("_update_valid_column_only: Valid column not found, returning")
                 return
             
             # Create a mapping of task_id to task for quick lookup
@@ -1287,8 +1243,6 @@ class TasksTab(BaseTab):
                             pass
             finally:
                 self.tasks_table.blockSignals(was_blocked)
-            
-            logging.debug("_update_valid_column_only: END (success)")
         except Exception as e:
             logging.error(f"_update_valid_column_only: Error: {e}", exc_info=True)
 

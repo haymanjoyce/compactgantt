@@ -182,14 +182,8 @@ class SwimlanesTab(BaseTab):
     
     def _on_detail_form_changed(self):
         """Handle changes in detail form - update selected swimlane."""
-        logging.debug(f"_on_detail_form_changed: _updating_form={self._updating_form}, _selected_swimlane_id={self._selected_swimlane_id}, _selected_row={self._selected_row}")
         if self._updating_form or self._selected_swimlane_id is None:
-            logging.debug(f"_on_detail_form_changed: Early return - _updating_form={self._updating_form}, _selected_swimlane_id={self._selected_swimlane_id}")
             return
-        
-        if hasattr(self, 'detail_label_position') and self.detail_label_position:
-            current_value = self.detail_label_position.currentText()
-            logging.debug(f"_on_detail_form_changed: Triggering sync for swimlane_id={self._selected_swimlane_id}, label_position={current_value}")
         
         # Trigger sync to update the data
         self._sync_data_if_not_initializing()
@@ -241,13 +235,10 @@ class SwimlanesTab(BaseTab):
                 id_item = self.swimlanes_table.item(row, id_col)
                 if id_item:
                     self._selected_swimlane_id = safe_int(id_item.text())
-                    logging.debug(f"_on_table_selection_changed: Selected row={row}, swimlane_id={self._selected_swimlane_id}")
                 else:
                     self._selected_swimlane_id = None
-                    logging.debug(f"_on_table_selection_changed: Selected row={row}, but no ID item found")
             else:
                 self._selected_swimlane_id = None
-                logging.debug(f"_on_table_selection_changed: Selected row={row}, but ID column not found")
             
             self._populate_detail_form(row)
         else:
@@ -636,25 +627,17 @@ class SwimlanesTab(BaseTab):
             # Use key-based matching by ID instead of row index for reliability
             label_position = "Bottom Right"
             
-            logging.debug(f"_swimlane_from_table_row(row_idx={row_idx}): swimlane_id={swimlane_id}, _selected_swimlane_id={self._selected_swimlane_id}")
-            
             # Check if this swimlane's ID matches the one in the detail form
             if (self._selected_swimlane_id is not None and 
                 swimlane_id == self._selected_swimlane_id and
                 hasattr(self, 'detail_label_position') and 
                 self.detail_label_position):
                 label_position = self.detail_label_position.currentText()
-                logging.debug(f"_swimlane_from_table_row(row_idx={row_idx}): Matched by ID, using detail form value: label_position={label_position}")
             else:
                 # Get from existing swimlane (key-based lookup by ID)
                 existing_swimlane = next((s for s in self.project_data.swimlanes if s.swimlane_id == swimlane_id), None)
                 if existing_swimlane:
                     label_position = existing_swimlane.label_position if hasattr(existing_swimlane, 'label_position') else "Bottom Right"
-                    logging.debug(f"_swimlane_from_table_row(row_idx={row_idx}): Using existing swimlane value: label_position={label_position}")
-                else:
-                    logging.debug(f"_swimlane_from_table_row(row_idx={row_idx}): No match, using default: label_position={label_position}")
-            
-            logging.debug(f"_swimlane_from_table_row(row_idx={row_idx}): Final swimlane - id={swimlane_id}, title={title}, label_position={label_position}")
             
             return Swimlane(
                 swimlane_id=swimlane_id,
@@ -682,7 +665,6 @@ class SwimlanesTab(BaseTab):
         if self._initializing:
             return
         
-        logging.debug(f"_sync_data_impl: Starting sync, _selected_swimlane_id={self._selected_swimlane_id}, _selected_row={self._selected_row}")
         
         try:
             # Extract Swimlane objects from table rows (order matters!)
@@ -692,7 +674,6 @@ class SwimlanesTab(BaseTab):
                     swimlane = self._swimlane_from_table_row(row_idx)
                     if swimlane:
                         swimlanes.append(swimlane)
-                        logging.debug(f"_sync_data_impl: Extracted swimlane id={swimlane.swimlane_id}, label_position={swimlane.label_position}")
                 except Exception as e:
                     # Log error for this specific row but continue processing other rows
                     logging.error(f"Error extracting swimlane from row {row_idx}: {e}")
@@ -708,9 +689,6 @@ class SwimlanesTab(BaseTab):
                 return
             
             # Update project data with Swimlane objects directly (order is preserved)
-            logging.debug(f"_sync_data_impl: Updating project_data.swimlanes with {len(swimlanes)} swimlanes")
-            for s in swimlanes:
-                logging.debug(f"_sync_data_impl: Final swimlane id={s.swimlane_id}, title={s.title}, label_position={s.label_position}")
             self.project_data.swimlanes = swimlanes
             
             # Refresh Lane column after sync (in case rows were added/removed)
@@ -719,7 +697,6 @@ class SwimlanesTab(BaseTab):
             # Emit data_updated signal so other tabs (like Tasks) can refresh swimlane-dependent columns
             self.data_updated.emit({})
             
-            logging.debug(f"_sync_data_impl: Sync complete")
         except Exception as e:
             # Catch any unexpected exceptions during sync
             logging.error(f"Error in _sync_data_impl: {e}", exc_info=True)

@@ -27,7 +27,6 @@ class GanttChartService(QObject):
         self.data = {"frame_config": {}, "tasks": []}
         self.font = QFont(self.config.general.font_family, self.config.general.task_font_size)
         self.font_metrics = QFontMetrics(self.font)
-        logging.debug("GanttChartService initialized")
 
     def _get_frame_config(self, key: str, default):
         """Get a value from frame_config with a default fallback."""
@@ -35,7 +34,6 @@ class GanttChartService(QObject):
 
     @pyqtSlot(dict)
     def generate_svg(self, data):
-        logging.debug("Starting generate_svg")
         # Update font and font_metrics to use current config values
         self.font = QFont(self.config.general.font_family, self.config.general.task_font_size)
         self.font_metrics = QFontMetrics(self.font)
@@ -45,10 +43,6 @@ class GanttChartService(QObject):
             return
         try:
             self.data = data
-            logging.debug(f"Data keys: {list(data.keys())}")
-            logging.debug(f"Number of tasks in incoming data: {len(data.get('tasks', []))}")
-            if data.get('tasks'):
-                logging.debug(f"First task sample: {data['tasks'][0] if len(data['tasks']) > 0 else 'N/A'}")
             width = data["frame_config"].get("outer_width", self.config.general.outer_width)
             height = data["frame_config"].get("outer_height", self.config.general.outer_height)
             self.dwg = svgwrite.Drawing(
@@ -56,7 +50,6 @@ class GanttChartService(QObject):
                 size=(width, height))
             self.render()
             svg_path = os.path.abspath(os.path.join(self.output_folder, self.output_filename))
-            logging.debug(f"SVG generated at: {svg_path}")
             self.svg_generated.emit(svg_path)
             return svg_path
         except Exception as e:
@@ -78,7 +71,6 @@ class GanttChartService(QObject):
         height = self._get_frame_config("outer_height", self.config.general.outer_height)
         # Render background first
         self.dwg.add(self.dwg.rect(insert=(0, 0), size=(width, height), fill="white", stroke="none"))
-        logging.debug("Outer frame rendered")
 
     def render_outer_frame_border(self):
         """Render outer frame border last so it appears on top of all other elements."""
@@ -87,7 +79,6 @@ class GanttChartService(QObject):
         self.dwg.add(self.dwg.rect(insert=(0, 0), size=(width, height), fill="none", 
                                    stroke=self.config.general.frame_border_color, 
                                    stroke_width=self.config.general.frame_border_width_heavy))
-        logging.debug("Outer frame border rendered")
 
     def render_header(self):
         margins = self._get_frame_config("margins", (10, 10, 10, 10))
@@ -96,7 +87,6 @@ class GanttChartService(QObject):
         
         # Skip rendering if height is 0
         if height <= 0:
-            logging.debug("Header skipped (height is 0)")
             return
         
         self.dwg.add(self.dwg.rect(insert=(margins[3], margins[0]), size=(width, height),
@@ -109,7 +99,6 @@ class GanttChartService(QObject):
             self.dwg.add(self.dwg.text(header_text,
                                        insert=(margins[3] + width / 2, header_y),
                                        text_anchor="middle", font_size=str(self.config.general.header_footer_font_size), font_family=self.config.general.font_family, dominant_baseline="middle"))
-        logging.debug("Header rendered")
 
     def render_footer(self):
         margins = self._get_frame_config("margins", (10, 10, 10, 10))
@@ -118,7 +107,6 @@ class GanttChartService(QObject):
         
         # Skip rendering if height is 0
         if height <= 0:
-            logging.debug("Footer skipped (height is 0)")
             return
         
         y = self._get_frame_config("outer_height", self.config.general.outer_height) - margins[2] - height
@@ -132,7 +120,6 @@ class GanttChartService(QObject):
             self.dwg.add(self.dwg.text(footer_text,
                                        insert=(margins[3] + width / 2, footer_y),
                                        text_anchor="middle", font_size=str(self.config.general.header_footer_font_size), font_family=self.config.general.font_family, dominant_baseline="middle"))
-        logging.debug("Footer rendered")
 
     def render_inner_frame(self):
         margins = self._get_frame_config("margins", (10, 10, 10, 10))
@@ -145,11 +132,9 @@ class GanttChartService(QObject):
         # Removed inner frame border - was used for layout debugging
         # self.dwg.add(self.dwg.rect(insert=(margins[3], y), size=(width, height),
         #                            fill="none", stroke="blue", stroke_width=1, stroke_dasharray="4"))
-        logging.debug("Inner frame rendered")
 
     def render_single_timeline(self):
         """Render a single continuous timeline instead of multiple time frames."""
-        logging.debug("Starting render_single_timeline")
         margins = self._get_frame_config("margins", (10, 10, 10, 10))
         header_height = self._get_frame_config("header_height", 20)
         footer_height = self._get_frame_config("footer_height", 20)
@@ -179,7 +164,6 @@ class GanttChartService(QObject):
         row_y, row_frame_height = self.render_scales_and_rows(margins[3], inner_y, inner_width, inner_height, chart_start, chart_end)
         # Render links after tasks, using row frame position and height
         self.render_links(margins[3], row_y, inner_width, row_frame_height, chart_start, chart_end)
-        logging.debug("render_single_timeline completed")
 
 
     def _truncate_text_to_fit(self, text: str, max_width: float) -> str:
@@ -308,11 +292,9 @@ class GanttChartService(QObject):
         task_name_display = self._truncate_text_to_fit(task_name, width_task)
         label_x = x_start + width_task / 2
         text_color = self._get_inside_label_text_color(fill_color)
-        logging.debug(f"_render_inside_label: text='{task_name_display}', x={label_x}, y={label_y_base}, width={width_task}, fill_color={fill_color}, text_color={text_color}, original_text='{task_name}'")
         self.dwg.add(self.dwg.text(task_name_display, insert=(label_x, label_y_base),
                                    font_size=str(self.config.general.task_font_size), font_family=self.config.general.font_family, fill=text_color,
                                    text_anchor="middle", dominant_baseline="middle"))
-        logging.debug(f"  Text element added to SVG at position ({label_x}, {label_y_base})")
 
 
     def _render_outside_label(self, task_name: str, attachment_x: float, attachment_y: float,
@@ -355,9 +337,7 @@ class GanttChartService(QObject):
             end_date: The end date of the timeline (datetime)
             num_rows: The number of rows in the Gantt chart
         """
-        logging.debug(f"render_tasks called: Rendering tasks from {start_date} to {end_date}")
         tasks = self.data.get("tasks", [])
-        logging.debug(f"Number of tasks in data: {len(tasks)}")
         if not tasks:
             logging.warning("No tasks found in data! Tasks list is empty.")
         total_days = max((end_date - start_date).days, 1)
@@ -447,7 +427,6 @@ class GanttChartService(QObject):
                 if x_start < x + width:
                     y_offset = (row_height - task_height) / 2
                     rect_y = y_task + y_offset
-                    logging.debug(f"Rendering task bar for '{task_name}': x={x_start}, y={rect_y}, width={width_task}, height={task_height}, row={row_num}, y_task={y_task}")
                     corner_radius = 3
                     self.dwg.add(self.dwg.rect(insert=(x_start, rect_y), size=(width_task, task_height), 
                                               fill=fill_color, stroke="black", stroke_width=0.5,
@@ -456,7 +435,6 @@ class GanttChartService(QObject):
                     if not label_hide:
                         # Use proportional positioning within task bar
                         label_y_base = rect_y + task_height * self.config.general.task_vertical_alignment_factor
-                        logging.debug(f"  Calculated label_y_base={label_y_base} for task '{task_name}' (rect_y={rect_y}, task_height={task_height}, alignment_factor={self.config.general.task_vertical_alignment_factor})")
                         
                         if label_placement == "Inside":
                             # Simple inside label rendering - no multi-time-frame logic needed
@@ -1328,7 +1306,6 @@ class GanttChartService(QObject):
                         add_origin_marker()
 
     def render_scales_and_rows(self, x, y, width, height, start_date, end_date):
-        logging.debug(f"Rendering scales and rows from {start_date} to {end_date}")
         total_days = max((end_date - start_date).days, 1)
         time_scale = width / total_days if total_days > 0 else width
 
@@ -1482,7 +1459,6 @@ class GanttChartService(QObject):
 
 
     def render_scale_interval(self, x, y, width, height, start_date, end_date, interval, time_scale):
-        logging.debug(f"Rendering scale interval: {interval}")
         current_date = start_date
         prev_x = x
         while current_date <= end_date:
@@ -1605,8 +1581,6 @@ class GanttChartService(QObject):
         if not notes:
             return
         
-        logging.debug(f"Rendering {len(notes)} notes")
-        
         # Create font for notes
         note_font = QFont(self.config.general.font_family, self.config.general.note_font_size)
         note_font_metrics = QFontMetrics(note_font)
@@ -1641,9 +1615,7 @@ class GanttChartService(QObject):
             # difference between Qt's QFontMetrics measurement and SVG's actual text rendering.
             font_metrics_correction = 1.2  # Adjust if SVG renders more compactly than Qt measures
             available_width = max(1, (note.width - (2 * padding)) * font_metrics_correction)
-            logging.debug(f"Note width: {note.width}, padding: {padding}, available_width: {available_width} (with {font_metrics_correction}x correction)")
             text_lines = self._wrap_text_to_lines(note.text, available_width, font_size=self.config.general.note_font_size)
-            logging.debug(f"Wrapped text into {len(text_lines)} lines: {text_lines}")
             
             if not text_lines:
                 continue
@@ -1685,7 +1657,6 @@ class GanttChartService(QObject):
                 ))
 
     def render(self):
-        logging.debug("Starting render")
         os.makedirs(self.output_folder, exist_ok=True)
         self.render_outer_frame()  # Background only
         self.render_header()
@@ -1695,4 +1666,3 @@ class GanttChartService(QObject):
         self.render_notes()  # Render notes after all other elements
         self.render_outer_frame_border()  # Border rendered last
         self.dwg.save()
-        logging.debug("Render completed")

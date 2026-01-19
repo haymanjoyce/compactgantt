@@ -183,7 +183,6 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
     Args:
         default_row_number: Optional default row number for tasks table (if None, defaults to 1)
     """
-    logging.debug(f"Starting add_row for {table_key}")
     try:
         config = table_configs.get(table_key)
         if not config:
@@ -441,7 +440,6 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
         elif hasattr(parent, '_refresh_lane_column'):
             parent._refresh_lane_column()
         
-        logging.debug(f"Row added successfully at index {row_index}")
 
     except Exception as e:
         logging.error(f"Error in add_row: {e}", exc_info=True)
@@ -453,7 +451,6 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
 
 def remove_row(table, table_key, table_configs, parent):
     """Remove selected rows from the table."""
-    logging.debug(f"Starting remove_row for table_key: {table_key}")
     try:
         table_config = table_configs.get(table_key)
         if not table_config:
@@ -481,7 +478,6 @@ def remove_row(table, table_key, table_configs, parent):
             if hasattr(parent, '_refresh_lane_column'):
                 parent._refresh_lane_column()
             
-            logging.debug(f"Removed {len(checked_rows)} rows")
         else:
             from PyQt5.QtWidgets import QMessageBox
             QMessageBox.warning(parent, "Cannot Remove", 
