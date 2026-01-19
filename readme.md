@@ -1,6 +1,6 @@
 # Compact Gantt
 
-A PyQt5-based tool for creating compact Gantt charts with SVG output.
+A PyQt5-based tool for creating compact Gantt charts with SVG output, Excel/JSON import/export, transparent PNG export, and comprehensive customization options.
 
 ## Features
 
@@ -9,24 +9,53 @@ A PyQt5-based tool for creating compact Gantt charts with SVG output.
   - Configurable header and footer with custom text
   - Multiple time scales (years, months, weeks, days) with independent visibility and gridline controls
   - Horizontal and vertical gridline customization
+  - Flexible date format preferences (separate formats for data entry and chart display)
 
 - **Task Management**
-  - Add, remove, and duplicate tasks
-  - Task properties: ID, Order, Row, Name, Start Date, Finish Date
+  - Add, remove, duplicate, and reorder tasks
+  - Task properties: ID, Row, Name, Start Date, Finish Date, Lane (swimlane assignment)
   - Task formatting: Label visibility (Show/Hide) and placement (Inside/Outside)
-  - Numeric sorting for ID, Order, and Row columns
+  - Numeric sorting for ID, Row columns
   - Chronological sorting for Start Date and Finish Date columns
-  - Default sort by Task ID
+  - Default sort by Swimlane and Row
+
+- **Swimlanes**
+  - Organize tasks into swimlanes with custom names
+  - Visual swimlane dividers in task table
+  - Automatic task assignment to swimlanes
+
+- **Links**
+  - Create task dependency links (from/to relationships)
+  - Visual link validation
+
+- **Pipes and Curtains**
+  - Add pipe elements with dates and labels
+  - Add curtain elements with start/end dates
+  - Customizable formatting and positioning
+
+- **Notes**
+  - Add text annotations to the chart
+  - Customizable positioning and formatting
 
 - **Data Management**
   - Import/export project data as JSON
+  - Import/export project data as Excel (XLSX)
   - Save and load project configurations
   - Data validation with error highlighting
+  - Single-instance application (prevents multiple instances)
+
+- **Export Options**
+  - SVG output for scalable vector graphics
+  - PNG export with transparent background (ideal for overlays)
+  - JPEG export with white opaque background
+  - Export confirmation dialogs
 
 - **User Interface**
   - Tab-based interface for organized configuration
-  - Window positioning preferences
+  - Customizable window positioning and screen preferences
   - Real-time chart preview with SVG output
+  - Zoom controls (zoom in, zoom out, fit to window)
+  - Keyboard shortcuts for common operations
 
 ## Quick Start
 
@@ -43,42 +72,55 @@ python main.py
 - Python 3.8+
 - PyQt5
 - svgwrite
+- openpyxl (for Excel import/export)
+- python-dateutil (for date handling)
 
 ## Usage
 
 1. **Launch the application** - Two windows will open: the data entry window and the SVG display window
-2. **Configure chart settings** in the various tabs:
-   - **Windows**: Configure window positioning and preferences
-   - **Layout**: Set chart dimensions, margins, and number of rows
-   - **Titles**: Configure header and footer text and heights
-   - **Scales**: Control time scale visibility (years, months, weeks, days)
-   - **Grid**: Configure horizontal and vertical gridline display
-   - **Tasks**: Add and manage tasks with dates, formatting, and properties
+   - The application uses single-instance detection to prevent multiple instances
+2. **Configure chart settings** in the various tabs (see Tabs Overview below)
 3. **Add tasks** in the Tasks tab:
    - Click "Add Task" to create a new task
-   - Fill in task details (Name, Start Date, Finish Date, Row, etc.)
+   - Fill in task details (Name, Start Date, Finish Date, Row, Lane, etc.)
    - Configure label visibility and placement in the Task Formatting section
    - Use "Duplicate Task" to copy selected tasks with new IDs
-4. **Click "Update Image"** to generate the SVG chart
+   - Use "Move Up" and "Move Down" to reorder tasks
+4. **Click "Update Chart"** to generate the SVG chart
+5. **Export your chart**:
+   - Use File menu in the chart display window to save as PNG (transparent) or JPEG (opaque)
+   - Use File menu in the data entry window to save project as JSON or Excel
 
 ## Tabs Overview
 
-- **Windows**: Window positioning and screen preferences
+Tabs are organized in a content-first logical grouping:
+
+- **Swimlanes**: Configure swimlanes with custom names and ordering
+- **Tasks**: Task management, formatting, and properties
+- **Links**: Create and manage task dependency links
+- **Pipes**: Add and configure pipe elements with dates and labels
+- **Curtains**: Add and configure curtain elements with start/end dates
+- **Notes**: Add text annotations to the chart
 - **Layout**: Chart dimensions, margins, and row configuration
-- **Titles**: Header and footer settings
-- **Scales**: Time scale visibility and configuration
-- **Grid**: Gridline display options
-- **Tasks**: Task management and formatting
-- **Links**: Task dependency links (placeholder)
-- **Swimlanes**: Swimlane configuration
-- **Pipes**: Pipe elements (placeholder)
-- **Curtains**: Curtain elements (placeholder)
-- **Text Boxes**: Text annotation elements (placeholder)
+- **Timeline**: Timeframe settings, scale visibility, and vertical gridlines
+- **Titles**: Header and footer text and height settings
+- **Typography**: Font family, sizes, and vertical alignment
+- **Preferences**: Window positioning, screen preferences, and date format settings
 
 ## Keyboard Shortcuts
 
+### Data Entry Window
 - **Ctrl+S**: Save project to JSON
 - **Ctrl+O**: Load project from JSON
+- **Ctrl+N**: Add new task (in Tasks tab)
+- **Delete**: Remove selected task(s) (in Tasks tab)
+
+### Chart Display Window
+- **Ctrl+Shift+S**: Save image as PNG (transparent)
+- **Ctrl+Shift+J**: Save image as JPEG (opaque)
+- **Ctrl++**: Zoom in
+- **Ctrl+-**: Zoom out
+- **Ctrl+0**: Fit to window
 
 ## Development
 
@@ -105,6 +147,7 @@ python tests/test_project_save_load.py
   - `frame.py` - Frame configuration
 - `repositories/` - File I/O
   - `project_repository.py` - JSON save/load
+  - `excel_repository.py` - Excel import/export
 - `config/` - Configuration
   - `app_config.py` - Application configuration
 - `validators/` - Data validation
