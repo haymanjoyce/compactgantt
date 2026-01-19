@@ -132,6 +132,16 @@ def main():
         shared_memory.detach()
         release_lock()
         os._exit(0)
+    
+    # Set AppUserModelID on Windows to prevent grouping with Python
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            # Set a unique AppUserModelID so Windows doesn't group with Python
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('com.richardhaymanjoyce.compactgantt.1')
+        except Exception:
+            pass  # Fail silently if this doesn't work
+    
     # Use ICO so Windows taskbar shows the custom logo
     icon_path = Path(__file__).parent / "assets" / "favicon.ico"
     app.setWindowIcon(QIcon(str(icon_path)))

@@ -28,7 +28,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Compact Gantt | Chart Data Window")
         # Use ICO so Windows title bar matches taskbar icon
-        self.setWindowIcon(QIcon("assets/favicon.ico"))
+        from pathlib import Path
+        icon_path = Path(__file__).resolve().parent.parent / "assets" / "favicon.ico"
+        self.setWindowIcon(QIcon(str(icon_path)))
         self.setMinimumSize(600, 700)
         self.project_data = project_data  # Use passed project_data instance
         self.app_config = app_config if app_config else AppConfig()  # Use passed instance or create new
