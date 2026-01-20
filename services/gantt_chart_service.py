@@ -749,6 +749,139 @@ class GanttChartService(QObject):
                         fill=pipe.color if pipe.color else "red"
                     ))
 
+    def _extract_swimlanes(self) -> list:
+        """Extract and convert swimlane data to Swimlane objects.
+        
+        Returns:
+            List of Swimlane objects, empty list if no swimlanes
+        """
+        swimlanes_data = self.data.get("swimlanes", [])
+        if not swimlanes_data:
+            return []
+        
+        # Convert dicts to Swimlane objects if needed
+        swimlanes = []
+        for swimlane_data in swimlanes_data:
+            if isinstance(swimlane_data, dict):
+                swimlanes.append(Swimlane.from_dict(swimlane_data))
+            else:
+                swimlanes.append(swimlane_data)
+        
+        return swimlanes
+    
+    def _calculate_swimlane_row_positions(self, swimlane, current_first_row: int, num_rows: int) -> tuple:
+        """Calculate first and last row positions for a swimlane.
+        
+        Args:
+            swimlane: Swimlane object
+            current_first_row: Current first row (1-based)
+            num_rows: Total number of rows
+            
+        Returns:
+            Tuple of (first_row, last_row, is_valid) where is_valid indicates if swimlane is within bounds
+        """
+        first_row = current_first_row
+        last_row = current_first_row + swimlane.row_count - 1
+        
+        # Validate row numbers
+        is_valid = first_row >= 1 and last_row <= num_rows
+        
+        return (first_row, last_row, is_valid)
+    
+    def _render_swimlane_divider(self, x: float, width: float, divider_y: float):
+        """Render a horizontal divider line for a swimlane.
+        
+        Args:
+            x: X position
+            width: Width of divider
+            divider_y: Y position of divider
+        """
+        self.dwg.add(self.dwg.line(
+            (x, divider_y),
+            (x + width, divider_y),
+            stroke="grey",
+            stroke_width=0.5
+        ))
+    
+    def _calculate_swimlane_label_position(self, label_position: str, x: float, width: float,
+                                          row_y: float, first_row_0based: int, last_row_0based: int,
+                                          row_height: float) -> dict:
+        """Calculate label position and attributes for a swimlane.
+        
+        Args:
+            label_position: Position string ("Top Left", "Top Right", "Bottom Left", "Bottom Right")
+            x: X position of timeline
+            width: Width of timeline
+            row_y: Y position of row frame
+            first_row_0based: First row index (0-based)
+            last_row_0based: Last row index (0-based)
+            row_height: Height of a row
+            
+        Returns:
+            Dictionary with label_x, label_y, text_anchor, dominant_baseline
+        """
+        offset = 5  # Fixed 5px offset from edges
+        
+        # Determine if label is top or bottom
+        is_top = label_position.startswith("Top")
+        is_bottom = label_position.startswith("Bottom")
+        
+        # Calculate Y position based on top/bottom
+        if is_bottom:
+            # Bottom labels: align with the last row of the swimlane
+            row_top = row_y + last_row_0based * row_height
+            vertical_factor = self.config.general.swimlane_bottom_vertical_alignment_factor
+        elif is_top:
+            # Top labels: align with the first row of the swimlane
+            row_top = row_y + first_row_0based * row_height
+            vertical_factor = self.config.general.swimlane_top_vertical_alignment_factor
+        else:
+            # Default to bottom positioning
+            row_top = row_y + last_row_0based * row_height
+            vertical_factor = self.config.general.swimlane_bottom_vertical_alignment_factor
+        
+        label_y = row_top + row_height * vertical_factor
+        
+        # Determine X position and text attributes based on left/right
+        if label_position.endswith("Right"):
+            label_x = x + width - offset
+            text_anchor = "end"
+        elif label_position.endswith("Left"):
+            label_x = x + offset
+            text_anchor = "start"
+        else:
+            # Default to right if invalid
+            label_x = x + width - offset
+            text_anchor = "end"
+        
+        return {
+            "label_x": label_x,
+            "label_y": label_y,
+            "text_anchor": text_anchor,
+            "dominant_baseline": "middle"
+        }
+    
+    def _render_swimlane_label(self, title: str, label_x: float, label_y: float,
+                               text_anchor: str, dominant_baseline: str):
+        """Render a swimlane label text element.
+        
+        Args:
+            title: Label text
+            label_x, label_y: Position coordinates
+            text_anchor: Text anchor ("start", "end", "middle")
+            dominant_baseline: Baseline alignment
+        """
+        text_element = self.dwg.text(
+            title,
+            insert=(label_x, label_y),
+            fill="grey",
+            font_size=str(self.config.general.swimlane_font_size) + "px",
+            font_family=f"{self.config.general.font_family}, sans-serif",
+            text_anchor=text_anchor,
+            dominant_baseline=dominant_baseline
+        )
+        self.dwg.add(text_element)
+
     def render_swimlanes(self, x, row_y, width, row_frame_height, num_rows):
         """Render swimlanes (horizontal dividers and labels).
         
@@ -759,18 +892,8 @@ class GanttChartService(QObject):
             row_frame_height: The height of the row frame (in pixels)
             num_rows: The number of rows in the chart
         """
-        swimlanes_data = self.data.get("swimlanes", [])
-        if not swimlanes_data:
-            return
-        
-        # Convert dicts to Swimlane objects if needed
-        swimlanes = []
-        for swimlane_data in swimlanes_data:
-            if isinstance(swimlane_data, dict):
-                swimlanes.append(Swimlane.from_dict(swimlane_data))
-            else:
-                swimlanes.append(swimlane_data)
-        
+        # Extract swimlanes
+        swimlanes = self._extract_swimlanes()
         if not swimlanes:
             return
         
@@ -782,12 +905,12 @@ class GanttChartService(QObject):
         
         # Render dividers and labels for each swimlane (order matters!)
         for swimlane in swimlanes:
-            # Calculate first and last row for this swimlane based on table order
-            first_row = current_first_row
-            last_row = current_first_row + swimlane.row_count - 1
+            # Calculate row positions
+            first_row, last_row, is_valid = self._calculate_swimlane_row_positions(
+                swimlane, current_first_row, num_rows
+            )
             
-            # Validate row numbers
-            if first_row < 1 or last_row > num_rows:
+            if not is_valid:
                 # Skip invalid swimlanes, but continue to next
                 current_first_row += swimlane.row_count
                 continue
@@ -797,82 +920,23 @@ class GanttChartService(QObject):
             last_row_0based = last_row - 1
             
             # Render divider at the bottom of the swimlane (except if it meets the row frame bottom border)
-            # The divider is at the boundary between last_row and last_row + 1
             if last_row < num_rows:
-                # Calculate Y position for divider (at the bottom boundary of the swimlane)
-                # This is the same Y position as a row divider would use
                 divider_y = row_y + last_row * row_height
-                self.dwg.add(self.dwg.line(
-                    (x, divider_y),
-                    (x + width, divider_y),
-                    stroke="grey",
-                    stroke_width=0.5
-                ))
+                self._render_swimlane_divider(x, width, divider_y)
             
-            # Render label based on label_position
+            # Render label if title exists
             if swimlane.title:
-                # Calculate the swimlane area bounds
-                swimlane_top = row_y + first_row_0based * row_height
-                swimlane_bottom = row_y + (last_row_0based + 1) * row_height
-                
-                # Determine position based on label_position
-                offset = 5  # Fixed 5px offset from edges
                 label_position = swimlane.label_position if hasattr(swimlane, 'label_position') else "Bottom Right"
-                
-                # Get vertical adjustment factors from config (separate for top and bottom)
-                # Align labels with the row they occupy (first or last row of swimlane)
-                if label_position in ["Bottom Right", "Bottom Left"]:
-                    # Bottom labels: align with the last row of the swimlane
-                    row_top = row_y + last_row_0based * row_height
-                    vertical_factor = self.config.general.swimlane_bottom_vertical_alignment_factor
-                    label_y = row_top + row_height * vertical_factor
-                elif label_position in ["Top Left", "Top Right"]:
-                    # Top labels: align with the first row of the swimlane
-                    row_top = row_y + first_row_0based * row_height
-                    vertical_factor = self.config.general.swimlane_top_vertical_alignment_factor
-                    label_y = row_top + row_height * vertical_factor
-                else:
-                    # Default to bottom positioning
-                    row_top = row_y + last_row_0based * row_height
-                    vertical_factor = self.config.general.swimlane_bottom_vertical_alignment_factor
-                    label_y = row_top + row_height * vertical_factor
-                
-                if label_position == "Bottom Right":
-                    label_x = x + width - offset
-                    text_anchor = "end"
-                    dominant_baseline = "middle"
-                elif label_position == "Bottom Left":
-                    label_x = x + offset
-                    text_anchor = "start"
-                    dominant_baseline = "middle"
-                elif label_position == "Top Left":
-                    label_x = x + offset
-                    text_anchor = "start"
-                    dominant_baseline = "middle"
-                elif label_position == "Top Right":
-                    label_x = x + width - offset
-                    text_anchor = "end"
-                    dominant_baseline = "middle"
-                else:
-                    # Default to Bottom Right if invalid
-                    label_x = x + width - offset
-                    row_top = row_y + last_row_0based * row_height
-                    vertical_factor = self.config.general.swimlane_bottom_vertical_alignment_factor
-                    label_y = row_top + row_height * vertical_factor
-                    text_anchor = "end"
-                    dominant_baseline = "middle"
-                
-                # Create text element
-                text_element = self.dwg.text(
-                    swimlane.title,
-                    insert=(label_x, label_y),
-                    fill="grey",
-                    font_size=str(self.config.general.swimlane_font_size) + "px",
-                    font_family=f"{self.config.general.font_family}, sans-serif",
-                    text_anchor=text_anchor,
-                    dominant_baseline=dominant_baseline
+                label_info = self._calculate_swimlane_label_position(
+                    label_position, x, width, row_y, first_row_0based, last_row_0based, row_height
                 )
-                self.dwg.add(text_element)
+                self._render_swimlane_label(
+                    swimlane.title,
+                    label_info["label_x"],
+                    label_info["label_y"],
+                    label_info["text_anchor"],
+                    label_info["dominant_baseline"]
+                )
             
             # Move to next swimlane's starting position
             current_first_row += swimlane.row_count
