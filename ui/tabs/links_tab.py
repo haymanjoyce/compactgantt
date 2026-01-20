@@ -342,6 +342,36 @@ class LinksTab(BaseTab):
         finally:
             self.links_table.blockSignals(False)
 
+    def _ensure_unique_link_ids(self, links: List[Link]) -> None:
+        """Ensure all link IDs are unique by reassigning duplicates.
+        
+        Args:
+            links: List of Link objects to fix
+        """
+        if not links:
+            return
+        
+        # Collect all used IDs
+        used_ids = set()
+        duplicates = []
+        
+        for link in links:
+            if link.link_id in used_ids or link.link_id <= 0:
+                # Mark as duplicate or invalid
+                duplicates.append(link)
+            else:
+                used_ids.add(link.link_id)
+        
+        # Reassign duplicate IDs
+        if duplicates:
+            next_id = 1
+            for link in duplicates:
+                while next_id in used_ids:
+                    next_id += 1
+                link.link_id = next_id
+                used_ids.add(next_id)
+                logging.warning(f"Fixed duplicate link ID: reassigned to {next_id}")
+
     def _load_initial_data_impl(self):
         """Load initial data into the table using Link objects directly."""
         # Get Link objects directly from project_data
@@ -353,14 +383,19 @@ class LinksTab(BaseTab):
         # Create task name mapping
         task_name_map = {task.task_id: task.task_name for task in self.project_data.tasks}
         
+        # Ensure all link IDs are unique before loading
+        self._ensure_unique_link_ids(links)
+        
         for row_idx in range(row_count):
 
             # Use helper method to populate row from Link object
             link = links[row_idx]
             self._update_table_row_from_link(row_idx, link, task_name_map)
         
-        # Sort by ID by default
-        self.links_table.sortItems(1, Qt.AscendingOrder)  # Column 1 = ID
+        # Sort by ID in ascending order by default (using key-based column lookup)
+        id_col = self._get_column_index("ID")
+        if id_col is not None:
+            self.links_table.sortItems(id_col, Qt.AscendingOrder)
         
         self._initializing = False
         
@@ -384,19 +419,28 @@ class LinksTab(BaseTab):
             if link:
                 links.append(link)
         
+        # Ensure all link IDs are unique before updating project data
+        self._ensure_unique_link_ids(links)
+        
         # Update project data with Link objects directly
         errors = self.project_data.update_links(links)
         
         # Update table rows with computed fields (task names, valid status)
+        # Also update IDs in case they were reassigned
         task_name_map = {task.task_id: task.task_name for task in self.project_data.tasks}
         self.links_table.blockSignals(True)
         try:
             for row_idx, link in enumerate(links):
                 if row_idx < self.links_table.rowCount():
-                    # Update computed fields in the table
+                    # Update computed fields in the table, including ID if it was reassigned
                     self._update_table_row_from_link(row_idx, link, task_name_map)
         finally:
             self.links_table.blockSignals(False)
+        
+        # Sort by ID in ascending order after sync (using key-based column lookup)
+        id_col = self._get_column_index("ID")
+        if id_col is not None:
+            self.links_table.sortItems(id_col, Qt.AscendingOrder)
         
         # Re-populate detail form if a row is currently selected
         # This ensures the detail form is enabled when a new link becomes valid

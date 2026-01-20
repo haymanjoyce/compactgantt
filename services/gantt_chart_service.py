@@ -966,33 +966,14 @@ class GanttChartService(QObject):
                     fill=curtain.color if curtain.color else "red"
                 ))
 
-    def render_links(self, x, row_y, width, row_frame_height, start_date, end_date):
-        """Render links between tasks according to Finish-to-Start (FS) dependency rules.
+    def _build_task_map(self) -> dict:
+        """Build a task map for quick lookup using task_id as key.
         
-        Links show workflow dependencies from source to target with routing based on positions:
-        - Same row: Horizontal line
-        - Different rows, no gap: Single vertical segment if aligned (< 2px), otherwise V-H-V
-        - Different rows, gap: V-H-V pattern (vertical-horizontal-vertical)
-        
-        Args:
-            x: The absolute x position of the timeline (in pixels)
-            row_y: The absolute y position where the row frame starts (after scales, in pixels)
-            width: The width of the timeline (in pixels)
-            row_frame_height: The height of the row frame (in pixels)
-            start_date: The start date of the timeline (datetime)
-            end_date: The end date of the timeline (datetime)
+        Returns:
+            Dictionary mapping task_id to task data (dict or object)
         """
-        num_rows = self._get_frame_config("num_rows", 1)
-        links_data = self.data.get("links", [])
-        
-        if not links_data:
-            return
-        
-        # Convert dicts to Link objects (links come from to_json() as dicts)
-        links = []
-        tasks_data = self.data.get("tasks", [])
-        # Create task map for quick lookup
         task_map = {}
+        tasks_data = self.data.get("tasks", [])
         for task_item in tasks_data:
             if isinstance(task_item, dict):
                 task_id = task_item.get("task_id")
@@ -1000,15 +981,29 @@ class GanttChartService(QObject):
                 task_id = getattr(task_item, "task_id", None)
             if task_id:
                 task_map[task_id] = task_item
+        return task_map
+    
+    def _extract_and_validate_links(self, task_map: dict) -> list:
+        """Extract links from data and validate them using task_map.
+        
+        Args:
+            task_map: Dictionary mapping task_id to task data
+            
+        Returns:
+            List of validated Link objects
+        """
+        links = []
+        links_data = self.data.get("links", [])
         
         for link_item in links_data:
             if isinstance(link_item, dict):
                 link = Link.from_dict(link_item)
-                # Calculate valid status (similar to update_links in project.py)
+                # Calculate valid status using key-based lookups
                 from_task_dict = task_map.get(link.from_task_id)
                 to_task_dict = task_map.get(link.to_task_id)
                 
                 if from_task_dict and to_task_dict:
+                    # Extract dates using key-based lookups
                     if isinstance(from_task_dict, dict):
                         from_finish_date = from_task_dict.get("finish_date") or from_task_dict.get("start_date")
                     else:
@@ -1036,415 +1031,584 @@ class GanttChartService(QObject):
                 links.append(link_item)
             # Skip legacy list format
         
+        return links
+    
+    def _get_link_style_properties(self, link) -> dict:
+        """Extract style properties from link.
+        
+        Args:
+            link: Link object
+            
+        Returns:
+            Dictionary with line_color, line_style, link_routing, stroke_dasharray
+        """
+        line_color = link.line_color or "black"
+        line_style = link.line_style or "solid"
+        link_routing = link.link_routing or "auto"
+        
+        # Map line style to SVG stroke-dasharray
+        stroke_dasharray = None
+        if line_style == "dotted":
+            stroke_dasharray = "2,2"
+        elif line_style == "dashed":
+            stroke_dasharray = "5,5"
+        # "solid" uses None (no dasharray)
+        
+        return {
+            "line_color": line_color,
+            "line_style": line_style,
+            "link_routing": link_routing,
+            "stroke_dasharray": stroke_dasharray
+        }
+    
+    def _calculate_milestone_connection_point(self, center_x: float, center_y: float, 
+                                             milestone_radius: float, link_routing: str,
+                                             same_row: bool, successor_below: bool, 
+                                             successor_above: bool, link_goes_right: bool,
+                                             is_origin: bool) -> tuple:
+        """Calculate connection point on milestone circle circumference.
+        
+        Args:
+            center_x, center_y: Center of milestone circle
+            milestone_radius: Radius of milestone circle
+            link_routing: Routing type ("auto", "HV", "VH")
+            same_row: Whether tasks are on same row
+            successor_below: Whether successor is below predecessor
+            successor_above: Whether successor is above predecessor
+            link_goes_right: Whether link goes rightward
+            is_origin: True for origin point, False for termination point
+            
+        Returns:
+            Tuple of (x, y) connection point
+        """
+        if link_routing == "HV":
+            if is_origin:
+                # HV routing: always use right side midpoint for origin (horizontal first)
+                return (center_x + milestone_radius, center_y)
+            else:
+                # HV routing: use top/bottom/left based on approach direction
+                if same_row and link_goes_right:
+                    # Horizontal approach - use left side
+                    return (center_x - milestone_radius, center_y)
+                elif successor_below:
+                    # Vertical approach from above - use top
+                    return (center_x, center_y - milestone_radius)
+                elif successor_above:
+                    # Vertical approach from below - use bottom
+                    return (center_x, center_y + milestone_radius)
+                else:
+                    return (center_x, center_y)
+        elif link_routing == "VH":
+            if is_origin:
+                # VH routing: use top/bottom based on successor position (vertical first)
+                if successor_below:
+                    return (center_x, center_y + milestone_radius)
+                elif successor_above:
+                    return (center_x, center_y - milestone_radius)
+                else:
+                    # Same row - use right side (fallback)
+                    return (center_x + milestone_radius, center_y)
+            else:
+                # VH routing: use left side for horizontal approach, top/bottom for vertical
+                if same_row or link_goes_right:
+                    # Horizontal approach - use left side
+                    return (center_x - milestone_radius, center_y)
+                elif successor_below:
+                    # Vertical approach from above - use top
+                    return (center_x, center_y - milestone_radius)
+                elif successor_above:
+                    # Vertical approach from below - use bottom
+                    return (center_x, center_y + milestone_radius)
+                else:
+                    return (center_x, center_y)
+        else:
+            # Auto routing
+            if is_origin:
+                if same_row and link_goes_right:
+                    # Link goes rightward - use rightmost point
+                    return (center_x + milestone_radius, center_y)
+                elif successor_below:
+                    # Link goes downward - use bottommost point
+                    return (center_x, center_y + milestone_radius)
+                elif successor_above:
+                    # Link goes upward - use topmost point
+                    return (center_x, center_y - milestone_radius)
+                else:
+                    return (center_x, center_y)
+            else:
+                if same_row and link_goes_right:
+                    # Link approaches from left - use leftmost point
+                    return (center_x - milestone_radius, center_y)
+                elif successor_below:
+                    # Link approaches from above - use topmost point
+                    return (center_x, center_y - milestone_radius)
+                elif successor_above:
+                    # Link approaches from below - use bottommost point
+                    return (center_x, center_y + milestone_radius)
+                else:
+                    return (center_x, center_y)
+    
+    def _calculate_connection_points(self, from_task: dict, to_task: dict, 
+                                    link_routing: str, row_height: float) -> dict:
+        """Calculate origin and termination connection points for a link.
+        
+        Args:
+            from_task: Position dictionary for source task
+            to_task: Position dictionary for target task
+            link_routing: Routing type ("auto", "HV", "VH")
+            row_height: Height of a row
+            
+        Returns:
+            Dictionary with origin_x, origin_y, term_x, term_y, same_row, same_date,
+            successor_below, successor_above, link_goes_right, from_is_milestone, to_is_milestone
+        """
+        from_is_milestone = from_task.get("is_milestone", False)
+        to_is_milestone = to_task.get("is_milestone", False)
+        
+        # Calculate milestone half_size
+        task_height = row_height * 0.8
+        milestone_half_size = task_height / 2
+        
+        # Determine preliminary positions to calculate link direction
+        if from_is_milestone:
+            from_center_x = (from_task["x_start"] + from_task["x_end"]) / 2
+        else:
+            from_center_x = from_task["x_end"]
+        
+        if to_is_milestone:
+            to_center_x = (to_task["x_start"] + to_task["x_end"]) / 2
+        else:
+            to_center_x = to_task["x_start"]
+        
+        # Determine routing info
+        same_row = from_task["row_num"] == to_task["row_num"]
+        successor_below = to_task["row_num"] > from_task["row_num"]
+        successor_above = to_task["row_num"] < from_task["row_num"]
+        link_goes_right = to_center_x > from_center_x
+        
+        # Calculate origin point
+        if from_is_milestone:
+            from_center_x = (from_task["x_start"] + from_task["x_end"]) / 2
+            from_center_y = from_task["y_center"]
+            origin_x, origin_y = self._calculate_milestone_connection_point(
+                from_center_x, from_center_y, milestone_half_size, link_routing,
+                same_row, successor_below, successor_above, link_goes_right, True
+            )
+        else:
+            # Regular task: use right edge
+            origin_x = from_task["x_end"]
+            origin_y = from_task["y_center"]
+        
+        # Calculate termination point
+        if to_is_milestone:
+            to_center_x = (to_task["x_start"] + to_task["x_end"]) / 2
+            to_center_y = to_task["y_center"]
+            term_x, term_y = self._calculate_milestone_connection_point(
+                to_center_x, to_center_y, milestone_half_size, link_routing,
+                same_row, successor_below, successor_above, link_goes_right, False
+            )
+        else:
+            # Regular task: use left edge
+            term_x = to_task["x_start"]
+            term_y = to_task["y_center"]
+        
+        return {
+            "origin_x": origin_x,
+            "origin_y": origin_y,
+            "term_x": term_x,
+            "term_y": term_y,
+            "same_row": same_row,
+            "successor_below": successor_below,
+            "successor_above": successor_above,
+            "link_goes_right": link_goes_right,
+            "from_is_milestone": from_is_milestone,
+            "to_is_milestone": to_is_milestone
+        }
+    
+    def _get_task_date_strings(self, from_task_id: int, to_task_id: int) -> dict:
+        """Get finish/start date strings for link validation.
+        
+        Args:
+            from_task_id: Source task ID
+            to_task_id: Target task ID
+            
+        Returns:
+            Dictionary with from_finish_date_str, to_start_date_str
+        """
+        from_task_data = None
+        to_task_data = None
+        for task in self.data.get("tasks", []):
+            task_id = task.get("task_id")
+            if task_id == from_task_id:
+                from_task_data = task
+            if task_id == to_task_id:
+                to_task_data = task
+        
+        from_finish_date_str = from_task_data.get("finish_date", "") if from_task_data else ""
+        to_start_date_str = to_task_data.get("start_date", "") if to_task_data else ""
+        
+        return {
+            "from_finish_date_str": from_finish_date_str,
+            "to_start_date_str": to_start_date_str,
+            "from_task_data": from_task_data,
+            "to_task_data": to_task_data
+        }
+    
+    def _should_suppress_same_row_link(self, from_finish_date_str: str, to_start_date_str: str,
+                                       from_is_milestone: bool, to_is_milestone: bool) -> bool:
+        """Determine if same-row link should be suppressed due to small gap.
+        
+        Args:
+            from_finish_date_str: Finish date string of source task
+            to_start_date_str: Start date string of target task
+            from_is_milestone: Whether source is milestone
+            to_is_milestone: Whether target is milestone
+            
+        Returns:
+            True if link should be suppressed, False otherwise
+        """
+        gap_days = 0
+        if from_finish_date_str and to_start_date_str:
+            from_finish_date = self._parse_internal_date(from_finish_date_str)
+            to_start_date = self._parse_internal_date(to_start_date_str)
+            if from_finish_date and to_start_date:
+                gap_days = (to_start_date - from_finish_date).days
+        
+        # Determine suppression threshold based on task/milestone types
+        if from_is_milestone and to_is_milestone:
+            # Milestone to Milestone: suppress if gap < 6 days (≤ 5 days)
+            return gap_days < 6
+        elif from_is_milestone or to_is_milestone:
+            # Task to Milestone or Milestone to Task: suppress if gap < 4 days (≤ 3 days)
+            return gap_days < 4
+        else:
+            # Task to Task: suppress if gap ≤ 3 days
+            return gap_days <= 3
+    
+    def _create_link_line(self, start: tuple, end: tuple, line_color: str, 
+                         stroke_dasharray: str) -> object:
+        """Create a styled line element for a link.
+        
+        Args:
+            start: Start point (x, y)
+            end: End point (x, y)
+            line_color: Line color
+            stroke_dasharray: SVG stroke-dasharray value (None for solid)
+            
+        Returns:
+            SVG line element
+        """
+        line_attrs = {
+            "stroke": line_color,
+            "stroke_width": 1.5,
+            "stroke_linecap": "round"
+        }
+        if stroke_dasharray:
+            line_attrs["stroke_dasharray"] = stroke_dasharray
+        return self.dwg.line(start, end, **line_attrs)
+    
+    def _add_origin_marker(self, origin_x: float, origin_y: float, line_color: str):
+        """Add a small circle marker at the link origin point.
+        
+        Args:
+            origin_x, origin_y: Origin point coordinates
+            line_color: Color for marker
+        """
+        origin_circle = self.dwg.circle(
+            center=(origin_x, origin_y),
+            r=1.5,  # 1.5 pixel radius (3 pixel diameter)
+            fill=line_color,
+            stroke=line_color,
+            stroke_width=1
+        )
+        self.dwg.add(origin_circle)
+    
+    def _render_same_row_link(self, origin_x: float, origin_y: float, term_x: float, term_y: float,
+                              from_finish_date_str: str, to_start_date_str: str,
+                              from_is_milestone: bool, to_is_milestone: bool,
+                              line_color: str, stroke_dasharray: str) -> bool:
+        """Render link for same-row scenario.
+        
+        Args:
+            origin_x, origin_y: Origin point coordinates
+            term_x, term_y: Termination point coordinates
+            from_finish_date_str: Finish date string of source task
+            to_start_date_str: Start date string of target task
+            from_is_milestone: Whether source is milestone
+            to_is_milestone: Whether target is milestone
+            line_color: Line color
+            stroke_dasharray: SVG stroke-dasharray value
+            
+        Returns:
+            True if link was rendered, False if suppressed or skipped
+        """
+        # Check if same date
+        same_date = False
+        if from_finish_date_str and to_start_date_str:
+            from_finish_date = self._parse_internal_date(from_finish_date_str)
+            to_start_date = self._parse_internal_date(to_start_date_str)
+            if from_finish_date and to_start_date:
+                same_date = from_finish_date == to_start_date
+            else:
+                same_date = abs(origin_x - term_x) < 1.0
+        else:
+            same_date = abs(origin_x - term_x) < 1.0
+        
+        if same_date:
+            # No Gap (Bars Touch) - Skip rendering
+            return False
+        
+        # Check if should suppress due to small gap
+        if self._should_suppress_same_row_link(from_finish_date_str, to_start_date_str,
+                                               from_is_milestone, to_is_milestone):
+            return False
+        
+        # Render link for elements with sufficient gap
+        arrow_size = 5
+        line_end_x = term_x - arrow_size  # Arrow points left, base is to the right
+        self.dwg.add(self._create_link_line((origin_x, origin_y), (line_end_x, term_y),
+                                            line_color, stroke_dasharray))
+        self._render_arrowhead(term_x, term_y, "left", arrow_size, line_color)
+        self._add_origin_marker(origin_x, origin_y, line_color)
+        return True
+    
+    def _render_different_rows_link(self, origin_x: float, origin_y: float, 
+                                   term_x: float, term_y: float,
+                                   from_finish_date_str: str, to_start_date_str: str,
+                                   same_row: bool, successor_below: bool,
+                                   link_routing: str, link_goes_right: bool,
+                                   from_task_row: int, to_task_row: int,
+                                   line_color: str, stroke_dasharray: str) -> bool:
+        """Render link for different-rows scenario.
+        
+        Args:
+            origin_x, origin_y: Origin point coordinates
+            term_x, term_y: Termination point coordinates
+            from_finish_date_str: Finish date string of source task
+            to_start_date_str: Start date string of target task
+            same_row: Whether tasks are on same row (should be False)
+            successor_below: Whether successor is below predecessor
+            link_routing: Routing type ("auto", "HV", "VH")
+            link_goes_right: Whether link goes rightward
+            from_task_row: Row number of source task
+            to_task_row: Row number of target task
+            line_color: Line color
+            stroke_dasharray: SVG stroke-dasharray value
+            
+        Returns:
+            True if link was rendered, False if skipped
+        """
+        # Check if same date
+        same_date = False
+        if from_finish_date_str and to_start_date_str:
+            from_finish_date = self._parse_internal_date(from_finish_date_str)
+            to_start_date = self._parse_internal_date(to_start_date_str)
+            if from_finish_date and to_start_date:
+                same_date = from_finish_date == to_start_date
+            else:
+                same_date = abs(origin_x - term_x) < 1.0
+        else:
+            same_date = abs(origin_x - term_x) < 1.0
+        
+        arrow_size = 5
+        
+        if same_date:
+            # No Gap (Aligned Vertically)
+            if abs(origin_x - term_x) < 2.0:
+                # Perfect alignment - single vertical segment
+                if to_task_row > from_task_row:
+                    # Successor below - downward arrow
+                    line_end_y = term_y - arrow_size
+                    self.dwg.add(self._create_link_line((origin_x, origin_y), (term_x, line_end_y),
+                                                        line_color, stroke_dasharray))
+                    self._render_arrowhead(term_x, term_y, "down", arrow_size, line_color)
+                else:
+                    # Successor above - upward arrow
+                    line_end_y = term_y + arrow_size
+                    self.dwg.add(self._create_link_line((origin_x, origin_y), (term_x, line_end_y),
+                                                        line_color, stroke_dasharray))
+                    self._render_arrowhead(term_x, term_y, "up", arrow_size, line_color)
+                self._add_origin_marker(origin_x, origin_y, line_color)
+                return True
+            else:
+                # Not perfectly aligned - use routing pattern
+                return self._render_routed_link(origin_x, origin_y, term_x, term_y,
+                                               successor_below, link_routing, link_goes_right,
+                                               to_task_row, from_task_row,
+                                               arrow_size, line_color, stroke_dasharray)
+        else:
+            # Positive Gap/Lag - use routing pattern
+            return self._render_routed_link(origin_x, origin_y, term_x, term_y,
+                                           successor_below, link_routing, link_goes_right,
+                                           to_task_row, from_task_row,
+                                           arrow_size, line_color, stroke_dasharray)
+    
+    def _render_routed_link(self, origin_x: float, origin_y: float, term_x: float, term_y: float,
+                           successor_below: bool, link_routing: str, link_goes_right: bool,
+                           to_task_row: int, from_task_row: int,
+                           arrow_size: float, line_color: str, stroke_dasharray: str) -> bool:
+        """Render link using specified routing pattern.
+        
+        Args:
+            origin_x, origin_y: Origin point coordinates
+            term_x, term_y: Termination point coordinates
+            successor_below: Whether successor is below predecessor
+            link_routing: Routing type ("auto", "HV", "VH")
+            link_goes_right: Whether link goes rightward
+            to_task_row: Row number of target task
+            from_task_row: Row number of source task
+            arrow_size: Size of arrowhead
+            line_color: Line color
+            stroke_dasharray: SVG stroke-dasharray value
+            
+        Returns:
+            True if link was rendered
+        """
+        if link_routing == "HV":
+            # Horizontal-Vertical: Go horizontal first, then vertical
+            if to_task_row > from_task_row:
+                # Successor below - H-V downward
+                line_end_y = term_y - arrow_size
+                self.dwg.add(self._create_link_line((origin_x, origin_y), (term_x, origin_y),
+                                                    line_color, stroke_dasharray))
+                self.dwg.add(self._create_link_line((term_x, origin_y), (term_x, line_end_y),
+                                                    line_color, stroke_dasharray))
+                self._render_arrowhead(term_x, term_y, "down", arrow_size, line_color)
+            else:
+                # Successor above - H-V upward
+                line_end_y = term_y + arrow_size
+                self.dwg.add(self._create_link_line((origin_x, origin_y), (term_x, origin_y),
+                                                    line_color, stroke_dasharray))
+                self.dwg.add(self._create_link_line((term_x, origin_y), (term_x, line_end_y),
+                                                    line_color, stroke_dasharray))
+                self._render_arrowhead(term_x, term_y, "up", arrow_size, line_color)
+            self._add_origin_marker(origin_x, origin_y, line_color)
+        elif link_routing == "VH":
+            # Vertical-Horizontal: Go vertical first, then horizontal
+            if link_goes_right:
+                # Link goes right - arrow points left (into task)
+                line_end_x = term_x - arrow_size
+                self.dwg.add(self._create_link_line((origin_x, origin_y), (origin_x, term_y),
+                                                    line_color, stroke_dasharray))
+                self.dwg.add(self._create_link_line((origin_x, term_y), (line_end_x, term_y),
+                                                    line_color, stroke_dasharray))
+                self._render_arrowhead(term_x, term_y, "left", arrow_size, line_color)
+            else:
+                # Link goes left (shouldn't happen in FS, but handle gracefully)
+                line_end_x = term_x + arrow_size
+                self.dwg.add(self._create_link_line((origin_x, origin_y), (origin_x, term_y),
+                                                    line_color, stroke_dasharray))
+                self.dwg.add(self._create_link_line((origin_x, term_y), (line_end_x, term_y),
+                                                    line_color, stroke_dasharray))
+                self._render_arrowhead(term_x, term_y, "right", arrow_size, line_color)
+            self._add_origin_marker(origin_x, origin_y, line_color)
+        else:
+            # Auto: Use V-H-V pattern (default behavior)
+            mid_y = (origin_y + term_y) / 2
+            
+            if to_task_row > from_task_row:
+                # Successor below - V-H-V downward
+                line_end_y = term_y - arrow_size
+                self.dwg.add(self._create_link_line((origin_x, origin_y), (origin_x, mid_y),
+                                                    line_color, stroke_dasharray))
+                self.dwg.add(self._create_link_line((origin_x, mid_y), (term_x, mid_y),
+                                                    line_color, stroke_dasharray))
+                self.dwg.add(self._create_link_line((term_x, mid_y), (term_x, line_end_y),
+                                                    line_color, stroke_dasharray))
+                self._render_arrowhead(term_x, term_y, "down", arrow_size, line_color)
+            else:
+                # Successor above - V-H-V upward
+                line_end_y = term_y + arrow_size
+                self.dwg.add(self._create_link_line((origin_x, origin_y), (origin_x, mid_y),
+                                                    line_color, stroke_dasharray))
+                self.dwg.add(self._create_link_line((origin_x, mid_y), (term_x, mid_y),
+                                                    line_color, stroke_dasharray))
+                self.dwg.add(self._create_link_line((term_x, mid_y), (term_x, line_end_y),
+                                                    line_color, stroke_dasharray))
+                self._render_arrowhead(term_x, term_y, "up", arrow_size, line_color)
+            self._add_origin_marker(origin_x, origin_y, line_color)
+        
+        return True
+
+    def render_links(self, x, row_y, width, row_frame_height, start_date, end_date):
+        """Render links between tasks according to Finish-to-Start (FS) dependency rules.
+        
+        Links show workflow dependencies from source to target with routing based on positions:
+        - Same row: Horizontal line
+        - Different rows, no gap: Single vertical segment if aligned (< 2px), otherwise V-H-V
+        - Different rows, gap: V-H-V pattern (vertical-horizontal-vertical)
+        
+        Args:
+            x: The absolute x position of the timeline (in pixels)
+            row_y: The absolute y position where the row frame starts (after scales, in pixels)
+            width: The width of the timeline (in pixels)
+            row_frame_height: The height of the row frame (in pixels)
+            start_date: The start date of the timeline (datetime)
+            end_date: The end date of the timeline (datetime)
+        """
+        num_rows = self._get_frame_config("num_rows", 1)
+        links_data = self.data.get("links", [])
+        
+        if not links_data:
+            return
+        
+        # Build task map and extract/validate links using key-based lookups
+        task_map = self._build_task_map()
+        links = self._extract_and_validate_links(task_map)
+        
         # Calculate row height for vertical positioning
         row_height = row_frame_height / num_rows if num_rows > 0 else row_frame_height
         
         for link in links:
-            # Skip invalid links (valid is None, "No", or any value other than "Yes")
+            # Skip invalid links
             if link.valid != "Yes":
                 continue
             
             # Get style properties
-            line_color = link.line_color or "black"
-            line_style = link.line_style or "solid"
-            link_routing = link.link_routing or "auto"
+            style_props = self._get_link_style_properties(link)
+            line_color = style_props["line_color"]
+            stroke_dasharray = style_props["stroke_dasharray"]
+            link_routing = style_props["link_routing"]
             
-            # Map line style to SVG stroke-dasharray
-            stroke_dasharray = None
-            if line_style == "dotted":
-                stroke_dasharray = "2,2"
-            elif line_style == "dashed":
-                stroke_dasharray = "5,5"
-            # "solid" uses None (no dasharray)
-            
-            from_task_id = link.from_task_id
-            to_task_id = link.to_task_id
-            
-            # Helper function to create line with style
-            def create_line(start, end):
-                """Create a line with the link's style properties."""
-                line_attrs = {
-                    "stroke": line_color,
-                    "stroke_width": 1.5,
-                    "stroke_linecap": "round"  # Rounded ends for polished appearance
-                }
-                if stroke_dasharray:
-                    line_attrs["stroke_dasharray"] = stroke_dasharray
-                return self.dwg.line(start, end, **line_attrs)
-            
-            # Helper function to add circle marker at origin point
-            def add_origin_marker():
-                """Add a small circle marker at the link origin point."""
-                origin_circle = self.dwg.circle(
-                    center=(origin_x, origin_y),
-                    r=1.5,  # 1.5 pixel radius (3 pixel diameter) - similar size to arrowhead
-                    fill=line_color,
-                    stroke=line_color,
-                    stroke_width=1
-                )
-                self.dwg.add(origin_circle)
-            
-            # Get positions for both tasks - use row_y and row_frame_height for correct vertical positioning
+            # Get task positions
             from_task = self._get_task_position(link.from_task_id, x, row_y, width, row_frame_height, start_date, end_date, num_rows)
             to_task = self._get_task_position(link.to_task_id, x, row_y, width, row_frame_height, start_date, end_date, num_rows)
             
             if not from_task or not to_task:
                 continue  # Skip if either task not found
             
-            # Get actual task dates to check if they touch on the same date
-            from_task_data = None
-            to_task_data = None
-            for task in self.data.get("tasks", []):
-                if task.get("task_id") == link.from_task_id:
-                    from_task_data = task
-                if task.get("task_id") == link.to_task_id:
-                    to_task_data = task
+            # Get task date strings for validation
+            date_info = self._get_task_date_strings(link.from_task_id, link.to_task_id)
+            from_finish_date_str = date_info["from_finish_date_str"]
+            to_start_date_str = date_info["to_start_date_str"]
             
-            if not from_task_data or not to_task_data:
+            if not date_info["from_task_data"] or not date_info["to_task_data"]:
                 continue
             
-            # Check if predecessor finishes on same date as successor starts
-            from_finish_date_str = from_task_data.get("finish_date", "")
-            to_start_date_str = to_task_data.get("start_date", "")
+            # Calculate connection points
+            connection_info = self._calculate_connection_points(
+                from_task, to_task, link_routing, row_height
+            )
             
-            # Determine connection points based on task type (milestone vs regular task)
-            # For milestones: use appropriate corner based on link direction
-            # For regular tasks: use right edge (predecessor) and left edge (successor)
-            from_is_milestone = from_task.get("is_milestone", False)
-            to_is_milestone = to_task.get("is_milestone", False)
-            
-            # Calculate milestone half_size if needed (for corner calculations)
-            # half_size = task_height / 2, where task_height = row_height * 0.8
-            row_height = row_frame_height / num_rows if num_rows > 0 else row_frame_height
-            task_height = row_height * 0.8
-            milestone_half_size = task_height / 2
-            
-            # Determine preliminary positions to calculate link direction
-            # We'll refine these based on milestone corners
-            if from_is_milestone:
-                from_center_x = (from_task["x_start"] + from_task["x_end"]) / 2
+            # Render link based on same row or different rows
+            if connection_info["same_row"]:
+                self._render_same_row_link(
+                    connection_info["origin_x"], connection_info["origin_y"],
+                    connection_info["term_x"], connection_info["term_y"],
+                    from_finish_date_str, to_start_date_str,
+                    connection_info["from_is_milestone"], connection_info["to_is_milestone"],
+                    line_color, stroke_dasharray
+                )
             else:
-                from_center_x = from_task["x_end"]
-            
-            if to_is_milestone:
-                to_center_x = (to_task["x_start"] + to_task["x_end"]) / 2
-            else:
-                to_center_x = to_task["x_start"]
-            
-            # Determine routing based on positions and dates
-            same_row = from_task["row_num"] == to_task["row_num"]
-            successor_below = to_task["row_num"] > from_task["row_num"]
-            successor_above = to_task["row_num"] < from_task["row_num"]
-            link_goes_right = to_center_x > from_center_x
-            
-            # Calculate connection points for milestones based on link direction AND routing type
-            # For circles, connection points are on the circumference
-            if from_is_milestone:
-                from_center_x = (from_task["x_start"] + from_task["x_end"]) / 2
-                from_center_y = from_task["y_center"]
-                milestone_radius = milestone_half_size  # Circle radius
-                
-                if link_routing == "HV":
-                    # HV routing: always use right side midpoint for origin (horizontal first)
-                    origin_x = from_center_x + milestone_radius
-                    origin_y = from_center_y
-                elif link_routing == "VH":
-                    # VH routing: use top/bottom based on successor position (vertical first)
-                    if successor_below:
-                        # Successor below - use bottom
-                        origin_x = from_center_x
-                        origin_y = from_center_y + milestone_radius
-                    elif successor_above:
-                        # Successor above - use top
-                        origin_x = from_center_x
-                        origin_y = from_center_y - milestone_radius
-                    else:
-                        # Same row - use right side (fallback)
-                        origin_x = from_center_x + milestone_radius
-                        origin_y = from_center_y
-                else:
-                    # Auto routing: use existing logic (right/bottom/top based on direction)
-                    if same_row and link_goes_right:
-                        # Link goes rightward - use rightmost point on circle
-                        origin_x = from_center_x + milestone_radius
-                        origin_y = from_center_y
-                    elif successor_below:
-                        # Link goes downward - use bottommost point on circle
-                        origin_x = from_center_x
-                        origin_y = from_center_y + milestone_radius
-                    elif successor_above:
-                        # Link goes upward - use topmost point on circle
-                        origin_x = from_center_x
-                        origin_y = from_center_y - milestone_radius
-                    else:
-                        # Fallback to center (shouldn't happen in FS dependencies)
-                        origin_x = from_center_x
-                        origin_y = from_center_y
-            else:
-                # Regular task: use right edge
-                origin_x = from_task["x_end"]
-                origin_y = from_task["y_center"]
-            
-            if to_is_milestone:
-                # Termination (To Milestone): choose point on circle circumference based on routing type and approach direction
-                to_center_x = (to_task["x_start"] + to_task["x_end"]) / 2
-                to_center_y = to_task["y_center"]
-                milestone_radius = milestone_half_size  # Circle radius
-                
-                if link_routing == "HV":
-                    # HV routing: use top/bottom/left based on approach direction
-                    if same_row and link_goes_right:
-                        # Horizontal approach - use left side
-                        term_x = to_center_x - milestone_radius
-                        term_y = to_center_y
-                    elif successor_below:
-                        # Vertical approach from above - use top
-                        term_x = to_center_x
-                        term_y = to_center_y - milestone_radius
-                    elif successor_above:
-                        # Vertical approach from below - use bottom
-                        term_x = to_center_x
-                        term_y = to_center_y + milestone_radius
-                    else:
-                        # Fallback to center
-                        term_x = to_center_x
-                        term_y = to_center_y
-                elif link_routing == "VH":
-                    # VH routing: use left side for horizontal approach, top/bottom for vertical
-                    if same_row or link_goes_right:
-                        # Horizontal approach - use left side
-                        term_x = to_center_x - milestone_radius
-                        term_y = to_center_y
-                    elif successor_below:
-                        # Vertical approach from above - use top
-                        term_x = to_center_x
-                        term_y = to_center_y - milestone_radius
-                    elif successor_above:
-                        # Vertical approach from below - use bottom
-                        term_x = to_center_x
-                        term_y = to_center_y + milestone_radius
-                    else:
-                        # Fallback to center
-                        term_x = to_center_x
-                        term_y = to_center_y
-                else:
-                    # Auto routing: use existing logic
-                    if same_row and link_goes_right:
-                        # Link approaches from left - use leftmost point on circle
-                        term_x = to_center_x - milestone_radius
-                        term_y = to_center_y
-                    elif successor_below:
-                        # Link approaches from above - use topmost point on circle
-                        term_x = to_center_x
-                        term_y = to_center_y - milestone_radius
-                    elif successor_above:
-                        # Link approaches from below - use bottommost point on circle
-                        term_x = to_center_x
-                        term_y = to_center_y + milestone_radius
-                    else:
-                        # Fallback to center (shouldn't happen in FS dependencies)
-                        term_x = to_center_x
-                        term_y = to_center_y
-            else:
-                # Regular task: use left edge
-                term_x = to_task["x_start"]
-                term_y = to_task["y_center"]
-            
-            # Check if predecessor finishes on same date as successor starts (actual date comparison)
-            same_date = False
-            if from_finish_date_str and to_start_date_str:
-                from_finish_date = self._parse_internal_date(from_finish_date_str)
-                to_start_date = self._parse_internal_date(to_start_date_str)
-                if from_finish_date and to_start_date:
-                    same_date = from_finish_date == to_start_date
-                else:
-                    # If date parsing fails, fall back to pixel-based check
-                    same_date = abs(origin_x - term_x) < 1.0
-            else:
-                # Fall back to pixel-based check if dates are missing
-                same_date = abs(origin_x - term_x) < 1.0
-            has_gap = term_x > origin_x  # Successor starts after predecessor finishes
-            
-            # Calculate link path according to spec
-            if same_row:
-                # Case 1: Same Row
-                if same_date:
-                    # 1a. No Gap (Bars Touch) - Skip rendering (no line/arrow needed)
-                    # Tasks/milestones are delineated by their 0.5px borders instead
-                    continue
-                else:
-                    # 1b. Positive Gap/Lag (Bars Separated)
-                    # Check if gap is too small to render link (suppress for close elements)
-                    gap_days = 0
-                    if from_finish_date_str and to_start_date_str:
-                        from_finish_date = self._parse_internal_date(from_finish_date_str)
-                        to_start_date = self._parse_internal_date(to_start_date_str)
-                        if from_finish_date and to_start_date:
-                            gap_days = (to_start_date - from_finish_date).days
-                    
-                    # Determine suppression threshold based on task/milestone types
-                    should_suppress = False
-                    if from_is_milestone and to_is_milestone:
-                        # Milestone to Milestone: suppress if gap < 6 days (≤ 5 days)
-                        should_suppress = gap_days < 6
-                    elif from_is_milestone or to_is_milestone:
-                        # Task to Milestone or Milestone to Task: suppress if gap < 4 days (≤ 3 days)
-                        should_suppress = gap_days < 4
-                    else:
-                        # Task to Task: suppress if gap ≤ 3 days
-                        should_suppress = gap_days <= 3
-                    
-                    if should_suppress:
-                        # Skip rendering for close elements on same row
-                        continue
-                    
-                    # Render link for elements with sufficient gap
-                    # Shorten line by arrowhead size so it ends at arrowhead base
-                    arrow_size = 5
-                    line_end_x = term_x - arrow_size  # Arrow points left, base is to the right
-                    self.dwg.add(create_line((origin_x, origin_y), (line_end_x, term_y)))
-                    self._render_arrowhead(term_x, term_y, "left", arrow_size, line_color)
-                    add_origin_marker()
-            else:
-                # Different rows
-                if same_date:
-                    # Case 2a/3a: No Gap (Aligned Vertically)
-                    # Check if alignment is perfect enough to collapse to single vertical segment
-                    if abs(origin_x - term_x) < 2.0:
-                        # Perfect alignment - single vertical segment
-                        if to_task["row_num"] > from_task["row_num"]:
-                            # Successor below - downward arrow
-                            # Shorten line by arrowhead size so it ends at arrowhead base
-                            arrow_size = 5
-                            line_end_y = term_y - arrow_size  # Arrow points down, base is above
-                            self.dwg.add(create_line((origin_x, origin_y), (term_x, line_end_y)))
-                            self._render_arrowhead(term_x, term_y, "down", arrow_size, line_color)
-                            add_origin_marker()
-                        else:
-                            # Successor above - upward arrow
-                            # Shorten line by arrowhead size so it ends at arrowhead base
-                            arrow_size = 5
-                            line_end_y = term_y + arrow_size  # Arrow points up, base is below
-                            self.dwg.add(create_line((origin_x, origin_y), (term_x, line_end_y)))
-                            self._render_arrowhead(term_x, term_y, "up", arrow_size, line_color)
-                            add_origin_marker()
-                    else:
-                        # Not perfectly aligned - use routing pattern
-                        arrow_size = 5
-                        
-                        if link_routing == "HV":
-                            # Horizontal-Vertical: Go horizontal first, then vertical
-                            if to_task["row_num"] > from_task["row_num"]:
-                                # Successor below - H-V downward
-                                line_end_y = term_y - arrow_size  # Arrow points down, base is above
-                                self.dwg.add(create_line((origin_x, origin_y), (term_x, origin_y)))
-                                self.dwg.add(create_line((term_x, origin_y), (term_x, line_end_y)))
-                                self._render_arrowhead(term_x, term_y, "down", arrow_size, line_color)
-                            else:
-                                # Successor above - H-V upward
-                                line_end_y = term_y + arrow_size  # Arrow points up, base is below
-                                self.dwg.add(create_line((origin_x, origin_y), (term_x, origin_y)))
-                                self.dwg.add(create_line((term_x, origin_y), (term_x, line_end_y)))
-                                self._render_arrowhead(term_x, term_y, "up", arrow_size, line_color)
-                            add_origin_marker()
-                        elif link_routing == "VH":
-                            # Vertical-Horizontal: Go vertical first, then horizontal
-                            # Determine arrow direction based on link direction (left/right)
-                            if link_goes_right:
-                                # Link goes right - arrow points left (into task)
-                                line_end_x = term_x - arrow_size  # Arrow points left, base is to the right
-                                self.dwg.add(create_line((origin_x, origin_y), (origin_x, term_y)))
-                                self.dwg.add(create_line((origin_x, term_y), (line_end_x, term_y)))
-                                self._render_arrowhead(term_x, term_y, "left", arrow_size, line_color)
-                            else:
-                                # Link goes left (shouldn't happen in FS, but handle gracefully)
-                                line_end_x = term_x + arrow_size  # Arrow points right, base is to the left
-                                self.dwg.add(create_line((origin_x, origin_y), (origin_x, term_y)))
-                                self.dwg.add(create_line((origin_x, term_y), (line_end_x, term_y)))
-                                self._render_arrowhead(term_x, term_y, "right", arrow_size, line_color)
-                            add_origin_marker()
-                        else:
-                            # Auto: Use V-H-V pattern (default behavior)
-                            # Calculate row midpoint y
-                            mid_y = (origin_y + term_y) / 2
-                            
-                            if to_task["row_num"] > from_task["row_num"]:
-                                # Successor below - V-H-V downward
-                                # Shorten final vertical segment so it ends at arrowhead base
-                                line_end_y = term_y - arrow_size  # Arrow points down, base is above
-                                self.dwg.add(create_line((origin_x, origin_y), (origin_x, mid_y)))
-                                self.dwg.add(create_line((origin_x, mid_y), (term_x, mid_y)))
-                                self.dwg.add(create_line((term_x, mid_y), (term_x, line_end_y)))
-                                self._render_arrowhead(term_x, term_y, "down", arrow_size, line_color)
-                            else:
-                                # Successor above - V-H-V upward
-                                line_end_y = term_y + arrow_size  # Arrow points up, base is below
-                                self.dwg.add(create_line((origin_x, origin_y), (origin_x, mid_y)))
-                                self.dwg.add(create_line((origin_x, mid_y), (term_x, mid_y)))
-                                self.dwg.add(create_line((term_x, mid_y), (term_x, line_end_y)))
-                                self._render_arrowhead(term_x, term_y, "up", arrow_size, line_color)
-                            add_origin_marker()
-                else:
-                    # Case 2b/3b: Positive Gap/Lag (Successor Starts Later)
-                    arrow_size = 5
-                    
-                    if link_routing == "HV":
-                        # Horizontal-Vertical: Go horizontal first, then vertical
-                        if to_task["row_num"] > from_task["row_num"]:
-                            # Successor below - H-V downward
-                            line_end_y = term_y - arrow_size  # Arrow points down, base is above
-                            self.dwg.add(create_line((origin_x, origin_y), (term_x, origin_y)))
-                            self.dwg.add(create_line((term_x, origin_y), (term_x, line_end_y)))
-                            self._render_arrowhead(term_x, term_y, "down", arrow_size, line_color)
-                        else:
-                            # Successor above - H-V upward
-                            line_end_y = term_y + arrow_size  # Arrow points up, base is below
-                            self.dwg.add(create_line((origin_x, origin_y), (term_x, origin_y)))
-                            self.dwg.add(create_line((term_x, origin_y), (term_x, line_end_y)))
-                            self._render_arrowhead(term_x, term_y, "up", arrow_size, line_color)
-                        add_origin_marker()
-                    elif link_routing == "VH":
-                        # Vertical-Horizontal: Go vertical first, then horizontal
-                        # Determine arrow direction based on link direction (left/right)
-                        if link_goes_right:
-                            # Link goes right - arrow points left (into task)
-                            line_end_x = term_x - arrow_size  # Arrow points left, base is to the right
-                            self.dwg.add(create_line((origin_x, origin_y), (origin_x, term_y)))
-                            self.dwg.add(create_line((origin_x, term_y), (line_end_x, term_y)))
-                            self._render_arrowhead(term_x, term_y, "left", arrow_size, line_color)
-                        else:
-                            # Link goes left (shouldn't happen in FS, but handle gracefully)
-                            line_end_x = term_x + arrow_size  # Arrow points right, base is to the left
-                            self.dwg.add(create_line((origin_x, origin_y), (origin_x, term_y)))
-                            self.dwg.add(create_line((origin_x, term_y), (line_end_x, term_y)))
-                            self._render_arrowhead(term_x, term_y, "right", arrow_size, line_color)
-                        add_origin_marker()
-                    else:
-                        # Auto: Use V-H-V pattern (default behavior)
-                        # Calculate row midpoint y
-                        mid_y = (origin_y + term_y) / 2
-                        
-                        if to_task["row_num"] > from_task["row_num"]:
-                            # Successor below - V-H-V downward
-                            # Segment 1: Vertical down from origin to row midpoint
-                            # Segment 2: Horizontal right to align with successor
-                            # Segment 3: Vertical down to termination (shortened to arrowhead base)
-                            line_end_y = term_y - arrow_size  # Arrow points down, base is above
-                            self.dwg.add(create_line((origin_x, origin_y), (origin_x, mid_y)))
-                            self.dwg.add(create_line((origin_x, mid_y), (term_x, mid_y)))
-                            self.dwg.add(create_line((term_x, mid_y), (term_x, line_end_y)))
-                            self._render_arrowhead(term_x, term_y, "down", arrow_size, line_color)
-                        else:
-                            # Successor above - V-H-V upward
-                            # Segment 1: Vertical up from origin to row midpoint
-                            # Segment 2: Horizontal right to align with successor
-                            # Segment 3: Vertical up to termination (shortened to arrowhead base)
-                            line_end_y = term_y + arrow_size  # Arrow points up, base is below
-                            self.dwg.add(create_line((origin_x, origin_y), (origin_x, mid_y)))
-                            self.dwg.add(create_line((origin_x, mid_y), (term_x, mid_y)))
-                            self.dwg.add(create_line((term_x, mid_y), (term_x, line_end_y)))
-                            self._render_arrowhead(term_x, term_y, "up", arrow_size, line_color)
-                        add_origin_marker()
+                self._render_different_rows_link(
+                    connection_info["origin_x"], connection_info["origin_y"],
+                    connection_info["term_x"], connection_info["term_y"],
+                    from_finish_date_str, to_start_date_str,
+                    connection_info["same_row"], connection_info["successor_below"],
+                    link_routing, connection_info["link_goes_right"],
+                    from_task["row_num"], to_task["row_num"],
+                    line_color, stroke_dasharray
+                )
 
     def render_scales_and_rows(self, x, y, width, height, start_date, end_date):
         total_days = max((end_date - start_date).days, 1)
