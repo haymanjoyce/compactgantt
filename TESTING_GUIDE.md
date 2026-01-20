@@ -2,24 +2,33 @@
 
 ## 🧪 Automated Testing
 
-### 1. Environment Test
-Run the comprehensive environment test first:
+### 1. Refactoring Tests
+Run the refactoring verification tests:
 ```bash
-python test_environment.py
+python tests/test_refactor_syntax.py
 ```
 
 This will test:
-- Python version compatibility
-- All required imports
-- Project module imports
-- File structure
-- Basic functionality
-- GUI component creation
+- Python syntax validation for refactored files
+- Import validation
+- DateConfig functionality
+- BaseTab method availability
 
-### 2. Window Positioning Test
-Test the window positioning functionality:
+For full functional tests (requires PyQt5):
 ```bash
-python test_window_positioning.py
+python tests/test_refactor.py
+```
+
+This will test:
+- BaseTab methods (_get_column_index, _get_column_name_from_item)
+- Date helper functions (create_date_widget, extract_date_from_cell)
+- Tab instantiation
+- Column index consistency
+
+### 2. Project Save/Load Tests
+Test project data persistence:
+```bash
+python tests/test_project_save_load.py
 ```
 
 ## 🖱️ Manual Testing Checklist
@@ -47,20 +56,20 @@ python test_window_positioning.py
 
 ### Tab Navigation
 - [ ] All tabs are accessible and clickable
-- [ ] Tab order is correct: Windows → Layout → Titles → Scales → Grid → Time Frames → Tasks → Links → Swimlanes → Pipes → Curtains → Text Boxes
+- [ ] Tab order is correct: Swimlanes → Tasks → Links → Pipes → Curtains → Notes → Layout → Timeline → Titles → Typography → Preferences
 
-### Windows Tab
+### Preferences Tab
 - [ ] **Data Entry Window Settings**
   - [ ] Screen selection works
-  - [ ] Position dropdown works (center, top_left, top_right, bottom_left, bottom_right, custom)
-  - [ ] Custom X/Y coordinates work when "custom" is selected
+  - [ ] X/Y position coordinates work
   - [ ] Changes apply immediately to data entry window
+  - [ ] Date format selection works
 
 - [ ] **SVG Display Window Settings**
   - [ ] Screen selection works
-  - [ ] Position dropdown works
-  - [ ] Custom X/Y coordinates work
+  - [ ] X/Y position coordinates work
   - [ ] Changes apply immediately to SVG display window
+  - [ ] Date format selection works
 
 ### Layout Tab
 - [ ] **Chart Dimensions**

@@ -10,8 +10,9 @@ import tempfile
 import os
 from pathlib import Path
 
-# Ensure project root is in sys.path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add project root to path (go up one level from tests folder)
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 # Mock PyQt5 for testing without GUI dependencies
 class MockQDate:
@@ -22,9 +23,16 @@ class MockQDate:
                 return "2025-01-01"
         return MockDate()
 
+class MockQColor:
+    def __init__(self, *args, **kwargs):
+        pass
+
+# Create proper PyQt5 package structure with all required submodules
 sys.modules['PyQt5'] = type(sys)('PyQt5')
 sys.modules['PyQt5.QtCore'] = type(sys)('PyQt5.QtCore')
 sys.modules['PyQt5.QtCore'].QDate = MockQDate
+sys.modules['PyQt5.QtGui'] = type(sys)('PyQt5.QtGui')
+sys.modules['PyQt5.QtGui'].QColor = MockQColor
 
 from models.project import ProjectData
 from models.frame import FrameConfig
@@ -50,7 +58,13 @@ def test_frame_config_all_fields_saved():
     project.frame_config.vertical_gridline_months = False
     project.frame_config.vertical_gridline_weeks = True
     project.frame_config.vertical_gridline_days = True
+    project.frame_config.show_row_numbers = True
     project.frame_config.chart_start_date = "2025-01-15"
+    project.frame_config.chart_end_date = "2025-04-15"
+    project.frame_config.show_years = False
+    project.frame_config.show_months = False
+    project.frame_config.show_weeks = True
+    project.frame_config.show_days = True
     
     # Convert to JSON
     json_data = project.to_json()
@@ -75,7 +89,13 @@ def test_frame_config_all_fields_saved():
         "vertical_gridline_months": False,
         "vertical_gridline_weeks": True,
         "vertical_gridline_days": True,
-        "chart_start_date": "2025-01-15"
+        "show_row_numbers": True,
+        "chart_start_date": "2025-01-15",
+        "chart_end_date": "2025-04-15",
+        "show_years": False,
+        "show_months": False,
+        "show_weeks": True,
+        "show_days": True
     }
     
     for field_name, expected_value in expected_fields.items():
@@ -115,14 +135,20 @@ def test_frame_config_all_fields_loaded():
             "vertical_gridline_months": False,
             "vertical_gridline_weeks": True,
             "vertical_gridline_days": False,
-            "chart_start_date": "2025-02-20"
+            "show_row_numbers": False,
+            "chart_start_date": "2025-02-20",
+            "chart_end_date": "2025-05-20",
+            "show_years": True,
+            "show_months": True,
+            "show_weeks": False,
+            "show_days": True
         },
         "tasks": [],
         "links": [],
         "swimlanes": [],
         "pipes": [],
         "curtains": [],
-        "text_boxes": []
+        "notes": []
     }
     
     # Load from JSON
@@ -142,7 +168,13 @@ def test_frame_config_all_fields_loaded():
     assert loaded_project.frame_config.vertical_gridline_months == False
     assert loaded_project.frame_config.vertical_gridline_weeks == True
     assert loaded_project.frame_config.vertical_gridline_days == False
+    assert loaded_project.frame_config.show_row_numbers == False
     assert loaded_project.frame_config.chart_start_date == "2025-02-20"
+    assert loaded_project.frame_config.chart_end_date == "2025-05-20"
+    assert loaded_project.frame_config.show_years == True
+    assert loaded_project.frame_config.show_months == True
+    assert loaded_project.frame_config.show_weeks == False
+    assert loaded_project.frame_config.show_days == True
     
     print("  [PASSED]")
     return True
@@ -169,7 +201,13 @@ def test_frame_config_save_and_load_roundtrip():
     original_project.frame_config.vertical_gridline_months = False
     original_project.frame_config.vertical_gridline_weeks = True
     original_project.frame_config.vertical_gridline_days = False
+    original_project.frame_config.show_row_numbers = True
     original_project.frame_config.chart_start_date = "2025-03-01"
+    original_project.frame_config.chart_end_date = "2025-06-01"
+    original_project.frame_config.show_years = True
+    original_project.frame_config.show_months = True
+    original_project.frame_config.show_weeks = True
+    original_project.frame_config.show_days = False
     
     # Save to temporary file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
@@ -196,6 +234,12 @@ def test_frame_config_save_and_load_roundtrip():
         assert loaded_project.frame_config.vertical_gridline_weeks == original_project.frame_config.vertical_gridline_weeks
         assert loaded_project.frame_config.vertical_gridline_days == original_project.frame_config.vertical_gridline_days
         assert loaded_project.frame_config.chart_start_date == original_project.frame_config.chart_start_date
+        assert loaded_project.frame_config.chart_end_date == original_project.frame_config.chart_end_date
+        assert loaded_project.frame_config.show_row_numbers == original_project.frame_config.show_row_numbers
+        assert loaded_project.frame_config.show_years == original_project.frame_config.show_years
+        assert loaded_project.frame_config.show_months == original_project.frame_config.show_months
+        assert loaded_project.frame_config.show_weeks == original_project.frame_config.show_weeks
+        assert loaded_project.frame_config.show_days == original_project.frame_config.show_days
         
         print("  [PASSED]")
         return True
@@ -210,6 +254,8 @@ def test_frame_config_defaults_on_missing_fields():
     """Test that missing fields in JSON use FrameConfig defaults."""
     print("Testing: Missing fields use FrameConfig defaults...")
     
+    default_config = FrameConfig()
+    
     # Create test data with only some fields
     test_data = {
         "frame_config": {
@@ -222,7 +268,7 @@ def test_frame_config_defaults_on_missing_fields():
         "swimlanes": [],
         "pipes": [],
         "curtains": [],
-        "text_boxes": []
+        "notes": []
     }
     
     # Load from JSON
@@ -242,7 +288,13 @@ def test_frame_config_defaults_on_missing_fields():
     assert loaded_project.frame_config.vertical_gridline_months == True  # Default
     assert loaded_project.frame_config.vertical_gridline_weeks == False  # Default
     assert loaded_project.frame_config.vertical_gridline_days == False  # Default
-    assert loaded_project.frame_config.chart_start_date == "2024-12-30"  # Default
+    assert loaded_project.frame_config.show_row_numbers == default_config.show_row_numbers  # Default
+    assert loaded_project.frame_config.chart_start_date == default_config.chart_start_date  # Dynamic default
+    assert loaded_project.frame_config.chart_end_date == default_config.chart_end_date  # Dynamic default
+    assert loaded_project.frame_config.show_years == default_config.show_years  # Default
+    assert loaded_project.frame_config.show_months == default_config.show_months  # Default
+    assert loaded_project.frame_config.show_weeks == default_config.show_weeks  # Default
+    assert loaded_project.frame_config.show_days == default_config.show_days  # Default
     
     print("  [PASSED]")
     return True
@@ -262,7 +314,7 @@ def test_frame_config_margins_tuple_conversion():
         "swimlanes": [],
         "pipes": [],
         "curtains": [],
-        "text_boxes": []
+        "notes": []
     }
     
     loaded_project = ProjectData.from_json(test_data)
