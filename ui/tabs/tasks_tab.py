@@ -612,7 +612,7 @@ class TasksTab(BaseTab):
                     extracted = extract_date_from_cell(self.tasks_table, row_idx, start_date_vis_col, self.app_config.general.ui_date_config)
                     if extracted:
                         start_date_internal = extracted
-                    else:
+            else:
                         # Check if there's a text item that failed to parse (conversion failed)
                         start_date_item = self.tasks_table.item(row_idx, start_date_vis_col)
                         if start_date_item and start_date_item.text().strip():
@@ -871,7 +871,7 @@ class TasksTab(BaseTab):
                 if (self.tasks_table.cellWidget(r, start_date_vis_col) == widget or
                     self.tasks_table.cellWidget(r, finish_date_vis_col) == widget):
                     row_idx = r
-                    break
+                break
             if row_idx is None:
                 return
         
@@ -1131,6 +1131,70 @@ class TasksTab(BaseTab):
                 if item:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                     item.setBackground(QBrush(self.app_config.general.read_only_bg_color))
+    
+    def _refresh_date_widgets(self):
+        """Refresh all date widgets with current date format from config."""
+        start_date_col = self._get_column_index("Start Date")
+        finish_date_col = self._get_column_index("Finish Date")
+        
+        # Map to visible column indices
+        start_date_vis_col = self._reverse_column_mapping.get(start_date_col) if start_date_col is not None else None
+        finish_date_vis_col = self._reverse_column_mapping.get(finish_date_col) if finish_date_col is not None else None
+        
+        for row in range(self.tasks_table.rowCount()):
+            # Refresh Start Date widget
+            if start_date_vis_col is not None:
+                widget = self.tasks_table.cellWidget(row, start_date_vis_col)
+                if widget and isinstance(widget, QDateEdit):
+                    # Get current date from widget
+                    current_date = widget.date()
+                    current_date_str = current_date.toString("yyyy-MM-dd")
+                    
+                    # Disconnect old signals
+                    try:
+                        widget.dateChanged.disconnect()
+                    except:
+                        pass
+                    
+                    # Create new widget with updated format
+                    from ui.table_utils import create_date_widget
+                    new_widget = create_date_widget(current_date_str, self.app_config.general.ui_date_config)
+                    
+                    # Reconnect signals (including constraint updates)
+                    new_widget.dateChanged.connect(lambda date, w=new_widget: self._update_task_date_constraints(widget=w))
+                    new_widget.dateChanged.connect(self._sync_data_if_not_initializing)
+                    
+                    # Replace widget
+                    self.tasks_table.setCellWidget(row, start_date_vis_col, new_widget)
+            
+            # Refresh Finish Date widget
+            if finish_date_vis_col is not None:
+                widget = self.tasks_table.cellWidget(row, finish_date_vis_col)
+                if widget and isinstance(widget, QDateEdit):
+                    # Get current date from widget
+                    current_date = widget.date()
+                    current_date_str = current_date.toString("yyyy-MM-dd")
+                    
+                    # Disconnect old signals
+                    try:
+                        widget.dateChanged.disconnect()
+                    except:
+                        pass
+                    
+                    # Create new widget with updated format
+                    from ui.table_utils import create_date_widget
+                    new_widget = create_date_widget(current_date_str, self.app_config.general.ui_date_config)
+                    
+                    # Reconnect signals (including constraint updates)
+                    new_widget.dateChanged.connect(lambda date, w=new_widget: self._update_task_date_constraints(widget=w))
+                    new_widget.dateChanged.connect(self._sync_data_if_not_initializing)
+                    
+                    # Replace widget
+                    self.tasks_table.setCellWidget(row, finish_date_vis_col, new_widget)
+            
+            # Update date constraints after refreshing both widgets
+            if start_date_vis_col is not None or finish_date_vis_col is not None:
+                self._update_task_date_constraints(row_idx=row)
 
     def _update_valid_column_only(self):
         """Update only the Valid column without reloading the entire table."""

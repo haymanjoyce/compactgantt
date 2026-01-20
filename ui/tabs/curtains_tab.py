@@ -547,4 +547,58 @@ class CurtainsTab(BaseTab):
             # Catch any unexpected exceptions during sync
             logging.error(f"Error in _sync_data_impl: {e}", exc_info=True)
             raise  # Re-raise so BaseTab can show error message
+    
+    def _refresh_date_widgets(self):
+        """Refresh all date widgets with current date format from config."""
+        start_date_col = self._get_column_index("Start Date")
+        end_date_col = self._get_column_index("End Date")
+        
+        for row in range(self.curtains_table.rowCount()):
+            # Refresh Start Date widget
+            if start_date_col is not None:
+                widget = self.curtains_table.cellWidget(row, start_date_col)
+                if widget and isinstance(widget, QDateEdit):
+                    current_date = widget.date()
+                    current_date_str = current_date.toString("yyyy-MM-dd")
+                    
+                    # Disconnect old signals
+                    try:
+                        widget.dateChanged.disconnect()
+                    except:
+                        pass
+                    
+                    # Create new widget with updated format
+                    from ui.table_utils import create_date_widget
+                    new_widget = create_date_widget(current_date_str, self.app_config.general.ui_date_config)
+                    
+                    # Reconnect signals (including constraint updates)
+                    new_widget.dateChanged.connect(lambda date, w=new_widget: self._update_curtain_date_constraints(widget=w))
+                    new_widget.dateChanged.connect(self._sync_data_if_not_initializing)
+                    
+                    # Replace widget
+                    self.curtains_table.setCellWidget(row, start_date_col, new_widget)
+            
+            # Refresh End Date widget
+            if end_date_col is not None:
+                widget = self.curtains_table.cellWidget(row, end_date_col)
+                if widget and isinstance(widget, QDateEdit):
+                    current_date = widget.date()
+                    current_date_str = current_date.toString("yyyy-MM-dd")
+                    
+                    # Disconnect old signals
+                    try:
+                        widget.dateChanged.disconnect()
+                    except:
+                        pass
+                    
+                    # Create new widget with updated format
+                    from ui.table_utils import create_date_widget
+                    new_widget = create_date_widget(current_date_str, self.app_config.general.ui_date_config)
+                    
+                    # Reconnect signals (including constraint updates)
+                    new_widget.dateChanged.connect(lambda date, w=new_widget: self._update_curtain_date_constraints(widget=w))
+                    new_widget.dateChanged.connect(self._sync_data_if_not_initializing)
+                    
+                    # Replace widget
+                    self.curtains_table.setCellWidget(row, end_date_col, new_widget)
 

@@ -414,6 +414,24 @@ class MainWindow(QMainWindow):
 
     def _on_preferences_updated(self, data):
         """Handle updates from preferences tab"""
+        # Handle date format changes for UI date config (affects data entry tabs)
+        if data.get('ui_date_format_changed'):
+            # Notify tabs that use ui_date_config to refresh their date widgets
+            if hasattr(self, 'tasks_tab') and hasattr(self.tasks_tab, '_refresh_date_widgets'):
+                self.tasks_tab._refresh_date_widgets()
+            if hasattr(self, 'pipes_tab') and hasattr(self.pipes_tab, '_refresh_date_widgets'):
+                self.pipes_tab._refresh_date_widgets()
+            if hasattr(self, 'curtains_tab') and hasattr(self.curtains_tab, '_refresh_date_widgets'):
+                self.curtains_tab._refresh_date_widgets()
+            if hasattr(self, 'timeline_tab') and hasattr(self.timeline_tab, '_refresh_date_widgets'):
+                self.timeline_tab._refresh_date_widgets()
+        
+        # Handle date format changes for chart date config (affects SVG display)
+        if data.get('chart_date_format_changed'):
+            # Chart date format is used in rendering, not in UI widgets
+            # No action needed here as it's used during SVG generation
+            pass
+        
         # Reposition data entry window if positioning preferences changed
         if any(key in data for key in ['data_entry_screen', 'data_entry_x', 'data_entry_y']):
             move_window_according_to_preferences(

@@ -212,6 +212,34 @@ class TimelineTab(BaseTab):
         self.project_data.frame_config.show_months = self.show_months.isChecked()
         self.project_data.frame_config.show_weeks = self.show_weeks.isChecked()
         self.project_data.frame_config.show_days = self.show_days.isChecked()
+    
+    def _refresh_date_widgets(self):
+        """Refresh date widgets with current date format from config."""
+        # Get current dates
+        start_date = self.start_date.date()
+        finish_date = self.finish_date.date()
+        start_date_str = start_date.toString("yyyy-MM-dd")
+        finish_date_str = finish_date.toString("yyyy-MM-dd")
+        
+        # Disconnect signals temporarily
+        self.start_date.blockSignals(True)
+        self.finish_date.blockSignals(True)
+        
+        # Update display format
+        date_format = self.app_config.general.ui_date_config.get_qt_format()
+        self.start_date.setDisplayFormat(date_format)
+        self.finish_date.setDisplayFormat(date_format)
+        
+        # Restore dates
+        self.start_date.setDate(start_date)
+        self.finish_date.setDate(finish_date)
+        
+        # Re-enable signals
+        self.start_date.blockSignals(False)
+        self.finish_date.blockSignals(False)
+        
+        # Update constraints after format change
+        self._update_date_constraints()
 
         # Update Vertical Gridlines
         self.project_data.frame_config.vertical_gridline_years = self.vertical_gridline_years.isChecked()

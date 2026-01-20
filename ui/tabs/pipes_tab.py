@@ -416,4 +416,33 @@ class PipesTab(BaseTab):
             # Catch any unexpected exceptions during sync
             logging.error(f"Error in _sync_data_impl: {e}", exc_info=True)
             raise  # Re-raise so BaseTab can show error message
+    
+    def _refresh_date_widgets(self):
+        """Refresh all date widgets with current date format from config."""
+        date_col = self._get_column_index("Date")
+        if date_col is None:
+            return
+        
+        for row in range(self.pipes_table.rowCount()):
+            widget = self.pipes_table.cellWidget(row, date_col)
+            if widget and isinstance(widget, QDateEdit):
+                # Get current date from widget
+                current_date = widget.date()
+                current_date_str = current_date.toString("yyyy-MM-dd")
+                
+                # Disconnect old signals
+                try:
+                    widget.dateChanged.disconnect()
+                except:
+                    pass
+                
+                # Create new widget with updated format
+                from ui.table_utils import create_date_widget
+                new_widget = create_date_widget(current_date_str, self.app_config.general.ui_date_config)
+                
+                # Reconnect signals
+                new_widget.dateChanged.connect(self._sync_data_if_not_initializing)
+                
+                # Replace widget
+                self.pipes_table.setCellWidget(row, date_col, new_widget)
 

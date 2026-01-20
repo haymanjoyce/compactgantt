@@ -57,12 +57,17 @@ class GanttChartService(QObject):
             self.svg_generated.emit("")
             return
 
-    def _parse_date_safe(self, date_str: str) -> datetime:
-        """Safely parse a date string, returning None if invalid."""
+    def _parse_internal_date(self, date_str: str) -> datetime:
+        """Safely parse an internal date string (yyyy-mm-dd), returning None if invalid."""
         if not date_str:
             return None
+        fmt = "%Y-%m-%d"
         try:
-            return datetime.strptime(date_str, "%Y-%m-%d")
+            fmt = self.config.general.chart_date_config.get_internal_format()
+        except Exception:
+            pass  # Fallback to default
+        try:
+            return datetime.strptime(date_str.strip(), fmt)
         except (ValueError, TypeError):
             return None
 
@@ -149,16 +154,15 @@ class GanttChartService(QObject):
         chart_end_str = self._get_frame_config("chart_end_date", None)
         
         # If chart_end_date doesn't exist, calculate default (30 days after start)
-        if not chart_end_str:
-            try:
-                start_dt = datetime.strptime(chart_start_str, "%Y-%m-%d")
-                end_dt = start_dt + timedelta(days=30)
-                chart_end_str = end_dt.strftime("%Y-%m-%d")
-            except ValueError:
-                chart_end_str = "2025-01-29"
+        chart_start_dt = self._parse_internal_date(chart_start_str)
+        if not chart_end_str and chart_start_dt:
+            chart_end_str = (chart_start_dt + timedelta(days=30)).strftime("%Y-%m-%d")
         
-        chart_start = datetime.strptime(chart_start_str, "%Y-%m-%d")
-        chart_end = datetime.strptime(chart_end_str, "%Y-%m-%d")
+        chart_start = chart_start_dt or self._parse_internal_date("2024-12-30")
+        chart_end = self._parse_internal_date(chart_end_str) if chart_end_str else None
+        if not chart_start or not chart_end:
+            logging.warning("Invalid chart start/end date; aborting render")
+            return
         
         # Render scales, rows, and tasks in one continuous timeline
         row_y, row_frame_height = self.render_scales_and_rows(margins[3], inner_y, inner_width, inner_height, chart_start, chart_end)
@@ -379,16 +383,15 @@ class GanttChartService(QObject):
                 logging.warning(f"Skipping task {task.get('task_name', 'Unknown')} due to invalid finish date: {finish_date_str}")
                 continue
 
-            # Try to parse dates, skip task if dates are invalid
-            try:
-                date_to_use = start_date_str if start_date_str else finish_date_str
-                task_start = datetime.strptime(date_to_use, "%Y-%m-%d")
-                task_finish = task_start
-                if not is_milestone and start_date_str and finish_date_str:
-                    task_start = datetime.strptime(start_date_str, "%Y-%m-%d")
-                    task_finish = datetime.strptime(finish_date_str, "%Y-%m-%d")
-            except (ValueError, TypeError) as e:
-                logging.warning(f"Skipping task {task.get('task_name', 'Unknown')} due to invalid date: {e}")
+            # Parse dates using centralized helper
+            date_to_use = start_date_str if start_date_str else finish_date_str
+            task_start = self._parse_internal_date(date_to_use)
+            task_finish = task_start
+            if not is_milestone and start_date_str and finish_date_str:
+                task_start = self._parse_internal_date(start_date_str)
+                task_finish = self._parse_internal_date(finish_date_str)
+            if not task_start or not task_finish:
+                logging.warning(f"Skipping task {task.get('task_name', 'Unknown')} due to invalid date(s)")
                 continue
 
             # Skip invalid tasks where finish date is before start date
@@ -465,14 +468,13 @@ class GanttChartService(QObject):
             if not start_date_str and not finish_date_str:
                 return None
             
-            try:
-                date_to_use = start_date_str if start_date_str else finish_date_str
-                task_start = datetime.strptime(date_to_use, "%Y-%m-%d")
-                task_finish = task_start
-                if not is_milestone and start_date_str and finish_date_str:
-                    task_start = datetime.strptime(start_date_str, "%Y-%m-%d")
-                    task_finish = datetime.strptime(finish_date_str, "%Y-%m-%d")
-            except (ValueError, TypeError):
+            date_to_use = start_date_str if start_date_str else finish_date_str
+            task_start = self._parse_internal_date(date_to_use)
+            task_finish = task_start
+            if not is_milestone and start_date_str and finish_date_str:
+                task_start = self._parse_internal_date(start_date_str)
+                task_finish = self._parse_internal_date(finish_date_str)
+            if not task_start or not task_finish:
                 return None
             
             # Skip invalid tasks where finish date is before start date
@@ -568,9 +570,8 @@ class GanttChartService(QObject):
             if not is_valid_internal_date(pipe.date):
                 continue
             
-            try:
-                pipe_date = datetime.strptime(pipe.date, "%Y-%m-%d")
-            except (ValueError, TypeError):
+            pipe_date = self._parse_internal_date(pipe.date)
+            if not pipe_date:
                 continue
             
             # Skip if pipe date is outside timeline range
@@ -762,10 +763,9 @@ class GanttChartService(QObject):
             if not is_valid_internal_date(curtain.start_date) or not is_valid_internal_date(curtain.end_date):
                 continue
             
-            try:
-                curtain_start = datetime.strptime(curtain.start_date, "%Y-%m-%d")
-                curtain_end = datetime.strptime(curtain.end_date, "%Y-%m-%d")
-            except (ValueError, TypeError):
+            curtain_start = self._parse_internal_date(curtain.start_date)
+            curtain_end = self._parse_internal_date(curtain.end_date)
+            if not curtain_start or not curtain_end:
                 continue
             
             # Skip if curtain is completely outside timeline range
@@ -877,11 +877,11 @@ class GanttChartService(QObject):
                         to_start_date = getattr(to_task_dict, "start_date", None) or getattr(to_task_dict, "finish_date", None)
                     
                     if from_finish_date and to_start_date:
-                        try:
-                            from_finish = datetime.strptime(from_finish_date, "%Y-%m-%d")
-                            to_start = datetime.strptime(to_start_date, "%Y-%m-%d")
+                        from_finish = self._parse_internal_date(from_finish_date)
+                        to_start = self._parse_internal_date(to_start_date)
+                        if from_finish and to_start:
                             link.valid = "No" if to_start < from_finish else "Yes"
-                        except (ValueError, TypeError):
+                        else:
                             link.valid = "No"
                     else:
                         link.valid = "No"
@@ -1110,11 +1110,11 @@ class GanttChartService(QObject):
             # Check if predecessor finishes on same date as successor starts (actual date comparison)
             same_date = False
             if from_finish_date_str and to_start_date_str:
-                try:
-                    from_finish_date = datetime.strptime(from_finish_date_str, "%Y-%m-%d")
-                    to_start_date = datetime.strptime(to_start_date_str, "%Y-%m-%d")
+                from_finish_date = self._parse_internal_date(from_finish_date_str)
+                to_start_date = self._parse_internal_date(to_start_date_str)
+                if from_finish_date and to_start_date:
                     same_date = from_finish_date == to_start_date
-                except (ValueError, TypeError):
+                else:
                     # If date parsing fails, fall back to pixel-based check
                     same_date = abs(origin_x - term_x) < 1.0
             else:
@@ -1134,12 +1134,10 @@ class GanttChartService(QObject):
                     # Check if gap is too small to render link (suppress for close elements)
                     gap_days = 0
                     if from_finish_date_str and to_start_date_str:
-                        try:
-                            from_finish_date = datetime.strptime(from_finish_date_str, "%Y-%m-%d")
-                            to_start_date = datetime.strptime(to_start_date_str, "%Y-%m-%d")
+                        from_finish_date = self._parse_internal_date(from_finish_date_str)
+                        to_start_date = self._parse_internal_date(to_start_date_str)
+                        if from_finish_date and to_start_date:
                             gap_days = (to_start_date - from_finish_date).days
-                        except (ValueError, TypeError):
-                            pass  # If date parsing fails, proceed with rendering
                     
                     # Determine suppression threshold based on task/milestone types
                     should_suppress = False

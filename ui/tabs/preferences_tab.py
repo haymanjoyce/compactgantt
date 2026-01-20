@@ -178,6 +178,10 @@ class PreferencesTab(BaseTab):
             date_format_combo.currentTextChanged.connect(self._sync_data_if_not_initializing)
 
     def _load_initial_data_impl(self):
+        # Store initial date formats for change detection
+        self._previous_ui_date_format = self.app_config.general.ui_date_config.get_format_name()
+        self._previous_chart_date_format = self.app_config.general.chart_date_config.get_format_name()
+        
         # Load window positioning and date format settings for both groups (key-based)
         window_groups = {
             "data_entry": ("ui_date_config",),
@@ -232,6 +236,26 @@ class PreferencesTab(BaseTab):
         # Save settings to persist between sessions
         self.app_config.save_settings()
 
+        # Check if date formats changed by comparing with previous values
+        ui_date_format_changed = False
+        chart_date_format_changed = False
+        
+        # Get previous format names (if available) to detect changes
+        old_ui_format = getattr(self, '_previous_ui_date_format', None)
+        old_chart_format = getattr(self, '_previous_chart_date_format', None)
+        
+        current_ui_format = self.app_config.general.ui_date_config.get_format_name()
+        current_chart_format = self.app_config.general.chart_date_config.get_format_name()
+        
+        if old_ui_format is not None and old_ui_format != current_ui_format:
+            ui_date_format_changed = True
+        if old_chart_format is not None and old_chart_format != current_chart_format:
+            chart_date_format_changed = True
+        
+        # Store current formats for next comparison
+        self._previous_ui_date_format = current_ui_format
+        self._previous_chart_date_format = current_chart_format
+
         # Emit data updated signal
         self.data_updated.emit({
             'data_entry_screen': self.app_config.general.data_entry_screen,
@@ -239,5 +263,7 @@ class PreferencesTab(BaseTab):
             'data_entry_y': self.app_config.general.data_entry_y,
             'svg_display_screen': self.app_config.general.svg_display_screen,
             'svg_display_x': self.app_config.general.svg_display_x,
-            'svg_display_y': self.app_config.general.svg_display_y
+            'svg_display_y': self.app_config.general.svg_display_y,
+            'ui_date_format_changed': ui_date_format_changed,
+            'chart_date_format_changed': chart_date_format_changed
         })
