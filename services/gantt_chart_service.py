@@ -1610,10 +1610,12 @@ class GanttChartService(QObject):
                     line_color, stroke_dasharray
                 )
 
-    def render_scales_and_rows(self, x, y, width, height, start_date, end_date):
-        total_days = max((end_date - start_date).days, 1)
-        time_scale = width / total_days if total_days > 0 else width
-
+    def _build_scale_configs(self) -> list:
+        """Build list of visible scale configurations.
+        
+        Returns:
+            List of tuples (interval, proportion) for visible scales
+        """
         # Get scale visibility settings from frame_config
         show_years = self._get_frame_config("show_years", True)
         show_months = self._get_frame_config("show_months", True)
@@ -1629,15 +1631,43 @@ class GanttChartService(QObject):
         ]
         
         # Filter to only include visible scales
-        scale_configs = [(interval, proportion) for interval, proportion, visible in all_scale_configs if visible]
+        return [(interval, proportion) for interval, proportion, visible in all_scale_configs if visible]
+    
+    def _calculate_scale_heights(self, scale_configs: list, height: float) -> tuple:
+        """Calculate heights for scales and row frame.
         
+        Args:
+            scale_configs: List of (interval, proportion) tuples
+            height: Total available height
+            
+        Returns:
+            Tuple of (row_frame_height, scale_heights_list)
+        """
         row_frame_proportion = 1.0
         total_scale_proportion = sum(p for _, p in scale_configs)
         total_height_units = row_frame_proportion + total_scale_proportion
         row_frame_height = height * (row_frame_proportion / total_height_units)
         scale_heights = [(interval, height * (proportion / total_height_units)) for interval, proportion in scale_configs]
-
-        current_y = y
+        return (row_frame_height, scale_heights)
+    
+    def _render_scale_backgrounds(self, x: float, start_y: float, width: float, 
+                                  scale_heights: list, start_date: datetime, end_date: datetime,
+                                  time_scale: float) -> float:
+        """Render scale backgrounds and return the y position after all scales.
+        
+        Args:
+            x: X position
+            start_y: Starting Y position
+            width: Width of scales
+            scale_heights: List of (interval, height) tuples
+            start_date: Timeline start date
+            end_date: Timeline end date
+            time_scale: Pixels per day
+            
+        Returns:
+            Y position after all scales (where row frame starts)
+        """
+        current_y = start_y
         for interval, scale_height in scale_heights:
             self.dwg.add(self.dwg.rect(insert=(x, current_y), size=(width, scale_height),
                                        fill="lightgrey", 
@@ -1645,15 +1675,23 @@ class GanttChartService(QObject):
                                        stroke_width=self.config.general.frame_border_width_light))
             self.render_scale_interval(x, current_y, width, scale_height, start_date, end_date, interval, time_scale)
             current_y += scale_height
-
-        row_y = current_y
-        num_rows = self._get_frame_config("num_rows", 1)
-        # Render row frame with only left and right borders (top/bottom borders overlap with scale and footer)
-        # Draw left border
+        return current_y
+    
+    def _render_row_frame_borders(self, x: float, row_y: float, width: float, 
+                                  row_frame_height: float, scale_configs: list):
+        """Render row frame borders (left, right, and conditional top/bottom).
+        
+        Args:
+            x: X position
+            row_y: Y position of row frame
+            width: Width of row frame
+            row_frame_height: Height of row frame
+            scale_configs: List of scale configs (to check if scales exist)
+        """
+        # Render left and right borders
         self.dwg.add(self.dwg.line((x, row_y), (x, row_y + row_frame_height),
                                    stroke=self.config.general.frame_border_color,
                                    stroke_width=self.config.general.frame_border_width_light))
-        # Draw right border
         self.dwg.add(self.dwg.line((x + width, row_y), (x + width, row_y + row_frame_height),
                                    stroke=self.config.general.frame_border_color,
                                    stroke_width=self.config.general.frame_border_width_light))
@@ -1661,7 +1699,6 @@ class GanttChartService(QObject):
         # Conditionally add top border if header is 0 and no scales are shown
         header_height = self._get_frame_config("header_height", 20)
         if header_height <= 0 and len(scale_configs) == 0:
-            # Draw top border
             self.dwg.add(self.dwg.line((x, row_y), (x + width, row_y),
                                        stroke=self.config.general.frame_border_color,
                                        stroke_width=self.config.general.frame_border_width_light))
@@ -1669,38 +1706,90 @@ class GanttChartService(QObject):
         # Conditionally add bottom border if footer is 0
         footer_height = self._get_frame_config("footer_height", 20)
         if footer_height <= 0:
-            # Draw bottom border
             self.dwg.add(self.dwg.line((x, row_y + row_frame_height), (x + width, row_y + row_frame_height),
                                        stroke=self.config.general.frame_border_color,
                                        stroke_width=self.config.general.frame_border_width_light))
-
-        if self._get_frame_config("horizontal_gridlines", False):
-            for i in range(1, num_rows):  # Exclude first and last to avoid overlapping row frame border
-                y_pos = row_y + i * (row_frame_height / num_rows)
-                self.dwg.add(self.dwg.line((x, y_pos), (x + width, y_pos), stroke="lightgrey", stroke_width=0.5))
+    
+    def _render_horizontal_gridlines(self, x: float, row_y: float, width: float,
+                                    row_frame_height: float, num_rows: int):
+        """Render horizontal gridlines between rows.
         
-        # Render row numbers if enabled (after gridlines, before tasks)
-        if self._get_frame_config("show_row_numbers", False):
-            row_height = row_frame_height / num_rows if num_rows > 0 else row_frame_height
-            for i in range(num_rows):
-                # Calculate Y position using the same alignment factor as scales
-                row_top = row_y + i * row_height
-                row_center_y = row_top + row_height * self.config.general.row_number_vertical_alignment_factor
-                # Position text 5px from left edge
-                text_x = x + 5
-                # Create text element with grey color
-                text_element = self.dwg.text(
-                    str(i + 1),  # 1-based row number
-                    insert=(text_x, row_center_y),
-                    fill="grey",
-                    font_size=str(self.config.general.row_number_font_size) + "px",
-                    font_family=f"{self.config.general.font_family}, sans-serif",
-                    text_anchor="start",
-                    dominant_baseline="middle"
-                )
-                self.dwg.add(text_element)
-
-        # Render vertical gridlines based on individual interval settings
+        Args:
+            x: X position
+            row_y: Y position of row frame
+            width: Width of gridlines
+            row_frame_height: Height of row frame
+            num_rows: Number of rows
+        """
+        if not self._get_frame_config("horizontal_gridlines", False):
+            return
+        
+        for i in range(1, num_rows):  # Exclude first and last to avoid overlapping row frame border
+            y_pos = row_y + i * (row_frame_height / num_rows)
+            self.dwg.add(self.dwg.line((x, y_pos), (x + width, y_pos), stroke="lightgrey", stroke_width=0.5))
+    
+    def _render_row_numbers(self, x: float, row_y: float, row_frame_height: float, num_rows: int):
+        """Render row numbers if enabled.
+        
+        Args:
+            x: X position
+            row_y: Y position of row frame
+            row_frame_height: Height of row frame
+            num_rows: Number of rows
+        """
+        if not self._get_frame_config("show_row_numbers", False):
+            return
+        
+        row_height = row_frame_height / num_rows if num_rows > 0 else row_frame_height
+        for i in range(num_rows):
+            # Calculate Y position using the same alignment factor as scales
+            row_top = row_y + i * row_height
+            row_center_y = row_top + row_height * self.config.general.row_number_vertical_alignment_factor
+            # Position text 5px from left edge
+            text_x = x + 5
+            # Create text element with grey color
+            text_element = self.dwg.text(
+                str(i + 1),  # 1-based row number
+                insert=(text_x, row_center_y),
+                fill="grey",
+                font_size=str(self.config.general.row_number_font_size) + "px",
+                font_family=f"{self.config.general.font_family}, sans-serif",
+                text_anchor="start",
+                dominant_baseline="middle"
+            )
+            self.dwg.add(text_element)
+    
+    def _get_vertical_gridline_intervals(self) -> list:
+        """Get list of intervals that should have vertical gridlines.
+        
+        Returns:
+            List of interval strings ("years", "months", "weeks", "days")
+        """
+        intervals = []
+        if self._get_frame_config("vertical_gridline_years", False):
+            intervals.append("years")
+        if self._get_frame_config("vertical_gridline_months", False):
+            intervals.append("months")
+        if self._get_frame_config("vertical_gridline_weeks", False):
+            intervals.append("weeks")
+        if self._get_frame_config("vertical_gridline_days", False):
+            intervals.append("days")
+        return intervals
+    
+    def _render_vertical_gridlines(self, x: float, row_y: float, width: float,
+                                   row_frame_height: float, start_date: datetime, end_date: datetime,
+                                   time_scale: float):
+        """Render vertical gridlines for enabled intervals.
+        
+        Args:
+            x: X position
+            row_y: Y position of row frame
+            width: Width of timeline
+            row_frame_height: Height of row frame
+            start_date: Timeline start date
+            end_date: Timeline end date
+            time_scale: Pixels per day
+        """
         # Define line weights for visual hierarchy: larger intervals = thicker lines
         interval_line_weights = {
             "years": 3.0,
@@ -1709,16 +1798,7 @@ class GanttChartService(QObject):
             "days": 1.0
         }
         
-        # Check which intervals should have gridlines (independent of scale visibility)
-        vertical_gridline_intervals = []
-        if self._get_frame_config("vertical_gridline_years", False):
-            vertical_gridline_intervals.append("years")
-        if self._get_frame_config("vertical_gridline_months", False):
-            vertical_gridline_intervals.append("months")
-        if self._get_frame_config("vertical_gridline_weeks", False):
-            vertical_gridline_intervals.append("weeks")
-        if self._get_frame_config("vertical_gridline_days", False):
-            vertical_gridline_intervals.append("days")
+        vertical_gridline_intervals = self._get_vertical_gridline_intervals()
         
         # Render gridlines for each enabled interval
         for interval in vertical_gridline_intervals:
@@ -1727,12 +1807,55 @@ class GanttChartService(QObject):
             prev_x = x
             while current_date <= end_date:
                 x_pos = x + (current_date - start_date).days * time_scale
-                interval_width = x_pos - prev_x if x_pos <= x + width else (x + width) - prev_x
                 if x <= x_pos <= x + width:
                     self.dwg.add(self.dwg.line((x_pos, row_y), (x_pos, row_y + row_frame_height),
                                                stroke="lightgrey", stroke_width=line_weight))
                 prev_x = x_pos
                 current_date = self.next_period(current_date, interval)
+
+    def render_scales_and_rows(self, x, y, width, height, start_date, end_date):
+        """Render time scales, row frame, gridlines, and row numbers.
+        
+        Also renders swimlanes, pipes, curtains, and tasks.
+        
+        Args:
+            x: X position
+            y: Y position
+            width: Width
+            height: Height
+            start_date: Timeline start date
+            end_date: Timeline end date
+            
+        Returns:
+            Tuple of (row_y, row_frame_height)
+        """
+        # Calculate time scale
+        total_days = max((end_date - start_date).days, 1)
+        time_scale = width / total_days if total_days > 0 else width
+
+        # Build scale configurations
+        scale_configs = self._build_scale_configs()
+        
+        # Calculate heights
+        row_frame_height, scale_heights = self._calculate_scale_heights(scale_configs, height)
+        
+        # Render scale backgrounds
+        row_y = self._render_scale_backgrounds(x, y, width, scale_heights, start_date, end_date, time_scale)
+        
+        # Get number of rows
+        num_rows = self._get_frame_config("num_rows", 1)
+        
+        # Render row frame borders
+        self._render_row_frame_borders(x, row_y, width, row_frame_height, scale_configs)
+        
+        # Render horizontal gridlines
+        self._render_horizontal_gridlines(x, row_y, width, row_frame_height, num_rows)
+        
+        # Render row numbers
+        self._render_row_numbers(x, row_y, row_frame_height, num_rows)
+        
+        # Render vertical gridlines
+        self._render_vertical_gridlines(x, row_y, width, row_frame_height, start_date, end_date, time_scale)
 
         # Render swimlanes (after gridlines, before pipes/curtains/tasks)
         self.render_swimlanes(x, row_y, width, row_frame_height, num_rows)
