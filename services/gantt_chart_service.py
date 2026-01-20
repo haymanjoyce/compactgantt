@@ -329,6 +329,205 @@ class GanttChartService(QObject):
             self.dwg.add(self.dwg.line((label_x, attachment_y), (attachment_x, attachment_y),
                                        stroke="black", stroke_width=0.5))
 
+    def _extract_task_info(self, task: dict) -> dict:
+        """Extract task information using key-based lookups.
+        
+        Args:
+            task: Task dictionary with key-based fields
+            
+        Returns:
+            Dictionary with extracted task info: start_date_str, finish_date_str, is_milestone,
+            label_placement, label_content, label_hide, task_name, fill_color, label_horizontal_offset,
+            label_text, task_row
+        """
+        start_date_str = task.get("start_date", "")
+        finish_date_str = task.get("finish_date", "")
+        # A task is a milestone if explicitly marked or if start_date equals finish_date
+        is_milestone = task.get("is_milestone", False) or (start_date_str and finish_date_str and start_date_str == finish_date_str)
+        label_placement = task.get("label_placement", "Outside")
+        # Backward compatibility: if label_content is missing, use label_hide
+        label_content = task.get("label_content")
+        if label_content is None:
+            # Migrate from old label_hide field
+            label_hide = task.get("label_hide", "Yes")
+            label_content = "None" if label_hide == "No" else "Name only"
+        label_hide = label_content == "None"  # For rendering logic compatibility
+        task_name = task.get("task_name", "Unnamed")
+        fill_color = task.get("fill_color", "blue")  # Get fill color, default to blue
+        label_horizontal_offset = task.get("label_horizontal_offset", 0.0)  # Get label offset, default to 0.0
+        task_row = task.get("row_number", 1)
+        
+        # Format label text based on label_content
+        label_text = self._format_label_text(task_name, start_date_str, finish_date_str, label_content, is_milestone)
+        
+        return {
+            "start_date_str": start_date_str,
+            "finish_date_str": finish_date_str,
+            "is_milestone": is_milestone,
+            "label_placement": label_placement,
+            "label_content": label_content,
+            "label_hide": label_hide,
+            "task_name": task_name,
+            "fill_color": fill_color,
+            "label_horizontal_offset": label_horizontal_offset,
+            "label_text": label_text,
+            "task_row": task_row
+        }
+    
+    def _validate_and_parse_task_dates(self, task_info: dict, start_date: datetime, end_date: datetime, num_rows: int) -> tuple:
+        """Validate and parse task dates, checking if task should be rendered.
+        
+        Args:
+            task_info: Dictionary with task information from _extract_task_info()
+            start_date: Timeline start date
+            end_date: Timeline end date
+            num_rows: Number of rows in chart
+            
+        Returns:
+            Tuple of (task_start, task_finish) as datetime objects, or (None, None) if invalid
+        """
+        start_date_str = task_info["start_date_str"]
+        finish_date_str = task_info["finish_date_str"]
+        is_milestone = task_info["is_milestone"]
+        task_name = task_info["task_name"]
+        task_row = task_info["task_row"]
+        
+        if not start_date_str and not finish_date_str:
+            return (None, None)
+        
+        # Validate that both dates are valid
+        if not is_valid_internal_date(start_date_str):
+            logging.warning(f"Skipping task {task_name} due to invalid start date: {start_date_str}")
+            return (None, None)
+        if not is_valid_internal_date(finish_date_str):
+            logging.warning(f"Skipping task {task_name} due to invalid finish date: {finish_date_str}")
+            return (None, None)
+        
+        # Parse dates using centralized helper
+        date_to_use = start_date_str if start_date_str else finish_date_str
+        task_start = self._parse_internal_date(date_to_use)
+        task_finish = task_start
+        if not is_milestone and start_date_str and finish_date_str:
+            task_start = self._parse_internal_date(start_date_str)
+            task_finish = self._parse_internal_date(finish_date_str)
+        if not task_start or not task_finish:
+            logging.warning(f"Skipping task {task_name} due to invalid date(s)")
+            return (None, None)
+        
+        # Skip invalid tasks where finish date is before start date
+        if task_finish < task_start:
+            return (None, None)
+        
+        # Skip tasks outside timeline range
+        if task_finish < start_date or task_start > end_date:
+            return (None, None)
+        
+        # Skip tasks with row numbers beyond available rows
+        if task_row > num_rows:
+            return (None, None)
+        
+        return (task_start, task_finish)
+    
+    def _calculate_task_geometry(self, task_start: datetime, task_finish: datetime, task_row: int,
+                                 x: float, y: float, width: float, height: float,
+                                 start_date: datetime, end_date: datetime, num_rows: int,
+                                 time_scale: float, row_height: float, task_height: float) -> dict:
+        """Calculate task position and dimensions.
+        
+        Args:
+            task_start: Task start date (datetime)
+            task_finish: Task finish date (datetime)
+            task_row: Task row number (1-based)
+            x, y: Timeline position
+            width, height: Timeline dimensions
+            start_date, end_date: Timeline date range
+            num_rows: Number of rows
+            time_scale: Pixels per day
+            row_height: Height per row
+            task_height: Height of task bar
+            
+        Returns:
+            Dictionary with: x_start, x_end, width_task, y_task, row_num
+        """
+        total_days = max((end_date - start_date).days, 1)
+        row_num = task_row - 1  # Convert to 0-based index
+        x_start = x + max((task_start - start_date).days, 0) * time_scale
+        x_end = x + min((task_finish - start_date).days + 1, total_days) * time_scale
+        width_task = time_scale if task_start == task_finish else max(x_end - x_start, time_scale)
+        y_task = y + row_num * row_height
+        
+        return {
+            "x_start": x_start,
+            "x_end": x_end,
+            "width_task": width_task,
+            "y_task": y_task,
+            "row_num": row_num
+        }
+    
+    def _render_milestone(self, center_x: float, center_y: float, half_size: float, fill_color: str,
+                         label_text: str, label_hide: bool, label_placement: str,
+                         label_horizontal_offset: float, y_task: float, row_height: float):
+        """Render a milestone as a circle.
+        
+        Args:
+            center_x, center_y: Center position of milestone
+            half_size: Half the size of the milestone (radius)
+            fill_color: Fill color for milestone
+            label_text: Text to display in label
+            label_hide: Whether to hide label
+            label_placement: Label placement ("Inside" or "Outside")
+            label_horizontal_offset: Horizontal offset for label
+            y_task: Y position of task row
+            row_height: Height of task row
+        """
+        # Render as a circle - use fill_color from task
+        self.dwg.add(self.dwg.circle(center=(center_x, center_y), r=half_size, 
+                                     fill=fill_color, stroke="black", stroke_width=0.5))
+        
+        if not label_hide and label_placement == "Outside":
+            # Use proportional positioning: center_y is at row_height * 0.5, apply factor to row_height
+            label_y_base = y_task + row_height * self.config.general.task_vertical_alignment_factor
+            milestone_right = center_x + half_size
+            self._render_outside_label(label_text, milestone_right, center_y, label_y_base, label_horizontal_offset)
+    
+    def _render_single_task(self, x_start: float, x_end: float, width_task: float, y_task: float,
+                           task_height: float, row_height: float, fill_color: str,
+                           label_text: str, label_hide: bool, label_placement: str,
+                           label_horizontal_offset: float, x: float, width: float):
+        """Render a single task bar.
+        
+        Args:
+            x_start, x_end: Task start and end x positions
+            width_task: Width of task bar
+            y_task: Y position of task row
+            task_height: Height of task bar
+            row_height: Height of task row
+            fill_color: Fill color for task
+            label_text: Text to display in label
+            label_hide: Whether to hide label
+            label_placement: Label placement ("Inside" or "Outside")
+            label_horizontal_offset: Horizontal offset for label
+            x, width: Timeline boundaries
+        """
+        if x_start < x + width:
+            y_offset = (row_height - task_height) / 2
+            rect_y = y_task + y_offset
+            corner_radius = 3
+            self.dwg.add(self.dwg.rect(insert=(x_start, rect_y), size=(width_task, task_height), 
+                                      fill=fill_color, stroke="black", stroke_width=0.5,
+                                      rx=corner_radius, ry=corner_radius))
+            
+            if not label_hide:
+                # Use proportional positioning within task bar
+                label_y_base = rect_y + task_height * self.config.general.task_vertical_alignment_factor
+                
+                if label_placement == "Inside":
+                    # Simple inside label rendering - no multi-time-frame logic needed
+                    self._render_inside_label(label_text, x_start, width_task, label_y_base, fill_color)
+                elif label_placement == "Outside":
+                    self._render_outside_label(label_text, x_end, rect_y + task_height / 2, 
+                                              label_y_base, label_horizontal_offset)
+
     def render_tasks(self, x, y, width, height, start_date, end_date, num_rows):
         """Render all tasks that overlap with the timeline date range.
         
@@ -344,107 +543,51 @@ class GanttChartService(QObject):
         tasks = self.data.get("tasks", [])
         if not tasks:
             logging.warning("No tasks found in data! Tasks list is empty.")
+            return
+        
+        # Calculate scales and dimensions
         total_days = max((end_date - start_date).days, 1)
         time_scale = width / total_days if total_days > 0 else width
         row_height = height / num_rows if num_rows > 0 else height
         task_height = row_height * 0.8
-        font_size = self.config.general.task_font_size
 
         for task in tasks:
-            start_date_str = task.get("start_date", "")
-            finish_date_str = task.get("finish_date", "")
-            # A task is a milestone if explicitly marked or if start_date equals finish_date
-            is_milestone = task.get("is_milestone", False) or (start_date_str and finish_date_str and start_date_str == finish_date_str)
-            label_placement = task.get("label_placement", "Outside")
-            # Backward compatibility: if label_content is missing, use label_hide
-            label_content = task.get("label_content")
-            if label_content is None:
-                # Migrate from old label_hide field
-                label_hide = task.get("label_hide", "Yes")
-                label_content = "None" if label_hide == "No" else "Name only"
-            label_hide = label_content == "None"  # For rendering logic compatibility
-            task_name = task.get("task_name", "Unnamed")
-            fill_color = task.get("fill_color", "blue")  # Get fill color, default to blue
-            label_horizontal_offset = task.get("label_horizontal_offset", 0.0)  # Get label offset, default to 0.0
+            # Extract task information using key-based lookups
+            task_info = self._extract_task_info(task)
             
-            # Format label text based on label_content
-            label_text = self._format_label_text(task_name, start_date_str, finish_date_str, label_content, is_milestone)
-            
-            if not start_date_str and not finish_date_str:
-                continue
-
-            # Validate that both dates are valid
-            # Skip task if either date is invalid (empty or invalid format)
-            # This matches the validation logic which requires both dates to be valid
-            if not is_valid_internal_date(start_date_str):
-                logging.warning(f"Skipping task {task.get('task_name', 'Unknown')} due to invalid start date: {start_date_str}")
-                continue
-            if not is_valid_internal_date(finish_date_str):
-                logging.warning(f"Skipping task {task.get('task_name', 'Unknown')} due to invalid finish date: {finish_date_str}")
-                continue
-
-            # Parse dates using centralized helper
-            date_to_use = start_date_str if start_date_str else finish_date_str
-            task_start = self._parse_internal_date(date_to_use)
-            task_finish = task_start
-            if not is_milestone and start_date_str and finish_date_str:
-                task_start = self._parse_internal_date(start_date_str)
-                task_finish = self._parse_internal_date(finish_date_str)
+            # Validate and parse dates
+            task_start, task_finish = self._validate_and_parse_task_dates(
+                task_info, start_date, end_date, num_rows
+            )
             if not task_start or not task_finish:
-                logging.warning(f"Skipping task {task.get('task_name', 'Unknown')} due to invalid date(s)")
-                continue
-
-            # Skip invalid tasks where finish date is before start date
-            if task_finish < task_start:
-                continue
-
-            if task_finish < start_date or task_start > end_date:
                 continue
             
-            # Skip tasks with row numbers beyond available rows (don't clamp to last row)
-            task_row = task.get("row_number", 1)
-            if task_row > num_rows:
-                continue
+            # Calculate task geometry
+            geometry = self._calculate_task_geometry(
+                task_start, task_finish, task_info["task_row"],
+                x, y, width, height, start_date, end_date, num_rows,
+                time_scale, row_height, task_height
+            )
             
-            row_num = task_row - 1  # Convert to 0-based index
-            x_start = x + max((task_start - start_date).days, 0) * time_scale
-            x_end = x + min((task_finish - start_date).days + 1, total_days) * time_scale
-            width_task = time_scale if task_start == task_finish else max(x_end - x_start, time_scale)
-            y_task = y + row_num * row_height
-
-            if is_milestone:
+            # Render milestone or regular task
+            if task_info["is_milestone"]:
                 half_size = task_height / 2
-                center_x = x_end if finish_date_str else x_start
-                center_y = y_task + row_height * 0.5
+                finish_date_str = task_info["finish_date_str"]
+                center_x = geometry["x_end"] if finish_date_str else geometry["x_start"]
+                center_y = geometry["y_task"] + row_height * 0.5
                 
-                # Render as a circle - use fill_color from task
-                self.dwg.add(self.dwg.circle(center=(center_x, center_y), r=half_size, 
-                                             fill=fill_color, stroke="black", stroke_width=0.5))
-                
-                if not label_hide and label_placement == "Outside":
-                    # Use proportional positioning: center_y is at row_height * 0.5, apply factor to row_height
-                    label_y_base = y_task + row_height * self.config.general.task_vertical_alignment_factor
-                    milestone_right = center_x + half_size
-                    self._render_outside_label(label_text, milestone_right, center_y, label_y_base, label_horizontal_offset)
+                self._render_milestone(
+                    center_x, center_y, half_size, task_info["fill_color"],
+                    task_info["label_text"], task_info["label_hide"], task_info["label_placement"],
+                    task_info["label_horizontal_offset"], geometry["y_task"], row_height
+                )
             else:
-                if x_start < x + width:
-                    y_offset = (row_height - task_height) / 2
-                    rect_y = y_task + y_offset
-                    corner_radius = 3
-                    self.dwg.add(self.dwg.rect(insert=(x_start, rect_y), size=(width_task, task_height), 
-                                              fill=fill_color, stroke="black", stroke_width=0.5,
-                                              rx=corner_radius, ry=corner_radius))
-                    
-                    if not label_hide:
-                        # Use proportional positioning within task bar
-                        label_y_base = rect_y + task_height * self.config.general.task_vertical_alignment_factor
-                        
-                        if label_placement == "Inside":
-                            # Simple inside label rendering - no multi-time-frame logic needed
-                            self._render_inside_label(label_text, x_start, width_task, label_y_base, fill_color)
-                        elif label_placement == "Outside":
-                            self._render_outside_label(label_text, x_end, rect_y + task_height / 2, 
-                                                      label_y_base, label_horizontal_offset)
+                self._render_single_task(
+                    geometry["x_start"], geometry["x_end"], geometry["width_task"],
+                    geometry["y_task"], task_height, row_height, task_info["fill_color"],
+                    task_info["label_text"], task_info["label_hide"], task_info["label_placement"],
+                    task_info["label_horizontal_offset"], x, width
+                )
 
     def _get_task_position(self, task_id: int, x, y, width, height, start_date, end_date, num_rows):
         """Get the position and dimensions of a task by its ID.
