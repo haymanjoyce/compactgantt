@@ -163,3 +163,8 @@ tiff/
 !docs/
 !docs/*
 !docs/images/*
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec.bak
