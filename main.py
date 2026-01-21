@@ -109,7 +109,8 @@ def main():
     crash_reporter = CrashReporter(
         app_name="Compact Gantt",
         app_version=app_version,
-        enable_reporting=app_config.general.enable_crash_reporting
+        enable_reporting=app_config.general.enable_crash_reporting,
+        crash_report_email=app_config.general.crash_report_email
     )
     crash_reporter.install_handlers()
 

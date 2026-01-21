@@ -25,6 +25,7 @@ class GeneralConfig:
     chart_date_config: DateConfig = field(default_factory=DateConfig)  # Date format for chart display (task labels)
     show_ids_on_chart: bool = False  # Toggle to show task/milestone IDs on the chart
     enable_crash_reporting: bool = True  # Enable crash reporting and telemetry
+    crash_report_email: str = "haymanjoyce@gmail.com"  # Email address for crash report recipient (optional)
 
     # Backward compatibility properties - delegate to window and chart configs
     @property
@@ -369,11 +370,13 @@ class AppConfig:
                             # tab_order is already a list, no conversion needed
                             pass
                         self.general.window = WindowConfig(**window_data)
-                    # Load general settings (currently only show_ids_on_chart)
+                    # Load general settings
                     if 'general' in data:
                         general_data = data['general']
                         if isinstance(general_data, dict):
                             self.general.show_ids_on_chart = general_data.get('show_ids_on_chart', self.general.show_ids_on_chart)
+                            self.general.enable_crash_reporting = general_data.get('enable_crash_reporting', self.general.enable_crash_reporting)
+                            self.general.crash_report_email = general_data.get('crash_report_email', self.general.crash_report_email)
             except Exception as e:
                 logging.warning(f"Failed to load settings: {e}")
 
@@ -399,6 +402,8 @@ class AppConfig:
                 },
                 'general': {
                     'show_ids_on_chart': self.general.show_ids_on_chart,
+                    'enable_crash_reporting': self.general.enable_crash_reporting,
+                    'crash_report_email': self.general.crash_report_email,
                 }
             }
             with open(settings_file, 'w') as f:
