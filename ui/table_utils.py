@@ -12,7 +12,7 @@ from utils.conversion import parse_internal_date
 _ui_config = UIConfig()
 READ_ONLY_BG = _ui_config.read_only_bg_color
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging is configured centrally in utils/logging_config.py
 
 class NumericTableWidgetItem(QTableWidgetItem):
     def __lt__(self, other):

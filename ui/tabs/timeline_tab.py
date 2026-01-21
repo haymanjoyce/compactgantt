@@ -6,7 +6,7 @@ import logging
 from utils.conversion import parse_internal_date
 from .base_tab import BaseTab
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging is configured centrally in utils/logging_config.py
 
 class TimelineTab(BaseTab):
     def setup_ui(self):

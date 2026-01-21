@@ -11,7 +11,7 @@ from .base_tab import BaseTab
 from models.link import Link
 from utils.conversion import safe_int, parse_internal_date
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging is configured centrally in utils/logging_config.py
 
 class LinksTab(BaseTab):
     data_updated = pyqtSignal(dict)

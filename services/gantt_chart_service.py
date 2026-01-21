@@ -14,7 +14,7 @@ from models.curtain import Curtain
 from models.swimlane import Swimlane
 from models.note import Note
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging is configured centrally in utils/logging_config.py
 
 class GanttChartService(QObject):
     svg_generated = pyqtSignal(str)

@@ -13,7 +13,7 @@ from config.chart_config import ChartConfig
 from config.ui_config import UIConfig
 from config.date_config import DateConfig
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging is configured centrally in utils/logging_config.py
 
 @dataclass
 class GeneralConfig:
@@ -24,6 +24,7 @@ class GeneralConfig:
     ui_date_config: DateConfig = field(default_factory=DateConfig)  # Date format for data entry UI (tables, date pickers, Excel)
     chart_date_config: DateConfig = field(default_factory=DateConfig)  # Date format for chart display (task labels)
     show_ids_on_chart: bool = False  # Toggle to show task/milestone IDs on the chart
+    enable_crash_reporting: bool = True  # Enable crash reporting and telemetry
 
     # Backward compatibility properties - delegate to window and chart configs
     @property

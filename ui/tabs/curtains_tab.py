@@ -11,7 +11,7 @@ from .base_tab import BaseTab
 from models.curtain import Curtain
 from utils.conversion import safe_int, display_to_internal_date, internal_to_display_date, normalize_display_date, parse_internal_date
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging is configured centrally in utils/logging_config.py
 
 class CurtainsTab(BaseTab):
     data_updated = pyqtSignal(dict)

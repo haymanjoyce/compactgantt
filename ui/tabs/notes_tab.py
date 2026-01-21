@@ -10,7 +10,7 @@ from .base_tab import BaseTab
 from models.note import Note
 from utils.conversion import safe_int
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging is configured centrally in utils/logging_config.py
 
 class NotesTab(BaseTab):
     data_updated = pyqtSignal(dict)

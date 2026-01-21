@@ -12,7 +12,7 @@ from models import Task
 from ui.table_utils import NumericTableWidgetItem, DateTableWidgetItem, DateEditWidget, add_row, remove_row, CheckBoxWidget, highlight_table_errors, extract_table_data
 from .base_tab import BaseTab
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging is configured centrally in utils/logging_config.py
 
 # Custom data role for marking swimlane boundary rows
 SWIMLANE_BOUNDARY_ROLE = Qt.UserRole + 100

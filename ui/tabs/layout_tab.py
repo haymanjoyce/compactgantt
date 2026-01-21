@@ -7,7 +7,7 @@ import logging
 from .base_tab import BaseTab
 from validators.validators import DataValidator
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging is configured centrally in utils/logging_config.py
 
 class LayoutTab(BaseTab):
     def setup_ui(self):

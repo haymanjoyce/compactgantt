@@ -7,7 +7,7 @@ from config.app_config import AppConfig
 from config.chart_config import ChartConfig
 from utils.conversion import safe_int, safe_float, display_to_internal_date, internal_to_display_date, parse_internal_date
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging is configured centrally in utils/logging_config.py
 
 class ProjectData:
     def __init__(self, app_config=None):

@@ -7,7 +7,7 @@ import logging
 from .base_tab import BaseTab
 from config.date_config import DATE_FORMAT_OPTIONS, DateConfig
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging is configured centrally in utils/logging_config.py
 
 class PreferencesTab(BaseTab):
     def setup_ui(self):

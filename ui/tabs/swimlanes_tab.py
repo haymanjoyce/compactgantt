@@ -10,7 +10,7 @@ from .base_tab import BaseTab
 from models.swimlane import Swimlane
 from utils.conversion import safe_int
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging is configured centrally in utils/logging_config.py
 
 class SwimlanesTab(BaseTab):
     data_updated = pyqtSignal(dict)

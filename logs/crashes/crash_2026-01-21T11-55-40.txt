@@ -1,0 +1,32 @@
+================================================================================
+Compact Gantt Crash Report
+================================================================================
+
+Timestamp: 2026-01-21T11:55:40.860898
+Version: 1.0.0
+Exception Type: ValueError
+Exception Message: Test crash reporting
+
+System Information:
+--------------------------------------------------------------------------------
+  platform: Windows-11-10.0.26200-SP0
+  system: Windows
+  release: 11
+  version: 10.0.26200
+  machine: AMD64
+  processor: Intel64 Family 6 Model 140 Stepping 1, GenuineIntel
+  python_version: 3.13.2
+  python_implementation: CPython
+  pyqt5_version: 5.15.11
+
+Traceback:
+--------------------------------------------------------------------------------
+Traceback (most recent call last):
+  File "c:\Users\hayma\Projects\compact_gantt\main.py", line 196, in <module>
+    main()
+    ~~~~^^
+  File "c:\Users\hayma\Projects\compact_gantt\main.py", line 119, in main
+    raise ValueError("Test crash reporting")
+ValueError: Test crash reporting
+
+================================================================================

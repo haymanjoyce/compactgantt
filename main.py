@@ -12,6 +12,9 @@ from models.project import ProjectData
 from services.gantt_chart_service import GanttChartService
 from config.app_config import AppConfig
 from ui.svg_display import SvgDisplay
+from utils.logging_config import setup_logging
+from utils.crash_reporter import CrashReporter
+import logging
 
 
 # Global lock file handle
@@ -85,6 +88,10 @@ def notify_existing_instance():
 
 
 def main():
+    # Set up centralized logging first
+    setup_logging(logging.INFO)
+    logger = logging.getLogger(__name__)
+    
     # Check for existing instance using file lock BEFORE creating QApplication
     lock_acquired = acquire_lock()
     if not lock_acquired:
@@ -95,6 +102,22 @@ def main():
     
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
     app = QApplication(sys.argv)
+    
+    # Set up crash reporting after QApplication is created
+    app_config = AppConfig()  # Create early to get crash reporting preference
+    app_version = "1.0.0"  # TODO: Move to config or version file
+    crash_reporter = CrashReporter(
+        app_name="Compact Gantt",
+        app_version=app_version,
+        enable_reporting=app_config.general.enable_crash_reporting
+    )
+    crash_reporter.install_handlers()
+
+    # After crash_reporter.install_handlers()
+    if False:  # Set to True to test, then back to False
+        raise ValueError("Test crash reporting")
+
+    logger.info(f"Crash reporting {'enabled' if app_config.general.enable_crash_reporting else 'disabled'}")
     
     # Also set up QSharedMemory for backward compatibility with notification system
     shared_memory = QSharedMemory("compact_gantt_single_instance")
@@ -145,7 +168,7 @@ def main():
     # Use ICO so Windows taskbar shows the custom logo
     icon_path = Path(__file__).parent / "assets" / "favicon.ico"
     app.setWindowIcon(QIcon(str(icon_path)))
-    app_config = AppConfig()  # Single instance
+    # app_config already created above for crash reporter
     project_data = ProjectData(app_config)  # Pass the shared instance
     gantt_chart_service = GanttChartService(app_config)  # Pass the shared instance
     svg_display = SvgDisplay(app_config)
