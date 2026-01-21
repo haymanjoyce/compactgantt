@@ -14,6 +14,7 @@ from config.app_config import AppConfig
 from ui.svg_display import SvgDisplay
 from utils.logging_config import setup_logging
 from utils.crash_reporter import CrashReporter
+from version import __version__ as app_version, APP_NAME
 import logging
 
 
@@ -105,9 +106,8 @@ def main():
     
     # Set up crash reporting after QApplication is created
     app_config = AppConfig()  # Create early to get crash reporting preference
-    app_version = "1.0.0"  # TODO: Move to config or version file
     crash_reporter = CrashReporter(
-        app_name="Compact Gantt",
+        app_name=APP_NAME,
         app_version=app_version,
         enable_reporting=app_config.general.enable_crash_reporting,
         crash_report_email=app_config.general.crash_report_email
