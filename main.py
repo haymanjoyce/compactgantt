@@ -114,10 +114,6 @@ def main():
     )
     crash_reporter.install_handlers()
 
-    # After crash_reporter.install_handlers()
-    if False:  # Set to True to test, then back to False
-        raise ValueError("Test crash reporting")
-
     logger.info(f"Crash reporting {'enabled' if app_config.general.enable_crash_reporting else 'disabled'}")
     
     # Also set up QSharedMemory for backward compatibility with notification system
