@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QWidget, QTableWidget, QVBoxLayout, QPushButton, 
                            QHBoxLayout, QHeaderView, QTableWidgetItem, 
-                           QMessageBox, QGroupBox, QSizePolicy, QComboBox, QLabel, QGridLayout)
+                           QMessageBox, QGroupBox, QSizePolicy, QComboBox, QLabel, QGridLayout, QCheckBox)
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor
 from typing import List, Dict, Any, Optional
@@ -44,8 +44,14 @@ class LinksTab(BaseTab):
         remove_btn.clicked.connect(lambda: remove_row(self.links_table, "links", 
                                                     self.app_config.tables, self))
         
+        self.show_ids_checkbox = QCheckBox("Show IDs on chart")
+        self.show_ids_checkbox.setChecked(self.app_config.general.show_ids_on_chart)
+        self.show_ids_checkbox.toggled.connect(self._on_show_ids_toggled)
+        self.show_ids_checkbox.setToolTip("Display task/milestone IDs on the chart when linking")
+        
         toolbar.addWidget(add_btn)
         toolbar.addWidget(remove_btn)
+        toolbar.addWidget(self.show_ids_checkbox)
         toolbar.addStretch()  # Push buttons to the left
         
         # Create group box for table
@@ -379,6 +385,8 @@ class LinksTab(BaseTab):
         row_count = len(links)
         self.links_table.setRowCount(row_count)
         self._initializing = True
+        # Sync checkbox from config
+        self.show_ids_checkbox.setChecked(self.app_config.general.show_ids_on_chart)
 
         # Create task name mapping
         task_name_map = {task.task_id: task.task_name for task in self.project_data.tasks}
@@ -411,6 +419,9 @@ class LinksTab(BaseTab):
         # Avoid emitting during initialization to prevent recursive updates
         if self._initializing:
             return
+        
+        # Persist checkbox state into config
+        self.app_config.general.show_ids_on_chart = self.show_ids_checkbox.isChecked()
         
         # Extract Link objects from table rows
         links = []
@@ -449,6 +460,14 @@ class LinksTab(BaseTab):
         
         # Don't emit data_updated here - chart will update when user clicks "Update Chart" button
         # This matches the behavior of the tasks tab
+    
+    def _on_show_ids_toggled(self, checked: bool):
+        """Handle toggle for showing IDs on chart."""
+        if self._initializing:
+            return
+        self.app_config.general.show_ids_on_chart = checked
+        # Notify main window to refresh chart
+        self.data_updated.emit({"chart_config_changed": True})
     
     def _truncate_text(self, text: str, max_length: int = 50) -> str:
         """Truncate text to max_length and add ellipsis if needed."""

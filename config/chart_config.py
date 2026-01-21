@@ -38,6 +38,8 @@ class ChartConfig:
     header_footer_vertical_alignment_factor: float = 0.7  # Vertical position for header and footer text (0.0=top, 0.5=center, 1.0=bottom)
     swimlane_top_vertical_alignment_factor: float = 0.7  # Vertical position for top swimlane labels (0.0=top, 0.5=center, 1.0=bottom)
     swimlane_bottom_vertical_alignment_factor: float = 0.7  # Vertical position for bottom swimlane labels (0.0=top, 0.5=center, 1.0=bottom)
+    id_badge_vertical_alignment_factor: float = 0.5  # Vertical position for ID badges (0.0=top, 0.5=center, 1.0=bottom)
+    id_badge_text_vertical_alignment_factor: float = 0.7  # Vertical position of text within badge (0.0=top, 0.5=center, 1.0=bottom)
     
     # Frame border settings
     frame_border_width_heavy: float = 1.0  # Outer frame border width
@@ -54,13 +56,15 @@ class ChartConfig:
     row_number_font_size: int = 10  # Font size for row numbers
     note_font_size: int = 10  # Font size for notes
     swimlane_font_size: int = 10  # Font size for swimlane labels
+    id_badge_font_size: int = 9  # Font size for ID badges
 
     def __post_init__(self):
         # Validate positive integers
         for field_name in ["outer_width", "outer_height", "full_label_width", 
                           "short_label_width", "tasks_rows", "pipes_rows", "curtains_rows",
                           "task_font_size", "scale_font_size", "header_footer_font_size",
-                          "row_number_font_size", "note_font_size", "swimlane_font_size"]:
+                          "row_number_font_size", "note_font_size", "swimlane_font_size",
+                          "id_badge_font_size"]:
             value = getattr(self, field_name)
             if not isinstance(value, int) or value < 0:
                 raise ValueError(f"{field_name} must be a non-negative integer")
@@ -73,7 +77,8 @@ class ChartConfig:
                           "label_text_width_factor", "scale_vertical_alignment_factor",
                           "task_vertical_alignment_factor", "row_number_vertical_alignment_factor",
                           "header_footer_vertical_alignment_factor", "swimlane_top_vertical_alignment_factor",
-                          "swimlane_bottom_vertical_alignment_factor",
+                          "swimlane_bottom_vertical_alignment_factor", "id_badge_vertical_alignment_factor",
+                          "id_badge_text_vertical_alignment_factor",
                           "frame_border_width_heavy", "frame_border_width_light"]:
             value = getattr(self, field_name)
             if not isinstance(value, float) or value < 0:

@@ -23,6 +23,7 @@ class GeneralConfig:
     ui: UIConfig = field(default_factory=UIConfig)
     ui_date_config: DateConfig = field(default_factory=DateConfig)  # Date format for data entry UI (tables, date pickers, Excel)
     chart_date_config: DateConfig = field(default_factory=DateConfig)  # Date format for chart display (task labels)
+    show_ids_on_chart: bool = False  # Toggle to show task/milestone IDs on the chart
 
     # Backward compatibility properties - delegate to window and chart configs
     @property
@@ -367,6 +368,11 @@ class AppConfig:
                             # tab_order is already a list, no conversion needed
                             pass
                         self.general.window = WindowConfig(**window_data)
+                    # Load general settings (currently only show_ids_on_chart)
+                    if 'general' in data:
+                        general_data = data['general']
+                        if isinstance(general_data, dict):
+                            self.general.show_ids_on_chart = general_data.get('show_ids_on_chart', self.general.show_ids_on_chart)
             except Exception as e:
                 logging.warning(f"Failed to load settings: {e}")
 
@@ -389,6 +395,9 @@ class AppConfig:
                     'last_json_directory': self.general.window.last_json_directory,
                     'last_excel_directory': self.general.window.last_excel_directory,
                     'tab_order': self.general.window.tab_order,
+                },
+                'general': {
+                    'show_ids_on_chart': self.general.show_ids_on_chart,
                 }
             }
             with open(settings_file, 'w') as f:

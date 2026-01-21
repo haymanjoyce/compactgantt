@@ -298,6 +298,63 @@ class GanttChartService(QObject):
         else:
             return "white"
 
+    def _render_id_badge(self, id_text: str, anchor_x: float, center_y: float, element_height: float, place_left: bool = True):
+        """Render a small ID badge near a task or milestone.
+        
+        Args:
+            id_text: Text to display (e.g., "#12")
+            anchor_x: Reference x position (start of bar or milestone center)
+            center_y: Reference y position (bar center or milestone center)
+            element_height: Height of the task/milestone element (for vertical alignment)
+            place_left: If True, place badge to the left; otherwise to the right
+        """
+        if not id_text:
+            return
+        
+        font_size = max(self.config.general.chart.id_badge_font_size, 8)
+        pad_x = 3
+        pad_y = 2
+        margin = 4  # gap from the bar/circle
+        vertical_factor = self.config.general.chart.id_badge_vertical_alignment_factor
+        text_vertical_factor = self.config.general.chart.id_badge_text_vertical_alignment_factor
+        
+        # Use font metrics for the configured font size
+        temp_font = QFont(self.config.general.font_family, font_size)
+        temp_metrics = QFontMetrics(temp_font)
+        text_width = temp_metrics.horizontalAdvance(id_text)
+        text_height = font_size * 1.2
+        badge_w = text_width + pad_x * 2
+        badge_h = text_height + pad_y * 2
+        
+        rect_x = anchor_x - badge_w - margin if place_left else anchor_x + margin
+        # Apply vertical alignment factor: 0.0=top, 0.5=center, 1.0=bottom relative to element height
+        badge_center_y = center_y - element_height * (0.5 - vertical_factor)
+        rect_y = badge_center_y - badge_h / 2
+        
+        # Background + border - add to overlay group so badges float above all other artifacts
+        self.id_badge_overlay.add(self.dwg.rect(
+            insert=(rect_x, rect_y),
+            size=(badge_w, badge_h),
+            rx=2, ry=2,
+            fill="#f8f8f8",
+            stroke="#555",
+            stroke_width=0.6
+        ))
+        
+        text_x = rect_x + pad_x
+        # Calculate text position within badge using the factor
+        # 0.0 = top of badge, 0.5 = center, 1.0 = bottom of badge
+        text_y = rect_y + badge_h * text_vertical_factor
+        self.id_badge_overlay.add(self.dwg.text(
+            id_text,
+            insert=(text_x, text_y),
+            font_size=str(font_size),
+            font_family=self.config.general.font_family,
+            fill="#111",
+            dominant_baseline="middle",
+            text_anchor="start"
+        ))
+
     def _render_inside_label(self, task_name: str, x_start: float, width_task: float, 
                              label_y_base: float, fill_color: str = "blue"):
         """Render a label inside a task bar, with truncation if needed.
@@ -376,6 +433,7 @@ class GanttChartService(QObject):
         fill_color = task.get("fill_color", "blue")  # Get fill color, default to blue
         label_horizontal_offset = task.get("label_horizontal_offset", 0.0)  # Get label offset, default to 0.0
         task_row = task.get("row_number", 1)
+        task_id = task.get("task_id")
         
         # Format label text based on label_content
         label_text = self._format_label_text(task_name, start_date_str, finish_date_str, label_content, is_milestone)
@@ -391,7 +449,8 @@ class GanttChartService(QObject):
             "fill_color": fill_color,
             "label_horizontal_offset": label_horizontal_offset,
             "label_text": label_text,
-            "task_row": task_row
+            "task_row": task_row,
+            "task_id": task_id
         }
     
     def _validate_and_parse_task_dates(self, task_info: dict, start_date: datetime, end_date: datetime, num_rows: int) -> tuple:
@@ -486,7 +545,8 @@ class GanttChartService(QObject):
     
     def _render_milestone(self, center_x: float, center_y: float, half_size: float, fill_color: str,
                          label_text: str, label_hide: bool, label_placement: str,
-                         label_horizontal_offset: float, y_task: float, row_height: float):
+                         label_horizontal_offset: float, y_task: float, row_height: float,
+                         task_id=None, show_ids: bool = False):
         """Render a milestone as a circle.
         
         Args:
@@ -504,6 +564,11 @@ class GanttChartService(QObject):
         self.dwg.add(self.dwg.circle(center=(center_x, center_y), r=half_size, 
                                      fill=fill_color, stroke="black", stroke_width=0.5))
         
+        # Always render ID badge if enabled
+        if show_ids:
+            # Anchor at left edge of the milestone so spacing matches tasks
+            self._render_id_badge(f"#{task_id}" if task_id else "", center_x - half_size, center_y, element_height=half_size * 2, place_left=True)
+        
         if not label_hide and label_placement == "Outside":
             # Use proportional positioning: center_y is at row_height * 0.5, apply factor to row_height
             label_y_base = y_task + row_height * self.config.general.task_vertical_alignment_factor
@@ -513,7 +578,8 @@ class GanttChartService(QObject):
     def _render_single_task(self, x_start: float, x_end: float, width_task: float, y_task: float,
                            task_height: float, row_height: float, fill_color: str,
                            label_text: str, label_hide: bool, label_placement: str,
-                           label_horizontal_offset: float, x: float, width: float):
+                           label_horizontal_offset: float, x: float, width: float,
+                           task_id=None, show_ids: bool = False):
         """Render a single task bar.
         
         Args:
@@ -536,6 +602,10 @@ class GanttChartService(QObject):
             self.dwg.add(self.dwg.rect(insert=(x_start, rect_y), size=(width_task, task_height), 
                                       fill=fill_color, stroke="black", stroke_width=0.5,
                                       rx=corner_radius, ry=corner_radius))
+            
+            # Render ID badge if enabled
+            if show_ids:
+                self._render_id_badge(f"#{task_id}" if task_id else "", x_start, rect_y + task_height / 2, element_height=task_height, place_left=True)
             
             if not label_hide:
                 # Use proportional positioning within task bar
@@ -561,6 +631,7 @@ class GanttChartService(QObject):
             num_rows: The number of rows in the Gantt chart
         """
         tasks = self.data.get("tasks", [])
+        show_ids = getattr(self.config.general, "show_ids_on_chart", False)
         if not tasks:
             logging.warning("No tasks found in data! Tasks list is empty.")
             return
@@ -590,6 +661,7 @@ class GanttChartService(QObject):
             )
             
             # Render milestone or regular task
+            task_id = task_info.get("task_id")
             if task_info["is_milestone"]:
                 half_size = task_height / 2
                 finish_date_str = task_info["finish_date_str"]
@@ -599,14 +671,16 @@ class GanttChartService(QObject):
                 self._render_milestone(
                     center_x, center_y, half_size, task_info["fill_color"],
                     task_info["label_text"], task_info["label_hide"], task_info["label_placement"],
-                    task_info["label_horizontal_offset"], geometry["y_task"], row_height
+                    task_info["label_horizontal_offset"], geometry["y_task"], row_height,
+                    task_id=task_id, show_ids=show_ids
                 )
             else:
                 self._render_single_task(
                     geometry["x_start"], geometry["x_end"], geometry["width_task"],
                     geometry["y_task"], task_height, row_height, task_info["fill_color"],
                     task_info["label_text"], task_info["label_hide"], task_info["label_placement"],
-                    task_info["label_horizontal_offset"], x, width
+                    task_info["label_horizontal_offset"], x, width,
+                    task_id=task_id, show_ids=show_ids
                 )
 
     def _get_task_position(self, task_id: int, x, y, width, height, start_date, end_date, num_rows):
@@ -2155,11 +2229,15 @@ class GanttChartService(QObject):
 
     def render(self):
         os.makedirs(self.output_folder, exist_ok=True)
+        # Create overlay group for ID badges (rendered last to appear on top)
+        self.id_badge_overlay = self.dwg.g()
         self.render_outer_frame()  # Background only
         self.render_header()
         self.render_footer()
         self.render_inner_frame()
         self.render_single_timeline()
         self.render_notes()  # Render notes after all other elements
+        # Add ID badge overlay last (before border) so badges float above all other artifacts
+        self.dwg.add(self.id_badge_overlay)
         self.render_outer_frame_border()  # Border rendered last
         self.dwg.save()
