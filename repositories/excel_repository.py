@@ -241,7 +241,7 @@ class ExcelRepository:
         date_config = DateConfig()
         
         # Headers - only include fields that are visible/editable in UI
-        headers = ["ID", "Row", "Name", "Start Date", "Finish Date", "Label Content", "Label Placement", "Label Offset", "Fill Color"]
+        headers = ["ID", "Row", "Name", "Start Date", "Finish Date", "Label Content", "Label Placement", "Label Offset", "Fill Color", "Date Format"]
         ws.append(headers)
         self._format_header_row(ws, 1)
         
@@ -258,7 +258,8 @@ class ExcelRepository:
                 label_content,
                 task.label_placement,
                 int(task.label_horizontal_offset) if task.label_horizontal_offset else 0,
-                task.fill_color
+                task.fill_color,
+                task.date_format if hasattr(task, "date_format") and task.date_format else ""
             ]
             ws.append(row)
         
@@ -727,6 +728,10 @@ class ExcelRepository:
                         task_data["label_horizontal_offset"] = float(value) if value is not None else 0.0
                     elif header == "Fill Color":
                         task_data["fill_color"] = str(value) if value is not None else "blue"
+                    elif header == "Date Format":
+                        # Only set date_format if value is provided (not empty)
+                        if value is not None and str(value).strip():
+                            task_data["date_format"] = str(value).strip()
                     elif header == "Is Milestone":
                         task_data["is_milestone"] = str(value).strip().lower() in ["yes", "true", "1"]
                     elif header == "Label Alignment":

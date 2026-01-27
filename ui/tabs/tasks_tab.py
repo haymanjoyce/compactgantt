@@ -262,11 +262,12 @@ class TasksTab(BaseTab):
         date_format_label = QLabel("Date Format:")
         date_format_label.setFixedWidth(LABEL_WIDTH)
         self.detail_date_format = QComboBox()
+        self.detail_date_format.setEditable(True)  # Allow custom formats
         # Add "Use Global" as first option (None), then all available formats
         self.detail_date_format.addItem("Use Global")
         for format_name in DATE_FORMAT_OPTIONS.keys():
             self.detail_date_format.addItem(format_name)
-        self.detail_date_format.setToolTip("Date format for this task's labels. 'Use Global' uses the chart's default date format.")
+        self.detail_date_format.setToolTip("Date format for this task's labels. 'Use Global' uses the chart's default date format. You can also enter a custom Qt format (e.g., 'M', 'MMM', 'dd MMM yyyy').")
         self.detail_date_format.currentTextChanged.connect(self._on_detail_form_changed)
         self.detail_date_format.setEnabled(False)
         

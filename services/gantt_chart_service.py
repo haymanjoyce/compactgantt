@@ -226,8 +226,8 @@ class GanttChartService(QObject):
         from config.date_config import DateConfig, DATE_FORMAT_OPTIONS
         
         # Use task-specific date format if provided, otherwise use chart_date_config
-        if task_date_format and task_date_format in DATE_FORMAT_OPTIONS:
-            # Create DateConfig from task-specific format
+        if task_date_format:
+            # Create DateConfig from task-specific format (supports both predefined and custom formats)
             date_config = DateConfig.from_format_name(task_date_format)
         else:
             # Use chart_date_config for date formatting in chart labels (global default)

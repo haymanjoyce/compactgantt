@@ -43,28 +43,85 @@ class DateConfig:
         """Get internal storage format (always ISO: yyyy-mm-dd)."""
         return self.internal_format
     
-    @classmethod
-    def from_format_name(cls, format_name: str) -> 'DateConfig':
-        """Create DateConfig from a format name (key in DATE_FORMAT_OPTIONS).
+    @staticmethod
+    def _qt_to_python_format(qt_format: str) -> str:
+        """Convert Qt date format string to Python strftime format string.
+        
+        Qt format -> Python format mappings:
+        - d, dd -> %d (day)
+        - M -> %m (month number, 1-12)
+        - MM -> %m (month number, 01-12)
+        - MMM -> %b (abbreviated month name, Jan-Dec)
+        - MMMM -> %B (full month name, January-December)
+        - yy -> %y (2-digit year)
+        - yyyy -> %Y (4-digit year)
         
         Args:
-            format_name: Format name from DATE_FORMAT_OPTIONS (e.g., "dd/MM/yyyy")
+            qt_format: Qt date format string (e.g., "M", "MMM", "dd/MM/yyyy")
             
         Returns:
-            DateConfig instance with the specified format
-            
-        Raises:
-            ValueError: If format_name is not in DATE_FORMAT_OPTIONS
+            Python strftime format string (e.g., "%m", "%b", "%d/%m/%Y")
         """
-        if format_name not in DATE_FORMAT_OPTIONS:
-            raise ValueError(f"Unknown format name: {format_name}. Available: {list(DATE_FORMAT_OPTIONS.keys())}")
+        # Mapping of Qt format patterns to Python format
+        # Order matters: longer patterns must come before shorter ones
+        replacements = [
+            ("yyyy", "%Y"),  # 4-digit year (must come before yy)
+            ("yy", "%y"),    # 2-digit year
+            ("MMMM", "%B"),  # Full month name (must come before MMM)
+            ("MMM", "%b"),   # Abbreviated month name (must come before MM)
+            ("MM", "%m"),    # 2-digit month (must come before M)
+            ("M", "%m"),     # 1-digit month
+            ("dd", "%d"),    # 2-digit day (must come before d)
+            ("d", "%d"),     # 1-digit day
+        ]
         
-        qt_format, python_format = DATE_FORMAT_OPTIONS[format_name]
+        python_format = qt_format
+        for qt_pattern, py_pattern in replacements:
+            python_format = python_format.replace(qt_pattern, py_pattern)
+        
+        return python_format
+    
+    @classmethod
+    def from_custom_format(cls, qt_format: str) -> 'DateConfig':
+        """Create DateConfig from a custom Qt format string.
+        
+        Args:
+            qt_format: Custom Qt date format string (e.g., "M", "MMM", "dd MMM yyyy")
+            
+        Returns:
+            DateConfig instance with the specified custom format
+        """
+        python_format = cls._qt_to_python_format(qt_format)
         return cls(
             display_format_qt=qt_format,
             display_format_python=python_format,
             internal_format="%Y-%m-%d"  # Always ISO format for internal storage
         )
+    
+    @classmethod
+    def from_format_name(cls, format_name: str) -> 'DateConfig':
+        """Create DateConfig from a format name (predefined or custom).
+        
+        First checks if format_name is in DATE_FORMAT_OPTIONS.
+        If not found, treats it as a custom Qt format string.
+        
+        Args:
+            format_name: Format name from DATE_FORMAT_OPTIONS or custom Qt format string
+            
+        Returns:
+            DateConfig instance with the specified format
+        """
+        # Check if it's a predefined format
+        if format_name in DATE_FORMAT_OPTIONS:
+            qt_format, python_format = DATE_FORMAT_OPTIONS[format_name]
+            return cls(
+                display_format_qt=qt_format,
+                display_format_python=python_format,
+                internal_format="%Y-%m-%d"  # Always ISO format for internal storage
+            )
+        
+        # Otherwise, treat as custom Qt format
+        return cls.from_custom_format(format_name)
     
     def get_format_name(self) -> str:
         """Get the format name (key) that matches this DateConfig's formats.
