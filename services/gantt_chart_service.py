@@ -2,6 +2,7 @@
 import svgwrite
 from datetime import datetime, timedelta
 import os
+from typing import Optional
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QFont, QFontMetrics
 from config.app_config import AppConfig
@@ -207,7 +208,7 @@ class GanttChartService(QObject):
         return text[:right] + "…" if right > 0 else ""
 
     def _format_label_text(self, task_name: str, start_date_str: str, finish_date_str: str, 
-                          label_content: str, is_milestone: bool) -> str:
+                          label_content: str, is_milestone: bool, task_date_format: Optional[str] = None) -> str:
         """Format label text based on label_content option.
         
         Args:
@@ -216,14 +217,21 @@ class GanttChartService(QObject):
             finish_date_str: Finish date in internal format (yyyy-mm-dd)
             label_content: One of "None", "Name only", "Date only", "Name and Date"
             is_milestone: Whether this is a milestone (single date)
+            task_date_format: Optional task-specific date format name (e.g., "dd/MM/yyyy"), None uses global chart format
             
         Returns:
             Formatted label text, or empty string if label_content is "None"
         """
         from utils.conversion import internal_to_display_date
+        from config.date_config import DateConfig, DATE_FORMAT_OPTIONS
         
-        # Use chart_date_config for date formatting in chart labels
-        chart_date_config = self.config.general.chart_date_config
+        # Use task-specific date format if provided, otherwise use chart_date_config
+        if task_date_format and task_date_format in DATE_FORMAT_OPTIONS:
+            # Create DateConfig from task-specific format
+            date_config = DateConfig.from_format_name(task_date_format)
+        else:
+            # Use chart_date_config for date formatting in chart labels (global default)
+            date_config = self.config.general.chart_date_config
         
         if label_content == "None":
             return ""
@@ -233,11 +241,11 @@ class GanttChartService(QObject):
             if is_milestone:
                 # For milestones, show single date
                 date_str = start_date_str if start_date_str else finish_date_str
-                return internal_to_display_date(date_str, chart_date_config) if date_str else ""
+                return internal_to_display_date(date_str, date_config) if date_str else ""
             else:
                 # For tasks, show date range
-                start_display = internal_to_display_date(start_date_str, chart_date_config) if start_date_str else ""
-                finish_display = internal_to_display_date(finish_date_str, chart_date_config) if finish_date_str else ""
+                start_display = internal_to_display_date(start_date_str, date_config) if start_date_str else ""
+                finish_display = internal_to_display_date(finish_date_str, date_config) if finish_date_str else ""
                 if start_display and finish_display:
                     if start_display == finish_display:
                         return start_display
@@ -253,15 +261,15 @@ class GanttChartService(QObject):
             if is_milestone:
                 # For milestones: "Task Name (01/01/2025)"
                 date_str = start_date_str if start_date_str else finish_date_str
-                date_display = internal_to_display_date(date_str, chart_date_config) if date_str else ""
+                date_display = internal_to_display_date(date_str, date_config) if date_str else ""
                 if date_display:
                     return f"{task_name} ({date_display})"
                 else:
                     return task_name
             else:
                 # For tasks: "Task Name (01/01/2025 - 31/01/2025)"
-                start_display = internal_to_display_date(start_date_str, chart_date_config) if start_date_str else ""
-                finish_display = internal_to_display_date(finish_date_str, chart_date_config) if finish_date_str else ""
+                start_display = internal_to_display_date(start_date_str, date_config) if start_date_str else ""
+                finish_display = internal_to_display_date(finish_date_str, date_config) if finish_date_str else ""
                 if start_display and finish_display:
                     if start_display == finish_display:
                         return f"{task_name} ({start_display})"
@@ -415,7 +423,7 @@ class GanttChartService(QObject):
         Returns:
             Dictionary with extracted task info: start_date_str, finish_date_str, is_milestone,
             label_placement, label_content, label_hide, task_name, fill_color, label_horizontal_offset,
-            label_text, task_row
+            label_text, task_row, task_id, date_format
         """
         start_date_str = task.get("start_date", "")
         finish_date_str = task.get("finish_date", "")
@@ -434,9 +442,10 @@ class GanttChartService(QObject):
         label_horizontal_offset = task.get("label_horizontal_offset", 0.0)  # Get label offset, default to 0.0
         task_row = task.get("row_number", 1)
         task_id = task.get("task_id")
+        date_format = task.get("date_format")  # Get task-specific date format, None uses global
         
-        # Format label text based on label_content
-        label_text = self._format_label_text(task_name, start_date_str, finish_date_str, label_content, is_milestone)
+        # Format label text based on label_content, using task-specific date format if provided
+        label_text = self._format_label_text(task_name, start_date_str, finish_date_str, label_content, is_milestone, task_date_format=date_format)
         
         return {
             "start_date_str": start_date_str,
@@ -450,7 +459,8 @@ class GanttChartService(QObject):
             "label_horizontal_offset": label_horizontal_offset,
             "label_text": label_text,
             "task_row": task_row,
-            "task_id": task_id
+            "task_id": task_id,
+            "date_format": date_format
         }
     
     def _validate_and_parse_task_dates(self, task_info: dict, start_date: datetime, end_date: datetime, num_rows: int) -> tuple:

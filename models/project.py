@@ -73,6 +73,8 @@ class ProjectData:
                 task_dict["label_text_colour"] = task.label_text_colour
             if task.fill_color != "blue":
                 task_dict["fill_color"] = task.fill_color
+            if task.date_format:
+                task_dict["date_format"] = task.date_format
             tasks_data.append(task_dict)
         
         # FrameConfig: save all fields (all are necessary)

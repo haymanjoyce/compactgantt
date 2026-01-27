@@ -8,6 +8,7 @@ from datetime import datetime
 import logging
 from utils.conversion import normalize_display_date, safe_int, display_to_internal_date, internal_to_display_date, parse_internal_date
 from models import Task
+from config.date_config import DATE_FORMAT_OPTIONS
 
 from ui.table_utils import NumericTableWidgetItem, DateTableWidgetItem, DateEditWidget, add_row, remove_row, CheckBoxWidget, highlight_table_errors, extract_table_data
 from .base_tab import BaseTab
@@ -257,8 +258,20 @@ class TasksTab(BaseTab):
         self.detail_fill_color.currentTextChanged.connect(self._on_detail_form_changed)
         self.detail_fill_color.setEnabled(False)
         
+        # Date Format
+        date_format_label = QLabel("Date Format:")
+        date_format_label.setFixedWidth(LABEL_WIDTH)
+        self.detail_date_format = QComboBox()
+        # Add "Use Global" as first option (None), then all available formats
+        self.detail_date_format.addItem("Use Global")
+        for format_name in DATE_FORMAT_OPTIONS.keys():
+            self.detail_date_format.addItem(format_name)
+        self.detail_date_format.setToolTip("Date format for this task's labels. 'Use Global' uses the chart's default date format.")
+        self.detail_date_format.currentTextChanged.connect(self._on_detail_form_changed)
+        self.detail_date_format.setEnabled(False)
+        
         # Store list of detail form widgets for easy enable/disable
-        self._detail_form_widgets = [self.detail_label_content, self.detail_placement, self.detail_offset, self.detail_fill_color]
+        self._detail_form_widgets = [self.detail_label_content, self.detail_placement, self.detail_offset, self.detail_fill_color, self.detail_date_format]
         
         # Layout form fields vertically (like titles tab)
         layout.addWidget(label_label, 0, 0)
@@ -269,6 +282,8 @@ class TasksTab(BaseTab):
         layout.addWidget(self.detail_offset, 2, 1)
         layout.addWidget(color_label, 3, 0)
         layout.addWidget(self.detail_fill_color, 3, 1)
+        layout.addWidget(date_format_label, 4, 0)
+        layout.addWidget(self.detail_date_format, 4, 1)
         
         layout.setColumnStretch(1, 1)
         
@@ -305,6 +320,11 @@ class TasksTab(BaseTab):
                 self.detail_placement.setCurrentText(task.label_placement if task.label_placement else "Inside")
                 self.detail_offset.setValue(int(task.label_horizontal_offset) if task.label_horizontal_offset is not None else 0)
                 self.detail_fill_color.setCurrentText(task.fill_color if task.fill_color else "blue")
+                # Set date format: "Use Global" if None, otherwise the format name
+                if task.date_format:
+                    self.detail_date_format.setCurrentText(task.date_format)
+                else:
+                    self.detail_date_format.setCurrentText("Use Global")
                 # Enable detail form widgets when a valid task is selected
                 self._set_detail_form_enabled(self._detail_form_widgets, True)
             else:
@@ -313,6 +333,7 @@ class TasksTab(BaseTab):
                 self.detail_placement.setCurrentText("Inside")
                 self.detail_offset.setValue(0)
                 self.detail_fill_color.setCurrentText("blue")
+                self.detail_date_format.setCurrentText("Use Global")
                 self._set_detail_form_enabled(self._detail_form_widgets, False)
         finally:
             self._updating_form = False
@@ -325,6 +346,7 @@ class TasksTab(BaseTab):
             self.detail_placement.setCurrentText("Inside")
             self.detail_offset.setValue(0)
             self.detail_fill_color.setCurrentText("blue")
+            self.detail_date_format.setCurrentText("Use Global")
             # Disable detail form widgets when no task is selected
             self._set_detail_form_enabled(self._detail_form_widgets, False)
         finally:
@@ -640,12 +662,13 @@ class TasksTab(BaseTab):
             elif finish_date_internal and not start_date_internal and not start_date_conversion_failed:
                 start_date_internal = finish_date_internal  # Auto-populate start date
             
-            # Extract Label Content, Placement, Offset, and Fill Color from detail form if this is the selected row
+            # Extract Label Content, Placement, Offset, Fill Color, and Date Format from detail form if this is the selected row
             # Otherwise, get from existing Task object
             label_content = "Name only"
             label_placement = "Inside"
             label_horizontal_offset = 0.0
             fill_color = "blue"
+            date_format = None
             
             if row_idx == self._selected_row:
                 # Use values from detail form
@@ -659,6 +682,10 @@ class TasksTab(BaseTab):
                     label_horizontal_offset = float(self.detail_offset.value())
                 if self.detail_fill_color:
                     fill_color = self.detail_fill_color.currentText()
+                if self.detail_date_format:
+                    # Convert "Use Global" to None, otherwise use the format name
+                    date_format_text = self.detail_date_format.currentText()
+                    date_format = None if date_format_text == "Use Global" else date_format_text
             else:
                 # Get from existing Task object if available (look up by task_id)
                 existing_task = next((t for t in self.project_data.tasks if t.task_id == task_id), None)
@@ -667,6 +694,7 @@ class TasksTab(BaseTab):
                     label_placement = existing_task.label_placement
                     label_horizontal_offset = existing_task.label_horizontal_offset if hasattr(existing_task, 'label_horizontal_offset') else 0.0
                     fill_color = existing_task.fill_color if hasattr(existing_task, 'fill_color') else "blue"
+                    date_format = existing_task.date_format if hasattr(existing_task, 'date_format') else None
             
             # Create Task object
             task = Task(
@@ -681,7 +709,8 @@ class TasksTab(BaseTab):
                 label_alignment="Centre",
                 label_horizontal_offset=label_horizontal_offset,
                 label_text_colour="black",
-                fill_color=fill_color
+                fill_color=fill_color,
+                date_format=date_format
             )
             
             return task
@@ -1349,7 +1378,8 @@ class TasksTab(BaseTab):
                 label_alignment=original_task.label_alignment,
                 label_horizontal_offset=original_task.label_horizontal_offset,
                 label_text_colour=original_task.label_text_colour,
-                fill_color=original_task.fill_color
+                fill_color=original_task.fill_color,
+                date_format=original_task.date_format if hasattr(original_task, 'date_format') else None
             )
             tasks_to_duplicate.append((row_idx, new_task))
             used_ids.add(next_id)
