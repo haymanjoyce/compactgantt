@@ -1,16 +1,20 @@
 from typing import List, Set, Dict, Any
 from datetime import datetime
 from models import Task
-from utils.conversion import is_valid_internal_date, parse_internal_date, compare_internal_dates
+from utils.conversion import is_valid_internal_date, parse_internal_date, compare_internal_dates, safe_int
 
 
 class DataValidator:
     @staticmethod
     def validate_task(task: Task, used_ids: Set[int]) -> List[str]:
         errors = []
-        if task.task_id <= 0:
+        # Normalize task_id and row_number to int to handle legacy data with string values
+        task_id = safe_int(task.task_id)
+        row_number = safe_int(task.row_number)
+        
+        if task_id <= 0:
             errors.append("Task ID must be positive")
-        if task.task_id in used_ids:
+        if task_id in used_ids:
             errors.append("Task ID must be unique")
         if not is_valid_internal_date(task.start_date):
             errors.append("Invalid start date format (should be yyyy-mm-dd)")
@@ -22,7 +26,7 @@ class DataValidator:
             if compare_internal_dates(task.finish_date, task.start_date) is False:
                 errors.append("Finish date must be on or after start date")
         
-        if task.row_number <= 0:
+        if row_number <= 0:
             errors.append("Row number must be positive")
         return errors
 
@@ -72,4 +76,3 @@ class DataValidator:
         if id_value in used_ids:
             errors.append(f"{entity_name} ID must be unique")
         return errors 
-

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
+from utils.conversion import safe_int, safe_float
 
 
 @dataclass
@@ -42,17 +43,17 @@ class Task:
             label_content = label_content  # Use new field if present
         
         return cls(
-            task_id=data["task_id"],
-            task_name=data["task_name"],
+            task_id=safe_int(data.get("task_id"), default=0),
+            task_name=data.get("task_name", ""),
             start_date=start_date,
             finish_date=finish_date,
-            row_number=data["row_number"],
+            row_number=safe_int(data.get("row_number"), default=0),
             is_milestone=data.get("is_milestone", False),
             label_placement=data.get("label_placement", "Outside"),
             label_hide=data.get("label_hide", "Yes"),  # Keep for backward compatibility
             label_content=label_content,
             label_alignment=data.get("label_alignment", "Centre"),
-            label_horizontal_offset=data.get("label_horizontal_offset", 0.0),
+            label_horizontal_offset=safe_float(data.get("label_horizontal_offset"), default=0.0),
             label_text_colour=data.get("label_text_colour", "black"),
             fill_color=data.get("fill_color", "blue"),
             date_format=data.get("date_format")  # Optional task-specific date format

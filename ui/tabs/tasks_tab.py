@@ -1241,7 +1241,7 @@ class TasksTab(BaseTab):
                 return
             
             # Create a mapping of task_id to task for quick lookup
-            task_map = {task.task_id: task for task in self.project_data.tasks}
+            task_map = {safe_int(task.task_id): task for task in self.project_data.tasks}
             
             # Block signals to prevent recursive updates
             was_blocked = self.tasks_table.signalsBlocked()
@@ -1275,7 +1275,7 @@ class TasksTab(BaseTab):
                         return
                     
                     # Build used_ids set from all tasks for validation
-                    used_ids: Set[int] = set(task.task_id for task in self.project_data.tasks)
+                    used_ids: Set[int] = {safe_int(task.task_id) for task in self.project_data.tasks}
                     logging.debug(f"_update_valid_column_only: Found {len(used_ids)} tasks in project_data. Task IDs: {sorted(used_ids)}")
                     
                     # For each table row, find the corresponding task by task_id
@@ -1345,7 +1345,7 @@ class TasksTab(BaseTab):
                             continue
                         
                         # Calculate valid status (exclude current task from used_ids for uniqueness check)
-                        task_used_ids = used_ids - {task.task_id}
+                        task_used_ids = used_ids - {safe_int(task.task_id)}
                         row_errors = self.project_data.validator.validate_task(task, task_used_ids)
                         valid_status = "No" if row_errors else "Yes"
                         
