@@ -253,11 +253,6 @@ class ProjectData:
             # Validate each task
             used_ids: Set[int] = set()
             for task in tasks:
-                # Temporary debug: log exactly what is being validated
-                logging.warning(
-                    f"update_tasks: task_id={task.task_id} start_date={repr(task.start_date)} "
-                    f"finish_date={repr(task.finish_date)} row_number={task.row_number}"
-                )
                 row_errors = self.validator.validate_task(
                     task, used_ids, self.app_config.general.ui_date_config
                 )

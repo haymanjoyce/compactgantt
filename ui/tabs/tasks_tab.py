@@ -874,7 +874,6 @@ class TasksTab(BaseTab):
                     task, used_ids, self.app_config.general.ui_date_config
                 )
                 valid_status = "No" if row_errors else "Yes"
-                logging.warning(f"_update_table_row_from_task: row_idx={row_idx} task_id={task.task_id} row_errors={row_errors} -> valid_status={valid_status}")
                 
                 item = self.tasks_table.item(row_idx, valid_vis_col)
                 if item:
@@ -1360,17 +1359,10 @@ class TasksTab(BaseTab):
                         
                         # Calculate valid status (exclude current task from used_ids for uniqueness check)
                         task_used_ids = used_ids - {safe_int(task.task_id)}
-                        # Temporary debug: log exactly what is being validated
-                        logging.warning(
-                            f"_update_valid_column_only: Row {row_idx} task_id={task.task_id} "
-                            f"start_date={repr(task.start_date)} finish_date={repr(task.finish_date)} "
-                            f"row_number={task.row_number}"
-                        )
                         row_errors = self.project_data.validator.validate_task(
                             task, task_used_ids, self.app_config.general.ui_date_config
                         )
                         valid_status = "No" if row_errors else "Yes"
-                        logging.warning(f"_update_valid_column_only: Row {row_idx} task_id={task_id} row_errors={row_errors} -> valid_status={valid_status}")
                         
                         if row_errors:
                             logging.debug(f"_update_valid_column_only: Row {row_idx}: Task {task_id} validation failed: {row_errors}")
