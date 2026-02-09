@@ -1,5 +1,3 @@
-
-```markdown
 # Compact Gantt - Complete Specification
 
 ## Project Overview
@@ -581,5 +579,4 @@ This is a **complete rewrite** as a modern web application:
 ---
 
 END OF SPECIFICATION
-```
 
