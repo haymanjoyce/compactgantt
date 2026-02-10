@@ -8,12 +8,13 @@ Modern, client-side web application for creating Gantt charts. 100% browser-base
 ## Architecture
 
 ### Technology Stack
+- **Language**: JavaScript (no build step) - plain JS, no bundler or transpiler; scripts loaded via `<script>` in `index.html`
 - **Data Entry**: jSpreadsheet CE (MIT license) - Excel-like spreadsheet in browser
-- **Gantt Visualization**: Frappe Gantt (MIT license) - Modern, beautiful charts
+- **Gantt Visualization**: D3.js (BSD license) - Renders chart data into SVG in the DOM; SVG is consumable by the browser for display and export
 - **Excel Import/Export**: SheetJS (Apache 2.0) - Read/write Excel files in browser
-- **Image Export**: html2canvas (MIT) - Export to PNG
+- **Image Export**: html2canvas (MIT) - Export to PNG; SVG export by serializing the D3-rendered SVG element
 - **Styling**: TailwindCSS via CDN
-- **No build step**: All libraries via CDN, works by opening index.html
+- **No build step**: All libraries via CDN; works by opening index.html
 
 ### File Structure
 ```
@@ -75,7 +76,7 @@ compactgantt/
 
 5. **Image Export**
    - Export to PNG (transparent or white background)
-   - Export to SVG (vector, scalable): implement via Frappe Gantt's SVG output if available, or by serializing the chart's SVG element and triggering download
+   - Export to SVG (vector, scalable): D3 renders into an SVG element; serialize that element (e.g. `innerHTML` or `XMLSerializer`) and trigger download
    - Download directly from browser
 
 ### UI Layout
@@ -93,7 +94,7 @@ compactgantt/
 │  ✓ No errors found / ⚠ 3 errors found               │
 ├─────────────────────────────────────────────────────┤
 │                                                      │
-│  Gantt Chart (Frappe Gantt)                         │
+│  Gantt Chart (D3 → SVG)                             │
 │  Visual timeline                                    │
 │                                                      │
 └─────────────────────────────────────────────────────┘
@@ -283,32 +284,23 @@ jspreadsheet(document.getElementById('spreadsheet'), {
 });
 ```
 
-### Frappe Gantt Configuration
-- **Sort order**: Sort tasks by `lane` then `row` before passing to the Gantt so swimlanes and order within lane display correctly.
+### D3 Gantt (SVG)
+- **Role of D3**: Parse chart data (tasks, date range) and render into SVG (time axis, swimlane rows, task bars, lane styling). The result is a single SVG element in the DOM, consumable by the browser for display and by export for SVG/PNG.
+- **Sort order**: Sort tasks by `lane` then `row` before rendering so swimlanes and order within lane display correctly.
+- **Approach**: Use D3 to create/update an SVG (e.g. in a container `#gantt`): time scale (`d3.scaleTime()`), axis, one row band per swimlane, and `<rect>` elements for each task bar. Apply lane colors via class (e.g. `lane-1`) or fill. No separate "Gantt widget"; D3 produces the SVG directly.
 
 ```javascript
 // Sort by lane, then row
 tasks.sort((a, b) => (a.lane - b.lane) || (a.row - b.row));
 
-// Generate Gantt tasks
-const ganttTasks = tasks.map(task => ({
-    id: `task-${task.id}`,
-    name: task.name,
-    start: task.start,
-    end: task.end,
-    progress: 0,
-    custom_class: `lane-${task.lane}`
-}));
+// Build D3-friendly data: date range from all tasks, lanes from unique task.lane
+const xScale = d3.scaleTime()
+  .domain([d3.min(tasks, t => new Date(t.start)), d3.max(tasks, t => new Date(t.end))])
+  .range([0, chartWidth]);
 
-// Render
-const gantt = new Gantt("#gantt", ganttTasks, {
-    view_mode: 'Day',
-    bar_height: 30,
-    bar_corner_radius: 3,
-    arrow_curve: 5,
-    padding: 18,
-    date_format: 'YYYY-MM-DD'
-});
+// Create/update SVG: axis, swimlane rows, task rects (x = xScale(start), width = xScale(end) - xScale(start))
+const svg = d3.select("#gantt").selectOrCreate("svg");
+// ... append g for axis, g for grid/lanes, g for bars; bind tasks, draw rects with xScale, lane-based y
 ```
 
 ### Excel Import (SheetJS)
@@ -433,9 +425,8 @@ function exportPNG() {
 <script src="https://cdn.jsdelivr.net/npm/jsuites@4/dist/jsuites.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsuites@4/dist/jsuites.min.css">
 
-<!-- Frappe Gantt -->
-<script src="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.min.css">
+<!-- D3.js (renders Gantt data into SVG) -->
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 
 <!-- SheetJS -->
 <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
@@ -450,7 +441,7 @@ function exportPNG() {
 <script src="https://cdn.tailwindcss.com"></script>
 ```
 
-**Total Bundle Size**: ~800KB (first load only, then cached)
+**Total Bundle Size**: ~700KB (first load only, then cached; D3 ~80KB min)
 
 ---
 
