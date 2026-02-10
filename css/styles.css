@@ -1,0 +1,91 @@
+/* Compact Gantt - Custom styles */
+:root {
+  --primary: #3b82f6;
+  --success: #10b981;
+  --error: #ef4444;
+  --warning: #f59e0b;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-600: #4b5563;
+  --gray-900: #111827;
+}
+
+/* Lane colors (swimlanes) */
+.lane-1 { fill: #93c5fd; }
+.lane-2 { fill: #86efac; }
+.lane-3 { fill: #fde68a; }
+.lane-4 { fill: #fca5a5; }
+.lane-5 { fill: #c4b5fd; }
+.lane-6 { fill: #f9a8d4; }
+.lane-7 { fill: #a5f3fc; }
+.lane-8 { fill: #d9f99d; }
+
+/* Gantt container */
+#gantt {
+  overflow-x: auto;
+  overflow-y: auto;
+  min-height: 320px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-100);
+  border-radius: 6px;
+}
+
+#gantt svg {
+  display: block;
+}
+
+/* Validation panel */
+.validation-panel {
+  background: var(--gray-50);
+  border: 1px solid var(--gray-100);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+}
+
+.validation-panel.valid {
+  color: var(--success);
+}
+
+.validation-panel.invalid {
+  color: var(--warning);
+}
+
+.validation-errors {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--gray-600);
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+/* Header controls */
+.controls button {
+  margin-right: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Spreadsheet wrapper */
+.spreadsheet-wrapper {
+  min-height: 200px;
+  margin: 1rem 0;
+}
+
+/* Task bar hover */
+.gantt-bar {
+  cursor: pointer;
+}
+
+.gantt-bar:hover {
+  opacity: 0.9;
+}
+
+/* Axis and grid */
+.gantt-axis text {
+  font-size: 11px;
+  fill: var(--gray-600);
+}
+
+.gantt-grid line {
+  stroke: var(--gray-100);
+  stroke-width: 1;
+}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compact Gantt</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsuites@4/dist/jsuites.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jspreadsheet-ce@4/dist/jspreadsheet.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+  <div class="max-w-7xl mx-auto px-4 py-4">
+    <header class="flex flex-wrap items-center justify-between gap-4 mb-4">
+      <h1 class="text-xl font-semibold">Compact Gantt</h1>
+      <div class="controls flex flex-wrap gap-2">
+        <button type="button" id="btn-import-excel" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 rounded text-sm">
+          Import Excel
+        </button>
+        <button type="button" id="btn-export-excel" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 rounded text-sm">
+          Export Excel
+        </button>
+        <button type="button" id="btn-validate" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">
+          Validate
+        </button>
+        <div class="inline-flex rounded overflow-hidden border border-gray-300">
+          <button type="button" id="btn-export-png" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-sm">
+            Export PNG
+          </button>
+          <button type="button" id="btn-export-svg" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-sm border-l border-gray-300">
+            Export SVG
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <input type="file" id="file-excel" accept=".xlsx,.xls" class="hidden" />
+
+    <section class="spreadsheet-wrapper mb-4">
+      <div id="spreadsheet"></div>
+    </section>
+
+    <section class="validation-panel valid mb-4" id="validation-panel">
+      <div id="validation-summary">✓ No errors found. Add tasks and click Validate.</div>
+      <div id="validation-errors" class="validation-errors hidden"></div>
+    </section>
+
+    <section class="mb-4">
+      <h2 class="text-sm font-medium text-gray-600 mb-2">Gantt Chart</h2>
+      <div id="gantt"></div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jsuites@4/dist/jsuites.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspreadsheet-ce@4/dist/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+  <script src="js/validation.js"></script>
+  <script src="js/spreadsheet.js"></script>
+  <script src="js/gantt.js"></script>
+  <script src="js/excel.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

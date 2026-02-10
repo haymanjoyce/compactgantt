@@ -1,0 +1,1 @@
+Template: Use the app's "Export Excel" button (with or without data) to download an Excel file with the correct columns (ID, Task Name, Start Date, End Date, Row, Lane). Save it here as template.xlsx if you want a local template.
