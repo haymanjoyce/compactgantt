@@ -75,7 +75,7 @@ compactgantt/
 
 5. **Image Export**
    - Export to PNG (transparent or white background)
-   - Export to SVG (vector, scalable)
+   - Export to SVG (vector, scalable): implement via Frappe Gantt's SVG output if available, or by serializing the chart's SVG element and triggering download
    - Download directly from browser
 
 ### UI Layout
@@ -234,6 +234,9 @@ class DataValidator {
 
 ## Implementation Details
 
+### Data Flow
+- **Spreadsheet → app data**: Use jSpreadsheet's get-data API (see [jSpreadsheet CE docs](https://jspreadsheet.com/)) to read all rows, then map columns to task fields (ID, Task Name, Start Date, End Date, Row, Lane) for validation and Gantt.
+
 ### jSpreadsheet Configuration
 ```javascript
 jspreadsheet(document.getElementById('spreadsheet'), {
@@ -281,9 +284,11 @@ jspreadsheet(document.getElementById('spreadsheet'), {
 ```
 
 ### Frappe Gantt Configuration
+- **Sort order**: Sort tasks by `lane` then `row` before passing to the Gantt so swimlanes and order within lane display correctly.
+
 ```javascript
-// Group tasks by lane (swimlane)
-const tasksByLane = groupByLane(tasks);
+// Sort by lane, then row
+tasks.sort((a, b) => (a.lane - b.lane) || (a.row - b.row));
 
 // Generate Gantt tasks
 const ganttTasks = tasks.map(task => ({
