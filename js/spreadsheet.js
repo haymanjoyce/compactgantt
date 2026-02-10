@@ -45,8 +45,8 @@ function getTasksFromSpreadsheet() {
       if (!Array.isArray(row) || row.length < 6) continue;
       const id = parseCellNum(row[COL.ID]);
       const name = parseCellStr(row[COL.TASK_NAME]);
-      const start = parseCellStr(row[COL.START_DATE]);
-      const end = parseCellStr(row[COL.END_DATE]);
+      const start = parseCellDate(row[COL.START_DATE]);
+      const end = parseCellDate(row[COL.END_DATE]);
       const rowNum = parseCellNum(row[COL.ROW]);
       const lane = parseCellNum(row[COL.LANE]);
       if (id == null && !name && start == null && end == null && rowNum == null && lane == null) continue;
@@ -97,6 +97,17 @@ function parseCellStr(v) {
   if (v == null) return null;
   const s = String(v).trim();
   return s === "" ? null : s;
+}
+
+function parseCellDate(v) {
+  if (v == null || v === "") return null;
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v.toISOString().slice(0, 10);
+  const s = String(v).trim();
+  if (s === "") return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (s.indexOf("T") !== -1) return s.slice(0, 10);
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
 function setSpreadsheetData(rows) {

@@ -63,7 +63,13 @@ const DataValidator = {
 
   isValidDate(dateString) {
     if (dateString == null || dateString === "") return false;
-    const s = String(dateString).trim();
+    let s;
+    if (dateString instanceof Date) {
+      s = dateString.toISOString().slice(0, 10);
+    } else {
+      s = String(dateString).trim();
+      if (s.indexOf("T") !== -1) s = s.slice(0, 10);
+    }
     const regex = /^\d{4}-\d{2}-\d{2}$/;
     if (!regex.test(s)) return false;
     const date = new Date(s);
