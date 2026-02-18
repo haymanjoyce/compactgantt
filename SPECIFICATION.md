@@ -1,5 +1,7 @@
 # Compact Gantt - Complete Specification
 
+**Version:** 1.1
+
 ## Project Overview
 Modern, client-side web application for creating Gantt charts. 100% browser-based, no backend required. Works locally and can be deployed to GitHub Pages for free.
 
@@ -571,6 +573,13 @@ This is a **complete rewrite** as a modern web application:
 - ✅ Easier to use
 
 **Total Development Effort**: ~8-12 hours for MVP
+
+---
+
+## Spec history
+
+- **1.1** – Technology: JavaScript (no build), D3 for Gantt SVG; data flow, Gantt sort order, SVG export note. Implementation: date normalization (Date/ISO → YYYY-MM-DD) in spreadsheet and validator.
+- **1.0** – Initial spec (Frappe Gantt, MVP scope).
 
 ---
 
