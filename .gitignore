@@ -133,6 +133,9 @@ cython_debug/
 # VS Code
 .vscode/
 
+# Claude Code (local-only permissions/settings; CLAUDE.md and settings.json are safe to commit)
+.claude/settings.local.json
+
 # Custom entries from the current .gitignore file
 *.tmp
 *.svg
