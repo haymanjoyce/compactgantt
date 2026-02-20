@@ -2,7 +2,7 @@
 
 Notes on what to work on next. Resume from here when picking up development again.
 
-*Last updated: 2026-02-02. Development paused; repo left in a clean state.*
+*Last updated: 2026-01-28. Development paused; repo left in a clean state.*
 
 ## REFACTOR
 
@@ -21,5 +21,4 @@ Notes on what to work on next. Resume from here when picking up development agai
 
 ## BUGS
 
-- When changing task Finish date, the Start calendar does not update to reflect change immediately
 - Some task data (e.g., colours, name position) seem to change when I perform certain operations (e.g. moving a task); check they are not losing association with task ID

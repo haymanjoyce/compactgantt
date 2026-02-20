@@ -123,6 +123,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.1] - 2026-01-28
+
+### Fixed
+- Task tab: when Start or Finish date is changed, the other date field's min/max constraint now updates immediately (fixed row lookup so the correct task row is found)
+
+---
+
 ## [Unreleased]
 
 ### Planned
@@ -133,5 +140,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.1.1]: https://github.com/richardhaymanjoyce/compact_gantt/releases/tag/v1.1.1
 [1.1.0]: https://github.com/richardhaymanjoyce/compact_gantt/releases/tag/v1.1.0
 [1.0.0]: https://github.com/richardhaymanjoyce/compact_gantt/releases/tag/v1.0.0
