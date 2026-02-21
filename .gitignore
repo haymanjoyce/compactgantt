@@ -75,6 +75,9 @@ instance/
 # Sphinx documentation
 docs/_build/
 
+# Specs (generated or local content)
+docs/specs/
+
 # PyBuilder
 target/
 
