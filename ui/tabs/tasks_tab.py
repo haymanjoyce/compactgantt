@@ -1,8 +1,8 @@
-from PyQt5.QtWidgets import (QWidget, QTableWidget, QVBoxLayout, QPushButton, 
-                           QHBoxLayout, QComboBox, QHeaderView, QTableWidgetItem, 
-                           QMessageBox, QGroupBox, QSizePolicy, QLabel, QGridLayout, QLineEdit, QSpinBox, QDateEdit, QStyledItemDelegate)
-from PyQt5.QtCore import Qt, pyqtSignal, QDate, QModelIndex
-from PyQt5.QtGui import QBrush, QColor, QPainter, QPen
+from PyQt5.QtWidgets import (QWidget, QTableWidget, QVBoxLayout, QPushButton,
+                           QHBoxLayout, QComboBox, QHeaderView, QTableWidgetItem,
+                           QMessageBox, QGroupBox, QSizePolicy, QLabel, QGridLayout, QLineEdit, QSpinBox, QDateEdit)
+from PyQt5.QtCore import Qt, pyqtSignal, QDate
+from PyQt5.QtGui import QBrush, QColor, QFont
 from typing import List, Dict, Any, Optional, Set, Tuple
 from datetime import datetime
 import logging
@@ -15,44 +15,8 @@ from .base_tab import BaseTab
 
 # Logging is configured centrally in utils/logging_config.py
 
-# Custom data role for marking swimlane boundary rows
-SWIMLANE_BOUNDARY_ROLE = Qt.UserRole + 100
-
-class SwimlaneDividerDelegate(QStyledItemDelegate):
-    """Delegate that draws a thicker bottom border for swimlane boundary rows."""
-    
-    def paint(self, painter, option, index):
-        # First, do the standard painting
-        super().paint(painter, option, index)
-        
-        # Check if this row is a swimlane boundary
-        # Check the current item's data role, or check the first column's item if current cell has no item
-        is_boundary = index.data(SWIMLANE_BOUNDARY_ROLE)
-        
-        # If current cell doesn't have boundary role but it's a widget cell, check the first column
-        if not is_boundary and index.column() > 0:
-            table = None
-            if hasattr(option, 'widget') and option.widget:
-                table = option.widget
-            if table and isinstance(table, QTableWidget):
-                first_col_item = table.item(index.row(), 0)
-                if first_col_item:
-                    is_boundary = first_col_item.data(SWIMLANE_BOUNDARY_ROLE)
-        
-        if is_boundary:
-            # Draw a thicker bottom border (2px, matching chart style)
-            painter.save()
-            pen = QPen(QColor("#808080"), 2)  # Gray, 2px thick
-            painter.setPen(pen)
-            
-            # Draw line at bottom of cell
-            # Drawing on all cells will create a continuous line
-            bottom = option.rect.bottom()
-            left = option.rect.left()
-            right = option.rect.right()
-            painter.drawLine(left, bottom, right, bottom)
-            
-            painter.restore()
+# Custom data role for marking swimlane header rows
+SWIMLANE_HEADER_ROLE = Qt.UserRole + 101
 
 class TasksTab(BaseTab):
     data_updated = pyqtSignal(dict)
@@ -75,10 +39,11 @@ class TasksTab(BaseTab):
         toolbar = QHBoxLayout()
         toolbar.setSpacing(8)
         
-        add_btn = QPushButton("Add Task")
-        add_btn.setToolTip("Add a new task to the chart (Ctrl+N)")
-        add_btn.setMinimumWidth(100)
-        add_btn.clicked.connect(self._add_task)
+        self.add_btn = QPushButton("Add Task")
+        self.add_btn.setToolTip("Add a new task to the chart (Ctrl+N)")
+        self.add_btn.setMinimumWidth(100)
+        self.add_btn.setEnabled(False)  # Disabled until a task row is selected
+        self.add_btn.clicked.connect(self._add_task)
         
         remove_btn = QPushButton("Remove Task")
         remove_btn.setToolTip("Remove selected task(s) from the chart (Delete)")
@@ -101,7 +66,7 @@ class TasksTab(BaseTab):
         move_down_btn.setMinimumWidth(100)
         move_down_btn.clicked.connect(self._move_down)
         
-        toolbar.addWidget(add_btn)
+        toolbar.addWidget(self.add_btn)
         toolbar.addWidget(remove_btn)
         toolbar.addWidget(duplicate_btn)
         toolbar.addWidget(move_up_btn)
@@ -116,7 +81,7 @@ class TasksTab(BaseTab):
         
         # Create table - show: Lane, ID, Row, Name, Start Date, Finish Date, Valid
         headers = [col.name for col in self.table_config.columns]
-        visible_columns = ["Lane", "ID", "Row", "Name", "Start Date", "Finish Date", "Valid"]
+        visible_columns = ["ID", "Chart Row", "Name", "Start Date", "Finish Date", "Valid"]
         visible_indices = [headers.index(col) for col in visible_columns if col in headers]
         
         self.tasks_table = QTableWidget(0, len(visible_indices))
@@ -136,11 +101,7 @@ class TasksTab(BaseTab):
         
         # Add bottom border to header row and gridline styling
         self.tasks_table.setStyleSheet(self.app_config.general.table_stylesheet)
-        
-        # Set custom delegate for swimlane divider rendering
-        self.swimlane_delegate = SwimlaneDividerDelegate(self.tasks_table)
-        self.tasks_table.setItemDelegate(self.swimlane_delegate)
-        
+
         # Column sizing - use key-based lookups instead of positional indices
         header = self.tasks_table.horizontalHeader()
         
@@ -159,7 +120,7 @@ class TasksTab(BaseTab):
                 lane_col = i
             elif header_text == "ID":
                 id_col = i
-            elif header_text == "Row":
+            elif header_text == "Chart Row":
                 row_col = i
             elif header_text == "Name":
                 name_col = i
@@ -295,6 +256,15 @@ class TasksTab(BaseTab):
     def _on_table_selection_changed(self):
         """Handle table selection changes - populate detail form."""
         selected_rows = self.tasks_table.selectionModel().selectedRows()
+
+        # Enable Add Task only when exactly one non-header task row is selected
+        add_enabled = (
+            len(selected_rows) == 1
+            and not self._is_header_row(selected_rows[0].row())
+        )
+        if hasattr(self, 'add_btn'):
+            self.add_btn.setEnabled(add_enabled)
+
         if not selected_rows:
             self._selected_row = None
             self._selected_task_id = None
@@ -441,6 +411,27 @@ class TasksTab(BaseTab):
         # Row number is outside all swimlanes
         return (None, None)
     
+    def _is_header_row(self, row_idx: int) -> bool:
+        """Return True if the given table row is a swimlane header row."""
+        item = self.tasks_table.item(row_idx, 0)
+        return item is not None and bool(item.data(SWIMLANE_HEADER_ROLE))
+
+    def _insert_swimlane_header_row(self, row_idx: int, swimlane_name: str) -> None:
+        """Populate row_idx as a non-editable, greyed-out, bold swimlane header row."""
+        header_color = QColor("#d0d0d0")
+        name_col = self._get_column_index("Name")
+        bold_font = QFont()
+        bold_font.setBold(True)
+        for col_idx in range(self.tasks_table.columnCount()):
+            item = QTableWidgetItem()
+            item.setFlags(Qt.ItemIsEnabled)  # Not selectable, not editable
+            item.setBackground(QBrush(header_color))
+            item.setData(SWIMLANE_HEADER_ROLE, True)
+            if col_idx == name_col:
+                item.setText(swimlane_name)
+                item.setFont(bold_font)
+            self.tasks_table.setItem(row_idx, col_idx, item)
+
     def _truncate_tooltip_text(self, text: str, max_length: int = 50) -> str:
         """Truncate text to max_length and add ellipsis if needed for tooltip display."""
         if not text:
@@ -451,9 +442,11 @@ class TasksTab(BaseTab):
     
     def _refresh_swimlane_columns_for_row(self, row_idx: int):
         """Refresh Lane column for a specific row with tooltip showing swimlane name."""
+        if self._is_header_row(row_idx):
+            return
         # Get row_number directly from the table's Row column (not from task object,
         # since task might not be updated yet when this is called during editing)
-        row_col = self._get_column_index("Row")
+        row_col = self._get_column_index("Chart Row")
 
         if row_col is None:
             return
@@ -521,112 +514,94 @@ class TasksTab(BaseTab):
         return (swimlane_order, task.row_number, finish_date)
     
     def _sort_tasks_by_swimlane_and_row(self):
-        """Sort tasks table by swimlane order (Lane), then row number, then finish date."""
-        # Disable sorting during manual sort
+        """Sort tasks by swimlane order, row number, finish date.
+
+        Inserts a non-editable swimlane header row before each swimlane group.
+        """
         was_sorting = self.tasks_table.isSortingEnabled()
         self.tasks_table.setSortingEnabled(False)
-        
+
         try:
-            # Store current selection by task_id (for restoration after sort)
-            selected_task_ids = set()
+            # Capture currently selected task IDs (skip header rows)
+            selected_task_ids: Set[int] = set()
             id_col = self._get_column_index("ID")
             if id_col is not None:
-                # Get selected row indices as a set for efficient lookup (key-based)
-                selected_row_indices = {index.row() for index in self.tasks_table.selectionModel().selectedRows()}
+                selected_row_indices = {idx.row() for idx in self.tasks_table.selectionModel().selectedRows()}
                 for row_idx in range(self.tasks_table.rowCount()):
-                    if self.tasks_table.item(row_idx, id_col) and row_idx in selected_row_indices:
-                        item = self.tasks_table.item(row_idx, id_col)
+                    if self._is_header_row(row_idx) or row_idx not in selected_row_indices:
+                        continue
+                    item = self.tasks_table.item(row_idx, id_col)
+                    if item:
                         try:
-                            task_id = int(item.text())
-                            selected_task_ids.add(task_id)
+                            selected_task_ids.add(int(item.text()))
                         except (ValueError, TypeError):
-                            continue
-            
-            # Get tasks from project_data and sort them
+                            pass
+
+            # Sort tasks from project_data
             tasks = list(self.project_data.tasks)
             tasks.sort(key=self._get_task_sort_key)
-            
-            # Block signals during rebuild
+
+            # Group tasks by swimlane order
+            swimlane_tasks: Dict[int, List[Task]] = {}
+            orphan_tasks: List[Task] = []
+            for task in tasks:
+                order, _ = self._get_swimlane_info_for_row(task.row_number)
+                if order is not None:
+                    swimlane_tasks.setdefault(order, []).append(task)
+                else:
+                    orphan_tasks.append(task)
+
+            swimlanes = self.project_data.swimlanes
+            # One header row per swimlane + one row per task
+            total_rows = len(swimlanes) + len(tasks)
+
             self.tasks_table.blockSignals(True)
-            
-            # Clear and repopulate in sorted order
             self.tasks_table.setRowCount(0)
-            self.tasks_table.setRowCount(len(tasks))
-            
-            for new_row_idx, task in enumerate(tasks):
-                # Populate row from task
-                self._update_table_row_from_task(new_row_idx, task)
-                
-                # Restore selection if this task was selected
+            self.tasks_table.setRowCount(total_rows)
+
+            rows_to_select: List[int] = []
+            current_row = 0
+
+            for order, swimlane in enumerate(swimlanes, start=1):
+                swimlane_name = swimlane.title if swimlane.title else f"Lane {order}"
+                self._insert_swimlane_header_row(current_row, swimlane_name)
+                current_row += 1
+                for task in swimlane_tasks.get(order, []):
+                    self._update_table_row_from_task(current_row, task)
+                    if task.task_id in selected_task_ids:
+                        rows_to_select.append(current_row)
+                    current_row += 1
+
+            for task in orphan_tasks:
+                self._update_table_row_from_task(current_row, task)
                 if task.task_id in selected_task_ids:
-                    self.tasks_table.selectRow(new_row_idx)
-            
+                    rows_to_select.append(current_row)
+                current_row += 1
+
+            # Trim any excess rows (safety net)
+            if current_row < self.tasks_table.rowCount():
+                self.tasks_table.setRowCount(current_row)
+
             self.tasks_table.blockSignals(False)
-            
-            # Mark swimlane boundaries
-            self._mark_swimlane_boundaries()
-            
+
+            # Restore selection
+            for row_idx in rows_to_select:
+                self.tasks_table.selectRow(row_idx)
+
         finally:
-            # Restore sorting state
             self.tasks_table.setSortingEnabled(was_sorting)
-    
-    def _mark_swimlane_boundaries(self):
-        """Mark rows that are the last row of each swimlane group with boundary role."""
-        # First, clear all boundary marks by storing row-level data
-        # Use the table's vertical header item data to store row-level boundary info
-        # Or use the first column's item as a row marker
-        for row_idx in range(self.tasks_table.rowCount()):
-            # Clear boundary marks from all items in the row
-            for col_idx in range(self.tasks_table.columnCount()):
-                item = self.tasks_table.item(row_idx, col_idx)
-                if item:
-                    item.setData(SWIMLANE_BOUNDARY_ROLE, False)
-        
-        if not self.project_data.swimlanes or self.tasks_table.rowCount() == 0:
-            return
-        
-        # Mark boundary rows: find the last visual row of each swimlane group
-        # Since tasks are sorted by swimlane_order, row_number, task_id,
-        # the last row of each swimlane group is the last row with that swimlane_order
-        current_swimlane_order = None
-        last_row_idx_in_swimlane = None
-        boundary_row_indices = set()
-        
-        for row_idx in range(self.tasks_table.rowCount()):
-            task = self._task_from_table_row(row_idx)
-            if task is None:
-                continue
-            
-            swimlane_order, _ = self._get_swimlane_info_for_row(task.row_number)
-            
-            # If swimlane order changed, mark the previous swimlane's last row
-            if current_swimlane_order is not None and swimlane_order != current_swimlane_order:
-                if last_row_idx_in_swimlane is not None:
-                    boundary_row_indices.add(last_row_idx_in_swimlane)
-            
-            current_swimlane_order = swimlane_order
-            last_row_idx_in_swimlane = row_idx
-        
-        # Mark the last swimlane's last row
-        if last_row_idx_in_swimlane is not None:
-            boundary_row_indices.add(last_row_idx_in_swimlane)
-        
-        # Mark all items in boundary rows
-        for row_idx in boundary_row_indices:
-            for col_idx in range(self.tasks_table.columnCount()):
-                item = self.tasks_table.item(row_idx, col_idx)
-                if item:
-                    item.setData(SWIMLANE_BOUNDARY_ROLE, True)
     
     def _task_from_table_row(self, row_idx: int) -> Optional[Task]:
         """
         Extract a Task object from a table row.
-        Returns None if the row is invalid or incomplete.
+        Returns None if the row is a swimlane header row or is invalid/incomplete.
         """
+        if self._is_header_row(row_idx):
+            return None
         try:
             # Get column indices by name (visible indices via overridden _get_column_index)
             id_col = self._get_column_index("ID")
-            row_col = self._get_column_index("Row")
+            row_col = self._get_column_index("Chart Row")
             name_col = self._get_column_index("Name")
             start_date_col = self._get_column_index("Start Date")
             finish_date_col = self._get_column_index("Finish Date")
@@ -756,7 +731,7 @@ class TasksTab(BaseTab):
         """
         # Get column indices by name (visible indices via overridden _get_column_index)
         id_col = self._get_column_index("ID")
-        row_col = self._get_column_index("Row")
+        row_col = self._get_column_index("Chart Row")
         name_col = self._get_column_index("Name")
         start_date_col = self._get_column_index("Start Date")
         finish_date_col = self._get_column_index("Finish Date")
@@ -1052,7 +1027,7 @@ class TasksTab(BaseTab):
                     item.setData(Qt.UserRole, int(val_str) if val_str else 0)
                 except (ValueError, AttributeError):
                     item.setData(Qt.UserRole, 0)
-            elif col_name == "Row":
+            elif col_name == "Chart Row":
                 try:
                     val_str = item.text().strip()
                     item.setData(Qt.UserRole, int(val_str) if val_str else 1)
@@ -1102,30 +1077,25 @@ class TasksTab(BaseTab):
             task = tasks[row_idx]
             self._update_table_row_from_task(row_idx, task)
         
-        # Sort by lane order, row number, then finish date
+        # Sort by lane order, row number, then finish date (inserts swimlane header rows)
         self._sort_tasks_by_swimlane_and_row()
-        
+
         # Ensure all read-only cells have proper styling
         self._ensure_read_only_styling()
-        
-        # Mark swimlane boundaries for divider rendering
-        self._mark_swimlane_boundaries()
-        
+
         self._initializing = False
-        
+
         # Disable detail form if no tasks exist or no selection
         if row_count == 0 or self._selected_row is None:
             self._clear_detail_form()
-        
+
         # Calculate and update Valid column for all rows
         self._update_valid_column_only()
-        
+
         # Refresh Lane columns to ensure tooltips are up-to-date after initial load and sort
-        # This ensures tooltips are set correctly even if swimlanes were loaded before tasks
-        # Note: This will trigger a re-sort, but that's okay since we just sorted above
-        # The re-sort ensures all lane tooltips are refreshed with current swimlane data
         for row_idx in range(self.tasks_table.rowCount()):
-            self._refresh_swimlane_columns_for_row(row_idx)
+            if not self._is_header_row(row_idx):
+                self._refresh_swimlane_columns_for_row(row_idx)
 
     def _sync_data(self):
         self._sync_data_impl()
@@ -1163,6 +1133,8 @@ class TasksTab(BaseTab):
 
         if id_col is not None:
             for row in range(self.tasks_table.rowCount()):
+                if self._is_header_row(row):
+                    continue
                 item = self.tasks_table.item(row, id_col)
                 if item:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
@@ -1170,6 +1142,8 @@ class TasksTab(BaseTab):
 
         if valid_col is not None:
             for row in range(self.tasks_table.rowCount()):
+                if self._is_header_row(row):
+                    continue
                 item = self.tasks_table.item(row, valid_col)
                 if item:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
@@ -1276,6 +1250,9 @@ class TasksTab(BaseTab):
 
                     # For each table row, find the corresponding task by task_id
                     for row_idx in range(self.tasks_table.rowCount()):
+                        # Skip swimlane header rows
+                        if self._is_header_row(row_idx):
+                            continue
                         # Extract task_id from ID column
                         id_item = self.tasks_table.item(row_idx, id_col)
                         if not id_item:
@@ -1371,16 +1348,20 @@ class TasksTab(BaseTab):
             logging.error(f"_update_valid_column_only: Error: {e}", exc_info=True)
 
     def _add_task(self):
-        """Add a new task, using selected task's row_number as default if available."""
-        # Get the selected task's row_number if a task is selected
-        default_row_number = None
-        if self._selected_row is not None:
-            task = self._task_from_table_row(self._selected_row)
-            if task:
-                default_row_number = task.row_number
-        
-        # Call add_row with the default row number and date_config
-        add_row(self.tasks_table, "tasks", self.app_config.tables, self, "ID", default_row_number=default_row_number, date_config=self.app_config.general.ui_date_config)
+        """Add a new task below the selected task, inheriting Chart Row, Start Date, and Finish Date."""
+        if self._selected_row is None:
+            return  # Button should be disabled, but guard defensively
+
+        task = self._task_from_table_row(self._selected_row)
+        default_row_number = task.row_number if task else 1
+        default_start_date = task.start_date if task else None
+        default_finish_date = task.finish_date if task else None
+
+        add_row(self.tasks_table, "tasks", self.app_config.tables, self, "ID",
+                default_row_number=default_row_number,
+                default_start_date=default_start_date,
+                default_finish_date=default_finish_date,
+                date_config=self.app_config.general.ui_date_config)
 
     def _duplicate_tasks(self):
         """Duplicate selected tasks with new IDs."""
@@ -1467,8 +1448,9 @@ class TasksTab(BaseTab):
             self.tasks_table.blockSignals(False)
             self.tasks_table.setSortingEnabled(was_sorting)
         
-        # Sync data to update project_data
+        # Sync data to update project_data, then re-sort to restore header rows
         self._sync_data()
+        self._sort_tasks_by_swimlane_and_row()
     
     def _move_up(self):
         """Move selected task(s) up by one row (decrease row_number by 1)."""
@@ -1487,7 +1469,7 @@ class TasksTab(BaseTab):
         
         try:
             moved_tasks = []
-            row_col = self._get_column_index("Row")
+            row_col = self._get_column_index("Chart Row")
 
             if row_col is None:
                 return
@@ -1569,7 +1551,7 @@ class TasksTab(BaseTab):
         
         try:
             moved_tasks = []
-            row_col = self._get_column_index("Row")
+            row_col = self._get_column_index("Chart Row")
 
             if row_col is None:
                 return

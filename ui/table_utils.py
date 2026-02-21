@@ -232,11 +232,13 @@ def extract_table_data(table, include_widgets=True, date_config: Optional[DateCo
         data.append(row_data)
     return data
 
-def add_row(table, table_key, table_configs, parent, id_field_name, row_index=None, default_row_number=None, date_config: Optional[DateConfig] = None):
+def add_row(table, table_key, table_configs, parent, id_field_name, row_index=None, default_row_number=None, date_config: Optional[DateConfig] = None, default_start_date: Optional[str] = None, default_finish_date: Optional[str] = None):
     """Add a row to a table with proper ID and sorting handling, using generic default value logic.
-    
+
     Args:
         default_row_number: Optional default row number for tasks table (if None, defaults to 1)
+        default_start_date: Optional start date string in internal format "yyyy-MM-dd" to pre-fill Start Date widget
+        default_finish_date: Optional finish date string in internal format "yyyy-MM-dd" to pre-fill Finish Date widget
     """
     try:
         config = table_configs.get(table_key)
@@ -345,7 +347,16 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
                 if date_config is None:
                     date_config = DateConfig()
                 date_edit = DateEditWidget(date_config=date_config)
-                date_edit.setDate(QDate.currentDate())  # Default to today
+                # Use inherited default dates if provided, otherwise default to today
+                inherited_date = None
+                if header_text == "Start Date" and default_start_date:
+                    inherited_date = QDate.fromString(default_start_date, "yyyy-MM-dd")
+                elif header_text == "Finish Date" and default_finish_date:
+                    inherited_date = QDate.fromString(default_finish_date, "yyyy-MM-dd")
+                if inherited_date and inherited_date.isValid():
+                    date_edit.setDate(inherited_date)
+                else:
+                    date_edit.setDate(QDate.currentDate())  # Default to today
                 # Connect signal to sync data when date changes
                 if hasattr(parent, '_sync_data_if_not_initializing'):
                     date_edit.dateChanged.connect(parent._sync_data_if_not_initializing)
@@ -355,8 +366,8 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
                 elif header_text in ["Start Date", "End Date"] and hasattr(parent, '_update_curtain_date_constraints'):
                     date_edit.dateChanged.connect(lambda date, w=date_edit: parent._update_curtain_date_constraints(widget=w))
                 table.setCellWidget(row_index, col_idx, date_edit)
-            # Numeric column - check by column name for tasks table (Row) - ID handled above
-            elif header_text == "Row":
+            # Numeric column - check by column name for tasks table (Chart Row) - ID handled above
+            elif header_text == "Chart Row":
                 # Use provided default_row_number if available (for tasks), otherwise default to 1
                 row_value = default_row_number if default_row_number is not None else 1
                 item = NumericTableWidgetItem(str(row_value))

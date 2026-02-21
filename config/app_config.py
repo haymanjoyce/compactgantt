@@ -276,7 +276,7 @@ class AppConfig:
                 key="tasks",
                 columns=[
                     TableColumnConfig("ID", validator=lambda x: int(x) > 0 if x else False),
-                    TableColumnConfig("Row", validator=lambda x: int(x) > 0 if x else False),
+                    TableColumnConfig("Chart Row", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Name"),
                     TableColumnConfig("Start Date", validator=validate_display_date),
                     TableColumnConfig("Finish Date", validator=validate_display_date),
