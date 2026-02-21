@@ -130,11 +130,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [1.1.2] - 2026-02-21
 
 ### Fixed
 - Tasks tab: detail form now looks up the selected task by ID instead of by positional index, so the correct task is always shown after an auto-sort triggered by swimlane changes
-- Tasks tab: swimlanes tab has the same fix — detail form looks up the selected swimlane by ID instead of by positional index
+- Swimlanes tab: detail form now looks up the selected swimlane by ID instead of by positional index
 - Tasks tab: `_move_down` selection restoration was looking up moved tasks via `Name` column `UserRole` (never set); now mirrors `_move_up` and uses the `ID` column text
 - Tasks tab: `_on_item_changed` used hardcoded positional column indices (`== 1` for ID, `== 2` for Row) instead of key-based name checks; now uses `col_name`
 - Tasks tab: `_on_item_changed` date-fallback guard called `cellWidget` with the logical column index instead of the visible column index; now uses `col`
@@ -142,6 +142,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Task model: `label_placement` default was `"Outside"` but the UI consistently treats `"Inside"` as the default; corrected in both the dataclass field and `from_dict()` fallback
 - Task model: added `Task.to_dict()` so serialisation is co-located with `from_dict()`, matching all other models; the inline block in `project.py` had a bug where `label_horizontal_offset` was only omitted when `!= 1.0` (should be `!= 0.0`, the actual default), which silently dropped offset values of `1.0` on save
 - Excel import: `_read_swimlanes_sheet` re-read the header row on every cell iteration (O(rows × cols)); now reads it once before the loop
+
+---
+
+## [Unreleased]
 
 ### Planned
 - Additional export formats
@@ -151,6 +155,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.1.2]: https://github.com/richardhaymanjoyce/compact_gantt/releases/tag/v1.1.2
 [1.1.1]: https://github.com/richardhaymanjoyce/compact_gantt/releases/tag/v1.1.1
 [1.1.0]: https://github.com/richardhaymanjoyce/compact_gantt/releases/tag/v1.1.0
 [1.0.0]: https://github.com/richardhaymanjoyce/compact_gantt/releases/tag/v1.0.0
