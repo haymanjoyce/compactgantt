@@ -1416,7 +1416,7 @@ class TasksTab(BaseTab):
             # Create a new Task object with a new ID
             new_task = Task(
                 task_id=next_id,
-                task_name=original_task.task_name,
+                task_name=original_task.task_name + " [Duplicate]",
                 start_date=original_task.start_date,
                 finish_date=original_task.finish_date,
                 row_number=original_task.row_number,
@@ -1462,6 +1462,11 @@ class TasksTab(BaseTab):
             self.tasks_table.blockSignals(False)
             self.tasks_table.setSortingEnabled(was_sorting)
         
+        # Pre-register new tasks in project_data so _task_from_table_row can find their
+        # detail-form fields (fill_color, label_content, etc.) during _sync_data
+        for _, new_task in tasks_to_duplicate:
+            self.project_data.tasks.append(new_task)
+
         # Sync data to update project_data, then re-sort to restore header rows
         self._sync_data()
         self._sort_tasks_by_swimlane_and_row()
