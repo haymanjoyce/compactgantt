@@ -269,14 +269,12 @@ class TasksTab(BaseTab):
 
         # Update Move Up / Move Down button states based on chart row position
         if hasattr(self, 'move_up_btn') and hasattr(self, 'move_down_btn'):
-            if len(selected_rows) == 1 and not self._is_header_row(selected_rows[0].row()):
-                task = self._task_from_table_row(selected_rows[0].row())
-                if task:
-                    self.move_up_btn.setEnabled(task.row_number > 1)
-                    self.move_down_btn.setEnabled(True)
-                else:
-                    self.move_up_btn.setEnabled(False)
-                    self.move_down_btn.setEnabled(False)
+            task_rows = [r for r in selected_rows if not self._is_header_row(r.row())]
+            if task_rows:
+                tasks = [self._task_from_table_row(r.row()) for r in task_rows]
+                tasks = [t for t in tasks if t is not None]
+                self.move_up_btn.setEnabled(any(t.row_number > 1 for t in tasks))
+                self.move_down_btn.setEnabled(bool(tasks))
             else:
                 self.move_up_btn.setEnabled(False)
                 self.move_down_btn.setEnabled(False)
