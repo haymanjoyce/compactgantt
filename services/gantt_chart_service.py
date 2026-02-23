@@ -429,7 +429,7 @@ class GanttChartService(QObject):
         finish_date_str = task.get("finish_date", "")
         # A task is a milestone if explicitly marked or if start_date equals finish_date
         is_milestone = task.get("is_milestone", False) or (start_date_str and finish_date_str and start_date_str == finish_date_str)
-        label_placement = task.get("label_placement", "Outside")
+        label_placement = task.get("label_placement") or "Inside"  # Match Task model default
         # Backward compatibility: if label_content is missing, use label_hide
         label_content = task.get("label_content")
         if label_content is None:
@@ -438,7 +438,7 @@ class GanttChartService(QObject):
             label_content = "None" if label_hide == "No" else "Name only"
         label_hide = label_content == "None"  # For rendering logic compatibility
         task_name = task.get("task_name", "Unnamed")
-        fill_color = task.get("fill_color", "blue")  # Get fill color, default to blue
+        fill_color = task.get("fill_color") or "blue"  # Fallback for missing or blank fill color
         label_horizontal_offset = task.get("label_horizontal_offset", 0.0)  # Get label offset, default to 0.0
         task_row = task.get("row_number", 1)
         task_id = task.get("task_id")
