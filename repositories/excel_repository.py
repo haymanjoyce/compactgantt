@@ -241,7 +241,7 @@ class ExcelRepository:
         date_config = DateConfig()
         
         # Headers - only include fields that are visible/editable in UI
-        headers = ["ID", "Row", "Name", "Start Date", "Finish Date", "Label Content", "Label Placement", "Label Offset", "Fill Color", "Date Format"]
+        headers = ["ID", "Chart Row", "Name", "Start Date", "Finish Date", "Label Content", "Label Placement", "Label Offset", "Fill Color", "Date Format"]
         ws.append(headers)
         self._format_header_row(ws, 1)
         
@@ -311,7 +311,7 @@ class ExcelRepository:
     def _create_swimlanes_sheet(self, wb: Workbook, swimlanes: List[Swimlane]) -> None:
         """Create Swimlanes worksheet."""
         ws = wb.create_sheet("Swimlanes")
-        ws.append(["ID", "Row Count", "Title", "Label Position"])
+        ws.append(["ID", "Chart Row Count", "Title", "Label Position"])
         self._format_header_row(ws, 1)
         
         for swimlane in swimlanes:
@@ -483,7 +483,7 @@ class ExcelRepository:
                 value = cell.value
                 if header == "ID":
                     swimlane_data["swimlane_id"] = int(value) if value else 0
-                elif header == "Row Count":
+                elif header in ("Row Count", "Chart Row Count"):
                     swimlane_data["row_count"] = int(value) if value else 0
                 elif header == "Name" or header == "Title":
                     # Backward compatibility: support both 'Name' and 'Title'
@@ -656,7 +656,7 @@ class ExcelRepository:
                     # Map Excel headers to task fields
                     if header == "ID":
                         task_data["task_id"] = int(value) if value is not None else 0
-                    elif header == "Row":
+                    elif header in ("Row", "Chart Row"):
                         # Only set row_number if value is provided, otherwise leave unset for auto-assignment
                         if value is not None:
                             try:
