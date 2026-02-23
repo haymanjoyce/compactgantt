@@ -19,7 +19,6 @@ class WindowConfig:
     svg_display_y: int = 100  # Y position in pixels
 
     # Last file directories (for file dialogs)
-    last_json_directory: str = ""  # Last directory used for JSON file operations
     last_excel_directory: str = ""  # Last directory used for Excel file operations
     
     # Tab order (list of tab names in preferred order)

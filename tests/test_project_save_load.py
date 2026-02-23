@@ -5,9 +5,6 @@ This test can run without pytest or PyQt5 dependencies.
 """
 
 import sys
-import json
-import tempfile
-import os
 from pathlib import Path
 
 # Add project root to path (go up one level from tests folder)
@@ -36,7 +33,6 @@ sys.modules['PyQt5.QtGui'].QColor = MockQColor
 
 from models.project import ProjectData
 from models.frame import FrameConfig
-from repositories.project_repository import ProjectRepository
 
 
 def test_frame_config_all_fields_saved():
@@ -181,11 +177,9 @@ def test_frame_config_all_fields_loaded():
 
 
 def test_frame_config_save_and_load_roundtrip():
-    """Test that saving and loading preserves all FrameConfig fields."""
+    """Test that to_json/from_json roundtrip preserves all FrameConfig fields."""
     print("Testing: Save and load roundtrip preserves all fields...")
-    
-    repository = ProjectRepository()
-    
+
     # Create project with custom FrameConfig
     original_project = ProjectData()
     original_project.frame_config.outer_width = 1500
@@ -208,46 +202,34 @@ def test_frame_config_save_and_load_roundtrip():
     original_project.frame_config.show_months = True
     original_project.frame_config.show_weeks = True
     original_project.frame_config.show_days = False
-    
-    # Save to temporary file
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-        temp_file = f.name
-    
-    try:
-        repository.save(temp_file, original_project)
-        
-        # Load from file
-        loaded_project = repository.load(temp_file, ProjectData)
-        
-        # Verify all fields match
-        assert loaded_project.frame_config.outer_width == original_project.frame_config.outer_width
-        assert loaded_project.frame_config.outer_height == original_project.frame_config.outer_height
-        assert loaded_project.frame_config.header_height == original_project.frame_config.header_height
-        assert loaded_project.frame_config.footer_height == original_project.frame_config.footer_height
-        assert loaded_project.frame_config.margins == original_project.frame_config.margins
-        assert loaded_project.frame_config.num_rows == original_project.frame_config.num_rows
-        assert loaded_project.frame_config.header_text == original_project.frame_config.header_text
-        assert loaded_project.frame_config.footer_text == original_project.frame_config.footer_text
-        assert loaded_project.frame_config.horizontal_gridlines == original_project.frame_config.horizontal_gridlines
-        assert loaded_project.frame_config.vertical_gridline_years == original_project.frame_config.vertical_gridline_years
-        assert loaded_project.frame_config.vertical_gridline_months == original_project.frame_config.vertical_gridline_months
-        assert loaded_project.frame_config.vertical_gridline_weeks == original_project.frame_config.vertical_gridline_weeks
-        assert loaded_project.frame_config.vertical_gridline_days == original_project.frame_config.vertical_gridline_days
-        assert loaded_project.frame_config.chart_start_date == original_project.frame_config.chart_start_date
-        assert loaded_project.frame_config.chart_end_date == original_project.frame_config.chart_end_date
-        assert loaded_project.frame_config.show_row_numbers == original_project.frame_config.show_row_numbers
-        assert loaded_project.frame_config.show_years == original_project.frame_config.show_years
-        assert loaded_project.frame_config.show_months == original_project.frame_config.show_months
-        assert loaded_project.frame_config.show_weeks == original_project.frame_config.show_weeks
-        assert loaded_project.frame_config.show_days == original_project.frame_config.show_days
-        
-        print("  [PASSED]")
-        return True
-        
-    finally:
-        # Clean up temporary file
-        if os.path.exists(temp_file):
-            os.unlink(temp_file)
+
+    # Roundtrip via to_json / from_json
+    loaded_project = ProjectData.from_json(original_project.to_json())
+
+    # Verify all fields match
+    assert loaded_project.frame_config.outer_width == original_project.frame_config.outer_width
+    assert loaded_project.frame_config.outer_height == original_project.frame_config.outer_height
+    assert loaded_project.frame_config.header_height == original_project.frame_config.header_height
+    assert loaded_project.frame_config.footer_height == original_project.frame_config.footer_height
+    assert loaded_project.frame_config.margins == original_project.frame_config.margins
+    assert loaded_project.frame_config.num_rows == original_project.frame_config.num_rows
+    assert loaded_project.frame_config.header_text == original_project.frame_config.header_text
+    assert loaded_project.frame_config.footer_text == original_project.frame_config.footer_text
+    assert loaded_project.frame_config.horizontal_gridlines == original_project.frame_config.horizontal_gridlines
+    assert loaded_project.frame_config.vertical_gridline_years == original_project.frame_config.vertical_gridline_years
+    assert loaded_project.frame_config.vertical_gridline_months == original_project.frame_config.vertical_gridline_months
+    assert loaded_project.frame_config.vertical_gridline_weeks == original_project.frame_config.vertical_gridline_weeks
+    assert loaded_project.frame_config.vertical_gridline_days == original_project.frame_config.vertical_gridline_days
+    assert loaded_project.frame_config.chart_start_date == original_project.frame_config.chart_start_date
+    assert loaded_project.frame_config.chart_end_date == original_project.frame_config.chart_end_date
+    assert loaded_project.frame_config.show_row_numbers == original_project.frame_config.show_row_numbers
+    assert loaded_project.frame_config.show_years == original_project.frame_config.show_years
+    assert loaded_project.frame_config.show_months == original_project.frame_config.show_months
+    assert loaded_project.frame_config.show_weeks == original_project.frame_config.show_weeks
+    assert loaded_project.frame_config.show_days == original_project.frame_config.show_days
+
+    print("  [PASSED]")
+    return True
 
 
 def test_frame_config_defaults_on_missing_fields():

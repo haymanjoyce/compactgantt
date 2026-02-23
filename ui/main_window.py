@@ -10,7 +10,6 @@ from .tabs.placeholder_tab import PlaceholderTab
 from .tabs.links_tab import LinksTab
 from .tabs.pipes_tab import PipesTab
 from .tabs.curtains_tab import CurtainsTab
-from repositories.project_repository import ProjectRepository
 from repositories.excel_repository import ExcelRepository
 from models.project import ProjectData  # Import here to avoid circular import
 from ui.window_utils import move_window_according_to_preferences
@@ -34,7 +33,6 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(600, 700)
         self.project_data = project_data  # Use passed project_data instance
         self.app_config = app_config if app_config else AppConfig()  # Use passed instance or create new
-        self.repository = ProjectRepository()
         self.excel_repository = ExcelRepository()
         self.svg_display = svg_display  # Reference to SVG display window
         self.resize(self.app_config.general.data_entry_width, self.app_config.general.data_entry_height)
@@ -59,23 +57,13 @@ class MainWindow(QMainWindow):
         # Create menu bar
         self.menu_bar = self.menuBar()
         file_menu = self.menu_bar.addMenu("File")
-        self.save_action = QAction("Save Project (JSON)", self)
-        self.save_action.setShortcut("Ctrl+S")
-        self.save_action.triggered.connect(self.save_to_json)
-        file_menu.addAction(self.save_action)
-        
-        self.save_excel_action = QAction("Save Project (Excel)", self)
+        self.save_excel_action = QAction("Save Project", self)
+        self.save_excel_action.setShortcut("Ctrl+S")
         self.save_excel_action.triggered.connect(self.save_to_excel)
         file_menu.addAction(self.save_excel_action)
-        
-        file_menu.addSeparator()
-        
-        self.load_action = QAction("Load Project (JSON)", self)
-        self.load_action.setShortcut("Ctrl+O")
-        self.load_action.triggered.connect(self.load_from_json)
-        file_menu.addAction(self.load_action)
-        
-        self.load_excel_action = QAction("Load Project (Excel)", self)
+
+        self.load_excel_action = QAction("Open Project", self)
+        self.load_excel_action.setShortcut("Ctrl+O")
         self.load_excel_action.triggered.connect(self.load_from_excel)
         file_menu.addAction(self.load_excel_action)
 
@@ -225,58 +213,6 @@ class MainWindow(QMainWindow):
         self.app_config.general.window.tab_order = current_order
         # Save to settings file
         self.app_config.save_settings()
-
-    def save_to_json(self):
-        # Use last directory if available, otherwise use empty string (current directory)
-        directory = self.app_config.general.window.last_json_directory if self.app_config.general.window.last_json_directory else ""
-        file_path, _ = QFileDialog.getSaveFileName(self, "Save Project", directory, "JSON Files (*.json)")
-        if file_path:
-            try:
-                # Ensure file has .json extension
-                if not file_path.endswith('.json'):
-                    file_path += '.json'
-                
-                # Sync all tabs before saving (this also syncs chart_config to project_data)
-                self._sync_all_tabs()
-                
-                self.repository.save(file_path, self.project_data)
-                # Update last directory from the saved file path
-                self.app_config.general.window.last_json_directory = os.path.dirname(file_path)
-                self.app_config.save_settings()
-                QMessageBox.information(self, "Success", "Project saved successfully!")
-                self.status_bar.showMessage("Project saved successfully")
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Error saving JSON: {e}")
-                self.status_bar.showMessage("Error saving project")
-
-    def load_from_json(self):
-        # Use last directory if available, otherwise use empty string (current directory)
-        directory = self.app_config.general.window.last_json_directory if self.app_config.general.window.last_json_directory else ""
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open Project", directory, "JSON Files (*.json)")
-        if file_path:
-            try:
-                loaded_project = self.repository.load(file_path, ProjectData)
-                self.project_data = loaded_project  # Use the loaded instance
-
-                # Update last directory from the loaded file path
-                self.app_config.general.window.last_json_directory = os.path.dirname(file_path)
-                self.app_config.save_settings()
-
-                # Sync chart_config from loaded project_data to app_config
-                self._sync_chart_config_from_project_data()
-                
-                # Re-create all tabs with the new project_data
-                self._create_all_tabs()
-                self.tab_widget.clear()
-                self._add_all_tabs()
-                self._restore_tab_order()  # Restore saved tab order
-
-                self.data_updated.emit(self.project_data.to_json())
-                QMessageBox.information(self, "Success", "Project loaded successfully!")
-                self.status_bar.showMessage("Project loaded successfully")
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Error loading JSON: {e}")
-                self.status_bar.showMessage("Error loading project")
 
     def save_to_excel(self):
         # Use last directory if available, otherwise use empty string (current directory)

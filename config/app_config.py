@@ -365,6 +365,8 @@ class AppConfig:
                     data = json.load(f)
                     if 'window' in data:
                         window_data = data['window'].copy()
+                        # Remove obsolete field no longer in WindowConfig
+                        window_data.pop('last_json_directory', None)
                         # Handle tab_order separately if it exists
                         if 'tab_order' in window_data:
                             # tab_order is already a list, no conversion needed
@@ -396,7 +398,6 @@ class AppConfig:
                     'svg_display_screen': self.general.window.svg_display_screen,
                     'svg_display_x': self.general.window.svg_display_x,
                     'svg_display_y': self.general.window.svg_display_y,
-                    'last_json_directory': self.general.window.last_json_directory,
                     'last_excel_directory': self.general.window.last_excel_directory,
                     'tab_order': self.general.window.tab_order,
                 },
