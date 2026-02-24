@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (
-    QMainWindow, QVBoxLayout, QScrollArea, QPushButton, QHBoxLayout, QLabel, QApplication, QStatusBar, QWidget, QAction, QFileDialog, QMessageBox, QFrame
+    QMainWindow, QVBoxLayout, QScrollArea, QPushButton, QHBoxLayout, QLabel, QApplication, QStatusBar, QWidget, QFileDialog, QMessageBox, QFrame
 )
 from PyQt5.QtSvg import QSvgRenderer
 from PyQt5.QtGui import QIcon, QPixmap, QPainter, QPalette, QImage
@@ -75,8 +75,27 @@ class SvgDisplay(QMainWindow):
         
         # Store button style for reuse
         self._button_style = button_style
-        
-        # Create button layout with spacing
+
+        # Top export buttons
+        self.save_png_btn = QPushButton("Save PNG")
+        self.save_jpeg_btn = QPushButton("Save JPEG")
+        self.save_png_btn.setShortcut("Ctrl+Shift+S")
+        self.save_jpeg_btn.setShortcut("Ctrl+Shift+J")
+        self.save_png_btn.setToolTip("Save as PNG with transparent background (Ctrl+Shift+S)")
+        self.save_jpeg_btn.setToolTip("Save as JPEG with white opaque background (Ctrl+Shift+J)")
+        self.save_png_btn.clicked.connect(lambda: self.save_as_raster("PNG"))
+        self.save_jpeg_btn.clicked.connect(lambda: self.save_as_raster("JPEG"))
+        self.save_png_btn.setStyleSheet(button_style)
+        self.save_jpeg_btn.setStyleSheet(button_style)
+
+        export_layout = QHBoxLayout()
+        export_layout.setSpacing(8)
+        export_layout.setContentsMargins(0, 0, 0, 4)
+        export_layout.addWidget(self.save_png_btn)
+        export_layout.addWidget(self.save_jpeg_btn)
+        export_layout.addStretch()
+
+        # Bottom view-control buttons
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(8)
         btn_layout.setContentsMargins(0, 4, 0, 0)
@@ -87,26 +106,11 @@ class SvgDisplay(QMainWindow):
         # Create central widget
         central_widget = QWidget()
         self.layout = QVBoxLayout(central_widget)
-        self.layout.setContentsMargins(8, 8, 8, 8)  # Add consistent padding around scroll area (left, top, right, bottom)
-        self.layout.addWidget(self.scroll_area)  # Graphic first
-        self.layout.addLayout(btn_layout)  # Buttons below the graphic
+        self.layout.setContentsMargins(8, 8, 8, 8)
+        self.layout.addLayout(export_layout)   # Export buttons at top
+        self.layout.addWidget(self.scroll_area)  # Chart image in middle
+        self.layout.addLayout(btn_layout)        # View controls at bottom
         self.setCentralWidget(central_widget)
-        
-        # Create menu bar
-        self.menu_bar = self.menuBar()
-        file_menu = self.menu_bar.addMenu("File")
-        
-        self.save_png_action = QAction("Save Image (PNG - Transparent)", self)
-        self.save_png_action.setShortcut("Ctrl+Shift+S")
-        self.save_png_action.setStatusTip("Save as PNG with transparent background (ideal for overlays)")
-        self.save_png_action.triggered.connect(lambda: self.save_as_raster("PNG"))
-        file_menu.addAction(self.save_png_action)
-        
-        self.save_jpeg_action = QAction("Save Image (JPEG - Opaque)", self)
-        self.save_jpeg_action.setShortcut("Ctrl+Shift+J")
-        self.save_jpeg_action.setStatusTip("Save as JPEG with white opaque background")
-        self.save_jpeg_action.triggered.connect(lambda: self.save_as_raster("JPEG"))
-        file_menu.addAction(self.save_jpeg_action)
         
         # Create status bar using reserved area (like MainWindow)
         self.status_bar = self.statusBar()

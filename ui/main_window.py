@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QTabWidget, QAction, QFileDialog, QMessageBox, QWidget, QPushButton, QVBoxLayout
+from PyQt5.QtWidgets import QMainWindow, QTabWidget, QFileDialog, QMessageBox, QWidget, QPushButton, QVBoxLayout, QHBoxLayout
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSignal, QDate
 import logging
@@ -54,22 +54,30 @@ class MainWindow(QMainWindow):
         self.app_config.save_settings()
 
     def setup_ui(self):
-        # Create menu bar
-        self.menu_bar = self.menuBar()
-        file_menu = self.menu_bar.addMenu("File")
-        self.save_excel_action = QAction("Save Project", self)
-        self.save_excel_action.setShortcut("Ctrl+S")
-        self.save_excel_action.triggered.connect(self.save_to_excel)
-        file_menu.addAction(self.save_excel_action)
-
-        self.load_excel_action = QAction("Open Project", self)
-        self.load_excel_action.setShortcut("Ctrl+O")
-        self.load_excel_action.triggered.connect(self.load_from_excel)
-        file_menu.addAction(self.load_excel_action)
-
         # Create central widget to hold everything
         central_widget = QWidget()
         main_layout = QVBoxLayout(central_widget)
+
+        # Top toolbar: project file actions
+        self.open_btn = QPushButton("Open Project")
+        self.save_btn = QPushButton("Save Project")
+        self.open_btn.setShortcut("Ctrl+O")
+        self.save_btn.setShortcut("Ctrl+S")
+        self.open_btn.setToolTip("Open project from Excel (Ctrl+O)")
+        self.save_btn.setToolTip("Save project to Excel (Ctrl+S)")
+        self.open_btn.clicked.connect(self.load_from_excel)
+        self.save_btn.clicked.connect(self.save_to_excel)
+        btn_style = "QPushButton { padding: 8px; }"
+        self.open_btn.setStyleSheet(btn_style)
+        self.save_btn.setStyleSheet(btn_style)
+
+        file_toolbar = QHBoxLayout()
+        file_toolbar.setSpacing(8)
+        file_toolbar.setContentsMargins(0, 0, 0, 4)
+        file_toolbar.addWidget(self.open_btn)
+        file_toolbar.addWidget(self.save_btn)
+        file_toolbar.addStretch()
+        main_layout.addLayout(file_toolbar)
 
         # Create and setup tab widget
         self.tab_widget = QTabWidget()
