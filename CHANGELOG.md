@@ -228,6 +228,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.1] - 2026-02-24
+
+### Changed
+- **Menubars replaced with button toolbars** on both windows.
+  - *Chart Data Window:* "Open Project" and "Save Project" buttons appear in a
+    strip at the top of the window; "Update Chart" button remains at the bottom.
+  - *Chart Display Window:* "Save PNG" and "Save JPEG" export buttons appear at
+    the top, clearly separated from the zoom/fit view controls at the bottom.
+  - All existing keyboard shortcuts preserved (Ctrl+O, Ctrl+S, Ctrl+Shift+S,
+    Ctrl+Shift+J).
+
+---
+
 ## [Unreleased]
 
 ### Planned
@@ -238,6 +251,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.4.1]: https://github.com/richardhaymanjoyce/compact_gantt/releases/tag/v1.4.1
 [1.4.0]: https://github.com/richardhaymanjoyce/compact_gantt/releases/tag/v1.4.0
 [1.3.0]: https://github.com/richardhaymanjoyce/compact_gantt/releases/tag/v1.3.0
 [1.2.1]: https://github.com/richardhaymanjoyce/compact_gantt/releases/tag/v1.2.1
