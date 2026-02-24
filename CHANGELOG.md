@@ -228,6 +228,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.2] - 2026-02-24
+
+### Changed
+- **File buttons moved to the bottom bar on both windows**, separated from the
+  primary controls by a vertical divider.
+  - *Chart Data Window:* "Open Project" and "Save Project" sit to the right of
+    the divider; "Update Chart" remains on the left and stretches wider to
+    reflect its role as the primary action.
+  - *Chart Display Window:* "Save PNG" and "Save JPEG" sit to the right of the
+    divider alongside the zoom/fit controls, all sharing the same button style.
+
+---
+
 ## [1.4.1] - 2026-02-24
 
 ### Changed
@@ -251,6 +264,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.4.2]: https://github.com/richardhaymanjoyce/compact_gantt/releases/tag/v1.4.2
 [1.4.1]: https://github.com/richardhaymanjoyce/compact_gantt/releases/tag/v1.4.1
 [1.4.0]: https://github.com/richardhaymanjoyce/compact_gantt/releases/tag/v1.4.0
 [1.3.0]: https://github.com/richardhaymanjoyce/compact_gantt/releases/tag/v1.3.0
