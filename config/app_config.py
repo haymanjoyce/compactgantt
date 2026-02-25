@@ -350,9 +350,9 @@ class AppConfig:
     def _get_settings_file(self) -> str:
         """Get path to settings file."""
         if os.name == 'nt':  # Windows
-            config_dir = Path(os.getenv('APPDATA', '')) / 'compact_gantt'
+            config_dir = Path(os.getenv('APPDATA', '')) / 'compactgantt'
         else:  # Linux/Mac
-            config_dir = Path.home() / '.config' / 'compact_gantt'
+            config_dir = Path.home() / '.config' / 'compactgantt'
         config_dir.mkdir(parents=True, exist_ok=True)
         return str(config_dir / 'settings.json')
 

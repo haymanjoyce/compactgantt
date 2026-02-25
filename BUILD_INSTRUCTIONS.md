@@ -21,7 +21,7 @@ build.bat
 
 ### Option 2: Manual build
 ```bash
-pyinstaller compact_gantt.spec
+pyinstaller compactgantt.spec
 ```
 
 ## Output
@@ -34,7 +34,7 @@ The executable will be created in the `dist/` folder:
 Simply distribute the `CompactGantt.exe` file. Users can:
 - Run it directly (no installation required)
 - The app will create its own config/logs in user directories:
-  - Config: `%APPDATA%\compact_gantt\settings.json`
+  - Config: `%APPDATA%\compactgantt\settings.json`
   - Logs: `logs/` folder (created next to the .exe)
 
 ## File Size
@@ -44,7 +44,7 @@ The executable will be approximately 50-100MB (includes Python runtime and all d
 ## Troubleshooting
 
 ### "Module not found" errors
-- Add missing modules to `hiddenimports` in `compact_gantt.spec`
+- Add missing modules to `hiddenimports` in `compactgantt.spec`
 
 ### Icon not showing
 - Ensure `assets/favicon.ico` exists

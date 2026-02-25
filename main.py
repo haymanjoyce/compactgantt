@@ -29,7 +29,7 @@ def acquire_lock():
     
     # Use temp directory for lock file
     temp_dir = Path(os.environ.get('TEMP', os.environ.get('TMP', '/tmp')))
-    _lock_file_path = temp_dir / "compact_gantt_instance.lock"
+    _lock_file_path = temp_dir / "compactgantt_instance.lock"
     
     try:
         # Try to create/open the lock file exclusively
@@ -79,7 +79,7 @@ def notify_existing_instance():
         app = QApplication(sys.argv)
     
     socket = QLocalSocket()
-    socket.connectToServer("compact_gantt_single_instance")
+    socket.connectToServer("compactgantt_single_instance")
     if socket.waitForConnected(1000):
         socket.write(b"activate")
         socket.waitForBytesWritten(1000)
@@ -117,7 +117,7 @@ def main():
     logger.info(f"Crash reporting {'enabled' if app_config.general.enable_crash_reporting else 'disabled'}")
     
     # Also set up QSharedMemory for backward compatibility with notification system
-    shared_memory = QSharedMemory("compact_gantt_single_instance")
+    shared_memory = QSharedMemory("compactgantt_single_instance")
     if not shared_memory.create(1):
         # Shouldn't happen if file lock worked, but be safe
         if shared_memory.error() == QSharedMemory.AlreadyExists:
@@ -126,7 +126,7 @@ def main():
     
     # Set up local server to receive activation requests from other instances
     local_server = QLocalServer()
-    if local_server.listen("compact_gantt_single_instance"):
+    if local_server.listen("compactgantt_single_instance"):
         def handle_new_connection():
             """Handle connection from another instance trying to start."""
             socket = local_server.nextPendingConnection()
