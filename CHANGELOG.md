@@ -15,6 +15,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.0] - 2026-03-05
+
+### Changed
+
+- **Task row positioning is now swimlane-relative** — `Task.swimlane_row` (was `Chart Row`) is a 1-based row index within the task's own swimlane, not an absolute chart row. Absolute chart rows are computed at render time from the swimlane list order.
+- **Tasks tab: "Chart Row" column renamed to "Swimlane Row"** — reflects the relative positioning model.
+- **Tasks tab: explicit swimlane assignment via `swimlane_id`** — each task now stores its parent swimlane ID directly. Swimlane membership is no longer inferred at runtime from row-range overlaps.
+- **Swimlanes tab: "Lane Order" column now visible** — shows the 1-based lane position (read-only). Was previously hidden.
+- **Swimlanes tab: "Chart Row Count" renamed to "Row Count"** — simpler label; the column still controls how many rows a swimlane spans.
+- **Excel — Tasks sheet**: `Chart Row` column renamed to `Swimlane Row`; new `Swimlane ID` column added.
+- **Excel — Swimlanes sheet**: `Chart Row Count` column renamed to `Row Count`.
+- **Validation** (`DataValidator.validate_task`): accepts optional `swimlanes` list. When provided, validates that `swimlane_id` matches a known swimlane (orphaned task — excluded from rendering) and that `swimlane_row` is within the swimlane's `row_count` (out-of-range — clamped to row 1 at render time).
+
+### Technical
+
+- `_build_swimlane_start_rows()` helper builds a `{swimlane_id: start_row}` lookup once per render pass, used by both `render_tasks()` and `_get_task_position()`.
+- Orphaned tasks (unknown `swimlane_id`) are silently excluded from chart rendering.
+- Out-of-range tasks (`swimlane_row > row_count`) render at swimlane row 1.
+
+---
+
 ## [1.4.2] - 2026-02-24
 
 ### Changed
@@ -266,7 +287,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/richardhaymanjoyce/compactgantt/compare/v1.4.2...HEAD
+[Unreleased]: https://github.com/richardhaymanjoyce/compactgantt/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/richardhaymanjoyce/compactgantt/compare/v1.4.2...v1.5.0
 [1.4.2]: https://github.com/richardhaymanjoyce/compactgantt/releases/tag/v1.4.2
 [1.4.1]: https://github.com/richardhaymanjoyce/compactgantt/releases/tag/v1.4.1
 [1.4.0]: https://github.com/richardhaymanjoyce/compactgantt/releases/tag/v1.4.0

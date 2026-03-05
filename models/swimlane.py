@@ -18,30 +18,12 @@ class Swimlane:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Swimlane':
         """Create Swimlane from dictionary (for JSON deserialization)."""
-        # Backward compatibility: support old first_row/last_row format
-        if "first_row" in data and "last_row" in data:
-            first_row = int(data["first_row"])
-            last_row = int(data["last_row"])
-            row_count = last_row - first_row + 1
-        else:
-            row_count = int(data.get("row_count", 1))
-        
-        # Backward compatibility: migrate 'name' to 'title'
-        title = data.get("title")
-        if title is None:
-            title = data.get("name", "")  # Fall back to old 'name' field
-        
-        # Backward compatibility: default label_position if missing
-        label_position = data.get("label_position", "Bottom Right")
-
-        background_color = data.get("background_color", "")
-
         return cls(
             swimlane_id=int(data["swimlane_id"]),
-            row_count=row_count,
-            title=title,
-            label_position=label_position,
-            background_color=background_color,
+            row_count=int(data.get("row_count", 1)),
+            title=data.get("title", ""),
+            label_position=data.get("label_position", "Bottom Right"),
+            background_color=data.get("background_color", ""),
         )
     
     def to_dict(self) -> Dict[str, Any]:

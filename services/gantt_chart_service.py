@@ -440,7 +440,7 @@ class GanttChartService(QObject):
         task_name = task.get("task_name", "Unnamed")
         fill_color = task.get("fill_color") or "blue"  # Fallback for missing or blank fill color
         label_horizontal_offset = task.get("label_horizontal_offset", 0.0)  # Get label offset, default to 0.0
-        task_row = task.get("row_number", 1)
+        task_row = task.get("swimlane_row", 1)
         task_id = task.get("task_id")
         date_format = task.get("date_format")  # Get task-specific date format, None uses global
         
@@ -652,10 +652,22 @@ class GanttChartService(QObject):
         row_height = height / num_rows if num_rows > 0 else height
         task_height = row_height * 0.8
 
+        # Build swimlane start-row lookup once for all tasks
+        swimlane_start_rows, swimlane_row_counts = self._build_swimlane_start_rows()
+
         for task in tasks:
             # Extract task information using key-based lookups
             task_info = self._extract_task_info(task)
-            
+
+            # Resolve absolute chart row from swimlane_id and swimlane_row
+            swimlane_id = task.get("swimlane_id", 0)
+            if swimlane_id not in swimlane_start_rows:
+                continue  # Orphaned task - no swimlane anchor, excluded from rendering
+            relative_row = task_info["task_row"]
+            if relative_row > swimlane_row_counts[swimlane_id]:
+                relative_row = 1  # Out-of-range: render at swimlane row 1
+            task_info["task_row"] = swimlane_start_rows[swimlane_id] + relative_row - 1
+
             # Validate and parse dates
             task_start, task_finish = self._validate_and_parse_task_dates(
                 task_info, start_date, end_date, num_rows
@@ -731,11 +743,18 @@ class GanttChartService(QObject):
             if task_finish < start_date or task_start > end_date:
                 return None
             
-            # Skip tasks with row numbers beyond available rows (don't clamp to last row)
-            task_row = task.get("row_number", 1)
+            # Resolve absolute chart row from swimlane_id and swimlane_row
+            swimlane_start_rows, swimlane_row_counts = self._build_swimlane_start_rows()
+            swimlane_id = task.get("swimlane_id", 0)
+            if swimlane_id not in swimlane_start_rows:
+                return None  # Orphaned task - excluded from rendering
+            relative_row = task.get("swimlane_row", 1)
+            if relative_row > swimlane_row_counts[swimlane_id]:
+                relative_row = 1  # Out-of-range: render at swimlane row 1
+            task_row = swimlane_start_rows[swimlane_id] + relative_row - 1
             if task_row > num_rows:
-                return None
-            
+                return None  # Safety check
+
             row_num = task_row - 1  # Convert to 0-based index
             x_start = x + max((task_start - start_date).days, 0) * time_scale
             x_end = x + min((task_finish - start_date).days + 1, total_days) * time_scale
@@ -849,6 +868,22 @@ class GanttChartService(QObject):
                         font_family=self.config.general.font_family,
                         fill=pipe.color if pipe.color else "red"
                     ))
+
+    def _build_swimlane_start_rows(self) -> tuple:
+        """Build lookup dicts for computing absolute chart rows from relative swimlane rows.
+
+        Returns:
+            Tuple of ({swimlane_id: start_row}, {swimlane_id: row_count}) where
+            start_row is 1-based. Used by render_tasks and _get_task_position.
+        """
+        start_rows = {}
+        row_counts = {}
+        current = 1
+        for swimlane in self._extract_swimlanes():
+            start_rows[swimlane.swimlane_id] = current
+            row_counts[swimlane.swimlane_id] = swimlane.row_count
+            current += swimlane.row_count
+        return start_rows, row_counts
 
     def _extract_swimlanes(self) -> list:
         """Extract and convert swimlane data to Swimlane objects.

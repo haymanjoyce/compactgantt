@@ -1,6 +1,6 @@
 from typing import List, Set, Dict, Any, Optional
 from datetime import datetime
-from models import Task
+from models import Task, Swimlane
 from config.date_config import DateConfig
 from utils.conversion import (
     is_valid_internal_date,
@@ -27,12 +27,13 @@ def _to_internal_date(date_str: str, date_config: Optional[DateConfig] = None) -
 class DataValidator:
     @staticmethod
     def validate_task(
-        task: Task, used_ids: Set[int], date_config: Optional[DateConfig] = None
+        task: Task, used_ids: Set[int], date_config: Optional[DateConfig] = None,
+        swimlanes: Optional[List[Swimlane]] = None
     ) -> List[str]:
         errors = []
-        # Normalize task_id and row_number to int to handle legacy data with string values
+        # Normalize task_id and swimlane_row to int to handle legacy data with string values
         task_id = safe_int(task.task_id)
-        row_number = safe_int(task.row_number)
+        swimlane_row = safe_int(task.swimlane_row)
         # Normalize dates to internal format (yyyy-mm-dd) using date_config when not already internal
         start_date = _to_internal_date(task.start_date, date_config)
         finish_date = _to_internal_date(task.finish_date, date_config)
@@ -52,8 +53,19 @@ class DataValidator:
             if compare_internal_dates(finish_date, start_date) is True:
                 errors.append("Finish date must be on or after start date")
         
-        if row_number <= 0:
-            errors.append("Row number must be positive")
+        if swimlanes is not None:
+            swimlane_lookup = {s.swimlane_id: s for s in swimlanes}
+            if not task.swimlane_id or task.swimlane_id not in swimlane_lookup:
+                errors.append("Task swimlane_id does not match any swimlane")
+            else:
+                parent = swimlane_lookup[task.swimlane_id]
+                if swimlane_row < 1 or swimlane_row > parent.row_count:
+                    errors.append(
+                        f"Swimlane row {swimlane_row} is out of range for swimlane (1\u2013{parent.row_count})"
+                    )
+        else:
+            if swimlane_row <= 0:
+                errors.append("Swimlane row must be positive")
         return errors
 
     @staticmethod

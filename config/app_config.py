@@ -276,7 +276,7 @@ class AppConfig:
                 key="tasks",
                 columns=[
                     TableColumnConfig("ID", validator=lambda x: int(x) > 0 if x else False),
-                    TableColumnConfig("Chart Row", validator=lambda x: int(x) > 0 if x else False),
+                    TableColumnConfig("Swimlane Row", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Name"),
                     TableColumnConfig("Start Date", validator=validate_display_date),
                     TableColumnConfig("Finish Date", validator=validate_display_date),
@@ -302,9 +302,9 @@ class AppConfig:
             "swimlanes": TableConfig(
                 key="swimlanes",
                 columns=[
-                    TableColumnConfig("Lane", widget_type="text"),  # Read-only, calculated from row position
+                    TableColumnConfig("Lane Order", widget_type="text"),  # Read-only, derived from list position
                     TableColumnConfig("ID", validator=lambda x: int(x) > 0 if x else False),
-                    TableColumnConfig("Chart Row Count", validator=lambda x: int(x) > 0 if x else False),
+                    TableColumnConfig("Row Count", validator=lambda x: int(x) > 0 if x else False),
                     TableColumnConfig("Title")
                 ],
                 min_rows=0

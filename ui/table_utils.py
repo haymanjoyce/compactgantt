@@ -366,15 +366,15 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
                 elif header_text in ["Start Date", "End Date"] and hasattr(parent, '_update_curtain_date_constraints'):
                     date_edit.dateChanged.connect(lambda date, w=date_edit: parent._update_curtain_date_constraints(widget=w))
                 table.setCellWidget(row_index, col_idx, date_edit)
-            # Numeric column - check by column name for tasks table (Chart Row) - ID handled above
-            elif header_text == "Chart Row":
+            # Numeric column - check by column name for tasks table (Swimlane Row) - ID handled above
+            elif header_text == "Swimlane Row":
                 # Use provided default_row_number if available (for tasks), otherwise default to 1
                 row_value = default_row_number if default_row_number is not None else 1
                 item = NumericTableWidgetItem(str(row_value))
                 item.setData(Qt.UserRole, row_value)
                 table.setItem(row_index, col_idx, item)
-            # Numeric column - check by column name for swimlanes table (Chart Row Count)
-            elif header_text == "Chart Row Count":
+            # Numeric column - check by column name for swimlanes table (Row Count)
+            elif header_text == "Row Count":
                 item = NumericTableWidgetItem("1")  # Default minimum row count
                 item.setData(Qt.UserRole, 1)
                 table.setItem(row_index, col_idx, item)

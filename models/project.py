@@ -224,7 +224,8 @@ class ProjectData:
             used_ids: Set[int] = set()
             for task in tasks:
                 row_errors = self.validator.validate_task(
-                    task, used_ids, self.app_config.general.ui_date_config
+                    task, used_ids, self.app_config.general.ui_date_config,
+                    swimlanes=self.swimlanes
                 )
                 if row_errors:
                     errors.extend([f"Task {task.task_id}: {err}" for err in row_errors])
@@ -241,7 +242,7 @@ class ProjectData:
     def get_table_data(self, key: str) -> List[List[str]]:
         """Get table data for a given key. Returns list of rows."""
         if key == "tasks":
-            return [[str(t.task_id), str(t.row_number), t.task_name, 
+            return [[str(t.task_id), str(t.swimlane_row), t.task_name,
                     internal_to_display_date(t.start_date),  # Convert to display format
                     internal_to_display_date(t.finish_date),  # Convert to display format
                     t.label_hide, t.label_placement]

@@ -47,6 +47,18 @@ Output: `dist/CompactGantt.exe`
 - **Single source of truth for version**: `version.py`. Run `python update_readme_version.py` after bumping the version.
 - **Column lookups are key-based**, not positional index based. Use `_get_column_index` / `_get_column_name_from_item` from `ui/tabs/base_tab.py`.
 
+## Swimlane Row Model (v1.5.0+)
+
+Task rows are **swimlane-relative**, not absolute:
+
+- `task.swimlane_row` — 1-based row index within the task's parent swimlane (stored in Excel as `Swimlane Row`)
+- `task.swimlane_id` — ID of the parent swimlane (stored in Excel as `Swimlane ID`)
+- **Absolute chart row** is computed at render time only: `swimlane_start_row(task.swimlane_id) + task.swimlane_row - 1`
+- `_build_swimlane_start_rows()` in `GanttChartService` builds a `{swimlane_id: start_row}` lookup once per render pass
+- **Orphaned tasks** (`swimlane_id` not in any swimlane) are excluded from chart rendering entirely
+- **Out-of-range tasks** (`swimlane_row > swimlane.row_count`) are clamped to row 1 of their swimlane at render time
+- `DataValidator.validate_task()` accepts an optional `swimlanes` list for swimlane-aware validation (orphaned → error, out-of-range → error)
+
 ## Project Structure
 
 ```

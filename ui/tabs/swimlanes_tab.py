@@ -74,18 +74,18 @@ class SwimlanesTab(BaseTab):
         self.swimlanes_table = QTableWidget(0, len(headers))
         self.swimlanes_table.setHorizontalHeaderLabels(headers)
         
-        # Reorder visual columns: Lane (hidden) | ID | Title | Chart Row Count
-        # Config logical order: Lane(0), ID(1), Chart Row Count(2), Title(3)
-        # Move Title from visual position 3 to 2, pushing Chart Row Count to visual 3
-        title_col = headers.index("Title") if "Title" in headers else None
-        min_row_count_col = headers.index("Chart Row Count") if "Chart Row Count" in headers else None
+        # Reorder visual columns: ID | Lane Order | Title | Row Count
+        # Config logical order: Lane Order(0), ID(1), Row Count(2), Title(3)
+        # Move ID before Lane Order, then move Title before Row Count
         header = self.swimlanes_table.horizontalHeader()
-        if title_col is not None and min_row_count_col is not None:
-            header.moveSection(title_col, min_row_count_col)
-        # Hide Lane Order column in UI (retained in Excel)
-        lane_col = headers.index("Lane") if "Lane" in headers else None
-        if lane_col is not None:
-            self.swimlanes_table.setColumnHidden(lane_col, True)
+        id_col_idx = headers.index("ID") if "ID" in headers else None
+        title_col_idx = headers.index("Title") if "Title" in headers else None
+        row_count_col_idx = headers.index("Row Count") if "Row Count" in headers else None
+        if id_col_idx is not None:
+            header.moveSection(id_col_idx, 0)  # ID → visual position 0
+        if title_col_idx is not None and row_count_col_idx is not None:
+            # After moving ID, Title is now at its original logical index
+            header.moveSection(header.visualIndex(title_col_idx), header.visualIndex(row_count_col_idx))
         
         # Table styling
         self.swimlanes_table.setAlternatingRowColors(False)
@@ -97,16 +97,14 @@ class SwimlanesTab(BaseTab):
         # Add bottom border to header row and gridline styling
         self.swimlanes_table.setStyleSheet(self.app_config.general.table_stylesheet)
         
-        # Column sizing — Lane is hidden; ID, Title, Chart Row Count sized by logical index
+        # Column sizing — all columns visible; ID, Lane Order, Row Count sized to content; Title stretches
         header = self.swimlanes_table.horizontalHeader()
         for i in range(self.swimlanes_table.columnCount()):
             col_name = self.swimlanes_table.horizontalHeaderItem(i).text()
-            if col_name == "ID":
+            if col_name in ("ID", "Lane Order", "Row Count"):
                 header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
             elif col_name == "Title":
                 header.setSectionResizeMode(i, QHeaderView.Stretch)
-            elif col_name == "Chart Row Count":
-                header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
         
         # Enable horizontal scroll bar
         self.swimlanes_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -441,10 +439,6 @@ class SwimlanesTab(BaseTab):
         if len(self.project_data.swimlanes) <= swimlane_count_before:
             return
 
-        # The new swimlane is the last one. Its first absolute chart row is
-        # immediately after all preceding swimlanes' row_count values.
-        task_row_number = sum(s.row_count for s in self.project_data.swimlanes[:-1]) + 1
-
         # Default dates: chart_start + 1 day for start, + 10 days for finish
         chart_start = getattr(self.project_data.frame_config, 'chart_start_date', '')
         try:
@@ -460,12 +454,14 @@ class SwimlanesTab(BaseTab):
             next_task_id += 1
 
         # Create and register the default task
+        new_swimlane = self.project_data.swimlanes[-1]
         default_task = Task(
             task_id=next_task_id,
             task_name="New Task",
             start_date=start_dt.strftime("%Y-%m-%d"),
             finish_date=finish_dt.strftime("%Y-%m-%d"),
-            row_number=task_row_number,
+            swimlane_row=1,
+            swimlane_id=new_swimlane.swimlane_id,
         )
         self.project_data.tasks.append(default_task)
 
@@ -473,19 +469,8 @@ class SwimlanesTab(BaseTab):
         self.data_updated.emit({})
 
     def _get_tasks_for_swimlane(self, swimlane_id: int) -> list:
-        """Return tasks whose row_number falls within the given swimlane's row range.
-
-        Uses the cumulative row_count approach: swimlane N owns the consecutive
-        band of chart rows that follows all preceding swimlanes' row_count values.
-        """
-        current_first_row = 1
-        for swimlane in self.project_data.swimlanes:
-            last_row = current_first_row + swimlane.row_count - 1
-            if swimlane.swimlane_id == swimlane_id:
-                return [t for t in self.project_data.tasks
-                        if current_first_row <= t.row_number <= last_row]
-            current_first_row += swimlane.row_count
-        return []
+        """Return tasks belonging to the given swimlane via task.swimlane_id."""
+        return [t for t in self.project_data.tasks if t.swimlane_id == swimlane_id]
 
     def _remove_swimlane(self):
         """Remove selected swimlane(s) with confirmation, cascading to child tasks."""
@@ -566,8 +551,8 @@ class SwimlanesTab(BaseTab):
         self._refresh_lane_column()
 
     def _refresh_lane_column(self):
-        """Refresh the Lane column for all rows based on their current positions."""
-        lane_col = self._get_column_index("Lane")
+        """Refresh the Lane Order column for all rows based on their current positions."""
+        lane_col = self._get_column_index("Lane Order")
         if lane_col is None:
             return
         
@@ -620,8 +605,8 @@ class SwimlanesTab(BaseTab):
             if col_name == "ID":
                 return
             
-            # Update UserRole for numeric columns (ID, Chart Row Count)
-            if col_name in ["ID", "Chart Row Count"]:
+            # Update UserRole for numeric columns (ID, Row Count)
+            if col_name in ["ID", "Row Count"]:
                 try:
                     val_str = item.text().strip()
                     item.setData(Qt.UserRole, int(val_str) if val_str else 0)
@@ -669,12 +654,12 @@ class SwimlanesTab(BaseTab):
     def _update_table_row_from_swimlane(self, row_idx: int, swimlane: Swimlane) -> None:
         """Populate a table row from a Swimlane object."""
         # Get column indices using key-based access
-        lane_col = self._get_column_index("Lane")
+        lane_col = self._get_column_index("Lane Order")
         id_col = self._get_column_index("ID")
-        row_count_col = self._get_column_index("Chart Row Count")
+        row_count_col = self._get_column_index("Row Count")
         title_col = self._get_column_index("Title")
-        
-        # Update Lane column (read-only, calculated from row position)
+
+        # Update Lane Order column (read-only, calculated from row position)
         if lane_col is not None:
             lane_value = row_idx + 1  # 1-based order
             item = self.swimlanes_table.item(row_idx, lane_col)
@@ -728,7 +713,7 @@ class SwimlanesTab(BaseTab):
         try:
             # Get column indices using key-based access
             id_col = self._get_column_index("ID")
-            row_count_col = self._get_column_index("Chart Row Count")
+            row_count_col = self._get_column_index("Row Count")
             title_col = self._get_column_index("Title")
             
             if id_col is None or row_count_col is None:

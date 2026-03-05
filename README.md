@@ -1,6 +1,6 @@
 # Compact Gantt
 
-![Version](https://img.shields.io/badge/version-1.4.2-blue.svg)
+![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)
 
 A PyQt5-based tool for creating compact Gantt charts with SVG output, Excel import/export, transparent PNG export, and comprehensive customization options.
 
@@ -17,7 +17,7 @@ A PyQt5-based tool for creating compact Gantt charts with SVG output, Excel impo
 
 - **Task Management**
   - Add, remove, duplicate, and reorder tasks
-  - Task properties: ID, Row, Name, Start Date, Finish Date, Lane (swimlane assignment)
+  - Task properties: ID, Swimlane Row, Name, Start Date, Finish Date, Lane (swimlane assignment)
   - Task formatting: Label visibility (Show/Hide) and placement (Inside/Outside)
   - Numeric sorting for ID, Row columns
   - Chronological sorting for Start Date and Finish Date columns

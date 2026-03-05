@@ -241,17 +241,18 @@ class ExcelRepository:
         date_config = DateConfig()
         
         # Headers - only include fields that are visible/editable in UI
-        headers = ["ID", "Chart Row", "Name", "Start Date", "Finish Date", "Label Content", "Label Placement", "Label Offset", "Fill Color", "Date Format"]
+        headers = ["ID", "Swimlane ID", "Swimlane Row", "Name", "Start Date", "Finish Date", "Label Content", "Label Placement", "Label Offset", "Fill Color", "Date Format"]
         ws.append(headers)
         self._format_header_row(ws, 1)
-        
+
         # Task rows - only save visible/editable fields
         for task in tasks:
             # Use label_content if available, otherwise fall back to label_hide for backward compatibility
             label_content = task.label_content if hasattr(task, 'label_content') and task.label_content else ("None" if task.label_hide == "No" else "Name only")
             row = [
                 task.task_id,
-                task.row_number,
+                task.swimlane_id,
+                task.swimlane_row,
                 task.task_name,
                 internal_to_display_date(task.start_date, date_config),
                 internal_to_display_date(task.finish_date, date_config),
@@ -311,20 +312,16 @@ class ExcelRepository:
     def _create_swimlanes_sheet(self, wb: Workbook, swimlanes: List[Swimlane]) -> None:
         """Create Swimlanes worksheet."""
         ws = wb.create_sheet("Swimlanes")
-        ws.append(["ID", "Chart Row Count", "Title", "Label Position", "Background Color"])
+        ws.append(["ID", "Row Count", "Title", "Label Position", "Background Color"])
         self._format_header_row(ws, 1)
 
         for swimlane in swimlanes:
-            # Use title if available, fall back to name for backward compatibility
-            title = swimlane.title if hasattr(swimlane, 'title') else (swimlane.name if hasattr(swimlane, 'name') else "")
-            label_position = swimlane.label_position if hasattr(swimlane, 'label_position') else "Bottom Right"
-            background_color = swimlane.background_color if hasattr(swimlane, 'background_color') else ""
             ws.append([
                 swimlane.swimlane_id,
                 swimlane.row_count,
-                title if title else "",
-                label_position,
-                background_color if background_color else ""
+                swimlane.title,
+                swimlane.label_position,
+                swimlane.background_color,
             ])
     
     def _create_pipes_sheet(self, wb: Workbook, pipes: List[Pipe]) -> None:
@@ -485,20 +482,14 @@ class ExcelRepository:
                 value = cell.value
                 if header == "ID":
                     swimlane_data["swimlane_id"] = int(value) if value else 0
-                elif header in ("Row Count", "Chart Row Count"):
+                elif header == "Row Count":
                     swimlane_data["row_count"] = int(value) if value else 0
-                elif header == "Name" or header == "Title":
-                    # Backward compatibility: support both 'Name' and 'Title'
+                elif header == "Title":
                     swimlane_data["title"] = str(value) if value else ""
                 elif header == "Label Position":
                     swimlane_data["label_position"] = str(value) if value else "Bottom Right"
                 elif header == "Background Color":
                     swimlane_data["background_color"] = str(value) if value else ""
-                # Backward compatibility: support old First Row/Last Row format
-                elif header == "First Row":
-                    swimlane_data["first_row"] = int(value) if value else 0
-                elif header == "Last Row":
-                    swimlane_data["last_row"] = int(value) if value else 0
 
             if swimlane_data.get("swimlane_id"):
                 try:
@@ -660,11 +651,17 @@ class ExcelRepository:
                     # Map Excel headers to task fields
                     if header == "ID":
                         task_data["task_id"] = int(value) if value is not None else 0
-                    elif header in ("Row", "Chart Row"):
-                        # Only set row_number if value is provided, otherwise leave unset for auto-assignment
+                    elif header == "Swimlane ID":
                         if value is not None:
                             try:
-                                task_data["row_number"] = int(value)
+                                task_data["swimlane_id"] = int(value)
+                            except (ValueError, TypeError):
+                                pass
+                    elif header == "Swimlane Row":
+                        # Only set swimlane_row if value is provided, otherwise leave unset for auto-assignment
+                        if value is not None:
+                            try:
+                                task_data["swimlane_row"] = int(value)
                             except (ValueError, TypeError):
                                 # Invalid value, leave unset for auto-assignment
                                 pass
@@ -763,9 +760,9 @@ class ExcelRepository:
                 task_data["task_id"] = next_id
                 next_id += 1
             
-            # Auto-assign row number if missing or invalid
-            if "row_number" not in task_data or task_data.get("row_number", 0) <= 0:
-                task_data["row_number"] = next_row
+            # Auto-assign swimlane_row if missing or invalid
+            if "swimlane_row" not in task_data or task_data.get("swimlane_row", 0) <= 0:
+                task_data["swimlane_row"] = next_row
                 next_row += 1
             
             # Create task if we have a valid ID

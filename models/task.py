@@ -23,7 +23,8 @@ class Task:
     task_name: str
     start_date: str
     finish_date: str
-    row_number: int
+    swimlane_row: int
+    swimlane_id: int = 0
     is_milestone: bool = False
     label_placement: str = "Inside"
     label_hide: str = "Yes"  # Deprecated: kept for backward compatibility, use label_content instead
@@ -58,7 +59,8 @@ class Task:
             task_name=data.get("task_name", ""),
             start_date=start_date,
             finish_date=finish_date,
-            row_number=safe_int(data.get("row_number"), default=1),
+            swimlane_row=safe_int(data.get("swimlane_row"), default=1),
+            swimlane_id=safe_int(data.get("swimlane_id"), default=0),
             is_milestone=data.get("is_milestone", False),
             label_placement=data.get("label_placement", "Inside"),
             label_hide=data.get("label_hide", "Yes"),  # Keep for backward compatibility
@@ -77,7 +79,8 @@ class Task:
             "task_name": self.task_name,
             "start_date": self.start_date,
             "finish_date": self.finish_date,
-            "row_number": self.row_number,
+            "swimlane_row": self.swimlane_row,
+            "swimlane_id": self.swimlane_id,
             "label_placement": self.label_placement,
             "label_hide": self.label_hide,  # Keep for backward compatibility
             "label_content": self.label_content,

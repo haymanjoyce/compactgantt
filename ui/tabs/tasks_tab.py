@@ -87,9 +87,9 @@ class TasksTab(BaseTab):
         table_group_layout.setSpacing(5)
         table_group_layout.setContentsMargins(5, 10, 5, 5)
         
-        # Create table - show: Lane, ID, Row, Name, Start Date, Finish Date, Valid
+        # Create table - show: Lane, ID, Swimlane Row, Name, Start Date, Finish Date, Valid
         headers = [col.name for col in self.table_config.columns]
-        visible_columns = ["ID", "Chart Row", "Name", "Start Date", "Finish Date", "Valid"]
+        visible_columns = ["ID", "Swimlane Row", "Name", "Start Date", "Finish Date", "Valid"]
         visible_indices = [headers.index(col) for col in visible_columns if col in headers]
         
         self.tasks_table = QTableWidget(0, len(visible_indices))
@@ -128,7 +128,7 @@ class TasksTab(BaseTab):
                 lane_col = i
             elif header_text == "ID":
                 id_col = i
-            elif header_text == "Chart Row":
+            elif header_text == "Swimlane Row":
                 row_col = i
             elif header_text == "Name":
                 name_col = i
@@ -279,7 +279,7 @@ class TasksTab(BaseTab):
             if task_rows:
                 tasks = [self._task_from_table_row(r.row()) for r in task_rows]
                 tasks = [t for t in tasks if t is not None]
-                self.move_up_btn.setEnabled(any(t.row_number > 1 for t in tasks))
+                self.move_up_btn.setEnabled(any(t.swimlane_row > 1 for t in tasks))
                 self.move_down_btn.setEnabled(bool(tasks))
             else:
                 self.move_up_btn.setEnabled(False)
@@ -393,42 +393,21 @@ class TasksTab(BaseTab):
                 return i
         return None
     
-    def _get_swimlane_info_for_row(self, row_number: int) -> Tuple[Optional[int], Optional[str]]:
+    def _get_swimlane_info_for_id(self, swimlane_id: int) -> Tuple[Optional[int], Optional[str]]:
         """
-        Get swimlane order and name for a given row number.
-        
-        Args:
-            row_number: The row number (1-based) to find swimlane for
-            
+        Get swimlane order (1-based list position) and name for a given swimlane_id.
+
         Returns:
             Tuple of (swimlane_order, swimlane_name) or (None, None) if not found
         """
-        if not row_number or row_number < 1:
+        if not swimlane_id:
             return (None, None)
-        
-        swimlanes = self.project_data.swimlanes
-        if not swimlanes:
-            return (None, None)
-        
-        # Calculate which swimlane contains this row
-        # Swimlanes are ordered in the list, and each spans row_count rows
-        current_first_row = 1  # 1-based
-        
-        for order, swimlane in enumerate(swimlanes, start=1):
-            first_row = current_first_row
-            last_row = current_first_row + swimlane.row_count - 1
-            
-            if first_row <= row_number <= last_row:
-                # Found the swimlane containing this row
+        for order, swimlane in enumerate(self.project_data.swimlanes, start=1):
+            if swimlane.swimlane_id == swimlane_id:
                 swimlane_name = swimlane.title if swimlane.title else ""
-                # Truncate name if too long (e.g., 20 characters)
                 if len(swimlane_name) > 20:
                     swimlane_name = swimlane_name[:17] + "..."
                 return (order, swimlane_name)
-            
-            current_first_row += swimlane.row_count
-        
-        # Row number is outside all swimlanes
         return (None, None)
     
     def _is_header_row(self, row_idx: int) -> bool:
@@ -464,32 +443,24 @@ class TasksTab(BaseTab):
         """Refresh Lane column for a specific row with tooltip showing swimlane name."""
         if self._is_header_row(row_idx):
             return
-        # Get row_number directly from the table's Row column (not from task object,
-        # since task might not be updated yet when this is called during editing)
-        row_col = self._get_column_index("Chart Row")
 
-        if row_col is None:
-            return
-
-        row_item = self.tasks_table.item(row_idx, row_col)
-        if row_item is None:
-            return
-
-        # Get row_number from the table item (use UserRole if available, otherwise parse text)
-        row_number = row_item.data(Qt.UserRole)
-        if row_number is None:
-            try:
-                row_number = safe_int(row_item.text(), 1)
-            except (ValueError, AttributeError):
-                row_number = 1
-
-        if not row_number or row_number < 1:
-            return
-
+        id_col = self._get_column_index("ID")
         lane_col = self._get_column_index("Lane")
 
-        # Get swimlane info for this row_number
-        swimlane_order, swimlane_name = self._get_swimlane_info_for_row(row_number)
+        if id_col is None:
+            return
+
+        id_item = self.tasks_table.item(row_idx, id_col)
+        if id_item is None:
+            return
+
+        task_id = safe_int(id_item.text())
+        task = next((t for t in self.project_data.tasks if t.task_id == task_id), None)
+        if task is None:
+            return
+
+        # Get swimlane info via direct swimlane_id lookup
+        swimlane_order, swimlane_name = self._get_swimlane_info_for_id(task.swimlane_id)
 
         # Update Lane column
         if lane_col is not None:
@@ -526,12 +497,12 @@ class TasksTab(BaseTab):
         Used for sorting tasks by swimlane order (Lane), then row number, then finish date.
         Empty finish dates sort to the end (after valid dates).
         """
-        swimlane_order, _ = self._get_swimlane_info_for_row(task.row_number)
+        swimlane_order, _ = self._get_swimlane_info_for_id(task.swimlane_id)
         # Use 9999 for tasks outside swimlanes (sort to end)
         swimlane_order = swimlane_order if swimlane_order is not None else 9999
         # Use 'ZZZZ-ZZ-ZZ' for empty finish dates to sort them to the end (after valid dates)
         finish_date = task.finish_date if task.finish_date else "ZZZZ-ZZ-ZZ"
-        return (swimlane_order, task.row_number, finish_date)
+        return (swimlane_order, task.swimlane_row, finish_date)
     
     def _sort_tasks_by_swimlane_and_row(self):
         """Sort tasks by swimlane order, row number, finish date.
@@ -565,7 +536,7 @@ class TasksTab(BaseTab):
             swimlane_tasks: Dict[int, List[Task]] = {}
             orphan_tasks: List[Task] = []
             for task in tasks:
-                order, _ = self._get_swimlane_info_for_row(task.row_number)
+                order, _ = self._get_swimlane_info_for_id(task.swimlane_id)
                 if order is not None:
                     swimlane_tasks.setdefault(order, []).append(task)
                 else:
@@ -621,7 +592,7 @@ class TasksTab(BaseTab):
         try:
             # Get column indices by name (visible indices via overridden _get_column_index)
             id_col = self._get_column_index("ID")
-            row_col = self._get_column_index("Chart Row")
+            row_col = self._get_column_index("Swimlane Row")
             name_col = self._get_column_index("Name")
             start_date_col = self._get_column_index("Start Date")
             finish_date_col = self._get_column_index("Finish Date")
@@ -721,14 +692,19 @@ class TasksTab(BaseTab):
                     label_horizontal_offset = existing_task.label_horizontal_offset if hasattr(existing_task, 'label_horizontal_offset') else 0.0
                     fill_color = existing_task.fill_color if hasattr(existing_task, 'fill_color') else "blue"
                     date_format = existing_task.date_format if hasattr(existing_task, 'date_format') else None
-            
+
+            # Preserve swimlane_id from existing task (UI does not expose this field)
+            existing_task = next((t for t in self.project_data.tasks if t.task_id == task_id), None)
+            swimlane_id = existing_task.swimlane_id if existing_task else 0
+
             # Create Task object
             task = Task(
                 task_id=task_id,
                 task_name=task_name,
                 start_date=start_date_internal,
                 finish_date=finish_date_internal,
-                row_number=row_number,
+                swimlane_row=row_number,
+                swimlane_id=swimlane_id,
                 label_hide="Yes" if label_content != "None" else "No",  # Keep for backward compatibility
                 label_content=label_content,
                 label_placement=label_placement,
@@ -751,7 +727,7 @@ class TasksTab(BaseTab):
         """
         # Get column indices by name (visible indices via overridden _get_column_index)
         id_col = self._get_column_index("ID")
-        row_col = self._get_column_index("Chart Row")
+        row_col = self._get_column_index("Swimlane Row")
         name_col = self._get_column_index("Name")
         start_date_col = self._get_column_index("Start Date")
         finish_date_col = self._get_column_index("Finish Date")
@@ -779,11 +755,11 @@ class TasksTab(BaseTab):
             if row_col is not None:
                 item = self.tasks_table.item(row_idx, row_col)
                 if item:
-                    item.setText(str(task.row_number))
-                    item.setData(Qt.UserRole, task.row_number)
+                    item.setText(str(task.swimlane_row))
+                    item.setData(Qt.UserRole, task.swimlane_row)
                 else:
-                    item = NumericTableWidgetItem(str(task.row_number))
-                    item.setData(Qt.UserRole, task.row_number)
+                    item = NumericTableWidgetItem(str(task.swimlane_row))
+                    item.setData(Qt.UserRole, task.swimlane_row)
                     self.tasks_table.setItem(row_idx, row_col, item)
 
             # Update Name column
@@ -876,7 +852,8 @@ class TasksTab(BaseTab):
             if valid_col is not None:
                 used_ids = {safe_int(t.task_id) for t in self.project_data.tasks if t.task_id != task.task_id}
                 row_errors = self.project_data.validator.validate_task(
-                    task, used_ids, self.app_config.general.ui_date_config
+                    task, used_ids, self.app_config.general.ui_date_config,
+                    swimlanes=self.project_data.swimlanes
                 )
                 valid_status = "No" if row_errors else "Yes"
 
@@ -1047,7 +1024,7 @@ class TasksTab(BaseTab):
                     item.setData(Qt.UserRole, int(val_str) if val_str else 0)
                 except (ValueError, AttributeError):
                     item.setData(Qt.UserRole, 0)
-            elif col_name == "Chart Row":
+            elif col_name == "Swimlane Row":
                 try:
                     val_str = item.text().strip()
                     item.setData(Qt.UserRole, int(val_str) if val_str else 1)
@@ -1350,7 +1327,8 @@ class TasksTab(BaseTab):
                         # Calculate valid status (exclude current task from used_ids for uniqueness check)
                         task_used_ids = used_ids - {safe_int(task.task_id)}
                         row_errors = self.project_data.validator.validate_task(
-                            task, task_used_ids, self.app_config.general.ui_date_config
+                            task, task_used_ids, self.app_config.general.ui_date_config,
+                            swimlanes=self.project_data.swimlanes
                         )
                         valid_status = "No" if row_errors else "Yes"
 
@@ -1381,12 +1359,12 @@ class TasksTab(BaseTab):
             logging.error(f"_update_valid_column_only: Error: {e}", exc_info=True)
 
     def _add_task(self):
-        """Add a new task below the selected task, inheriting Chart Row, Start Date, and Finish Date."""
+        """Add a new task below the selected task, inheriting Swimlane Row, Start Date, and Finish Date."""
         if self._selected_row is None:
             return  # Button should be disabled, but guard defensively
 
         task = self._task_from_table_row(self._selected_row)
-        default_row_number = task.row_number if task else 1
+        default_row_number = task.swimlane_row if task else 1
         default_start_date = task.start_date if task else None
         default_finish_date = task.finish_date if task else None
 
@@ -1438,7 +1416,8 @@ class TasksTab(BaseTab):
                 task_name=original_task.task_name + " [Duplicate]",
                 start_date=original_task.start_date,
                 finish_date=original_task.finish_date,
-                row_number=original_task.row_number,
+                swimlane_row=original_task.swimlane_row,
+                swimlane_id=original_task.swimlane_id,
                 is_milestone=original_task.is_milestone,
                 label_placement=original_task.label_placement,
                 label_hide=original_task.label_hide,  # Keep for backward compatibility
@@ -1513,7 +1492,7 @@ class TasksTab(BaseTab):
         
         try:
             moved_tasks = []
-            row_col = self._get_column_index("Chart Row")
+            row_col = self._get_column_index("Swimlane Row")
 
             if row_col is None:
                 return
@@ -1525,11 +1504,11 @@ class TasksTab(BaseTab):
                     continue
 
                 # Block if already at chart row 1
-                if task.row_number <= 1:
+                if task.swimlane_row <= 1:
                     continue
 
-                # Decrease row_number by 1
-                new_row_number = task.row_number - 1
+                # Decrease swimlane_row by 1
+                new_row_number = task.swimlane_row - 1
 
                 # Update the row number in the table
                 row_item = self.tasks_table.item(row_idx, row_col)
@@ -1538,11 +1517,11 @@ class TasksTab(BaseTab):
                     row_item.setData(Qt.UserRole, new_row_number)
 
                 # Update task object
-                task.row_number = new_row_number
+                task.swimlane_row = new_row_number
                 moved_tasks.append((row_idx, task))
 
             if not moved_tasks:
-                QMessageBox.information(self, "Cannot Move", "Selected task(s) are already at chart row 1.")
+                QMessageBox.information(self, "Cannot Move", "Selected task(s) are already at swimlane row 1.")
                 return
 
             # Refresh swimlane columns for moved tasks
@@ -1595,7 +1574,7 @@ class TasksTab(BaseTab):
         
         try:
             moved_tasks = []
-            row_col = self._get_column_index("Chart Row")
+            row_col = self._get_column_index("Swimlane Row")
 
             if row_col is None:
                 return
@@ -1606,8 +1585,8 @@ class TasksTab(BaseTab):
                 if task is None:
                     continue
 
-                # Increase row_number by 1
-                new_row_number = task.row_number + 1
+                # Increase swimlane_row by 1
+                new_row_number = task.swimlane_row + 1
 
                 # Update the row number in the table
                 row_item = self.tasks_table.item(row_idx, row_col)
@@ -1616,7 +1595,7 @@ class TasksTab(BaseTab):
                     row_item.setData(Qt.UserRole, new_row_number)
 
                 # Update task object
-                task.row_number = new_row_number
+                task.swimlane_row = new_row_number
                 moved_tasks.append((row_idx, task))
 
             if not moved_tasks:
