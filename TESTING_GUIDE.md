@@ -2,31 +2,20 @@
 
 ## 🧪 Automated Testing
 
-### 1. Refactoring Tests
-Run the refactoring verification tests:
+### 1. Syntax and Import Tests
+Run validation tests (no PyQt5 required):
 ```bash
 python tests/test_refactor_syntax.py
 ```
 
 This will test:
-- Python syntax validation for refactored files
+- Python syntax validation for all modules
 - Import validation
 - DateConfig functionality
 - BaseTab method availability
 
-For full functional tests (requires PyQt5):
-```bash
-python tests/test_refactor.py
-```
-
-This will test:
-- BaseTab methods (_get_column_index, _get_column_name_from_item)
-- Date helper functions (create_date_widget, extract_date_from_cell)
-- Tab instantiation
-- Column index consistency
-
 ### 2. Project Save/Load Tests
-Test project data persistence:
+Test Excel project data persistence:
 ```bash
 python tests/test_project_save_load.py
 ```
@@ -43,16 +32,14 @@ python tests/test_project_save_load.py
 ### File Menu Operations
 - [ ] **Save Project (Ctrl+S)**
   - [ ] Opens file dialog
-  - [ ] Saves project data to JSON file
+  - [ ] Saves project data to Excel (.xlsx) file
   - [ ] Shows success message
-  - [ ] Status bar updates
 
-- [ ] **Load Project (Ctrl+O)**
+- [ ] **Open Project (Ctrl+O)**
   - [ ] Opens file dialog
-  - [ ] Loads project data from JSON file
+  - [ ] Loads project data from Excel (.xlsx) file
   - [ ] Updates all tabs with loaded data
   - [ ] Shows success message
-  - [ ] Status bar updates
 
 ### Tab Navigation
 - [ ] All tabs are accessible and clickable
@@ -244,8 +231,8 @@ Tasks:
 
 1. **Start with automated tests:**
    ```bash
-   python test_environment.py
-   python test_window_positioning.py
+   python tests/test_refactor_syntax.py
+   python tests/test_project_save_load.py
    ```
 
 2. **Run the application:**

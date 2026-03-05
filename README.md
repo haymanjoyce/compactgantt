@@ -127,10 +127,13 @@ Tabs are organized in a content-first logical grouping:
 ## Development
 
 ```bash
-# Install development dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# Run tests
+# Run tests (no PyQt5 required)
+python tests/test_refactor_syntax.py
+
+# Run integration tests
 python tests/test_project_save_load.py
 ```
 
@@ -143,9 +146,14 @@ python tests/test_project_save_load.py
   - `svg_display.py` - SVG preview window
 - `services/` - Business logic
   - `gantt_chart_service.py` - SVG chart generation
-- `models/` - Data structures
+- `models/` - Data structures (all dataclasses)
   - `project.py` - Project data model
   - `task.py` - Task model
+  - `link.py` - Dependency link model
+  - `swimlane.py` - Swimlane model
+  - `pipe.py` - Pipe marker model
+  - `curtain.py` - Curtain model
+  - `note.py` - Note annotation model
   - `frame.py` - Frame configuration
 - `repositories/` - File I/O
   - `excel_repository.py` - Excel import/export
@@ -170,13 +178,10 @@ python tests/test_project_save_load.py
 - Self-documenting code
 
 **Current Implementation**:
-- `models/task.py` - `Task` dataclass (fully refactored)
-- `models/link.py` - `Link` dataclass (fully refactored)
-- Other entities (swimlanes, pipes, etc.) still use positional arrays (legacy, pending refactor)
+- All models are fully refactored dataclasses: `Task`, `Link`, `Swimlane`, `Pipe`, `Curtain`, `Note`
 
 **Guidelines for New Code**:
 - When creating new data entities, use `@dataclass` with named fields
-- When refactoring existing positional arrays, migrate to dataclasses
 - UI boundary code should work directly with dataclass objects, not positional lists
 
 ## Licenses
