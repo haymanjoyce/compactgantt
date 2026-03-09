@@ -48,8 +48,7 @@ class TasksTab(BaseTab):
         remove_btn = QPushButton("Remove Task")
         remove_btn.setToolTip("Remove selected task(s) from the chart (Delete)")
         remove_btn.setMinimumWidth(100)
-        remove_btn.clicked.connect(lambda: remove_row(self.tasks_table, "tasks", 
-                                                    self.app_config.tables, self))
+        remove_btn.clicked.connect(self._remove_tasks)
         
         duplicate_btn = QPushButton("Duplicate Task")
         duplicate_btn.setToolTip("Duplicate selected task(s) with new IDs")
@@ -1358,21 +1357,83 @@ class TasksTab(BaseTab):
         except Exception as e:
             logging.error(f"_update_valid_column_only: Error: {e}", exc_info=True)
 
+    def _remove_tasks(self):
+        """Remove selected tasks, blocking the operation if it would empty any swimlane."""
+        selected_rows = self.tasks_table.selectionModel().selectedRows()
+        if not selected_rows:
+            QMessageBox.information(self, "No Selection", "Please select rows to remove.")
+            return
+
+        rows_to_delete = {r.row() for r in selected_rows}
+
+        # Count tasks per swimlane across the whole table.
+        swimlane_total: Dict[int, int] = {}
+        swimlane_deleted: Dict[int, int] = {}
+        for r in range(self.tasks_table.rowCount()):
+            task = self._task_from_table_row(r)
+            if task and task.swimlane_id:
+                swimlane_total[task.swimlane_id] = swimlane_total.get(task.swimlane_id, 0) + 1
+                if r in rows_to_delete:
+                    swimlane_deleted[task.swimlane_id] = swimlane_deleted.get(task.swimlane_id, 0) + 1
+
+        # Find the first swimlane that would be left with zero tasks.
+        for swimlane_id, deleted_count in swimlane_deleted.items():
+            if swimlane_total.get(swimlane_id, 0) - deleted_count < 1:
+                _, swimlane_title = self._get_swimlane_info_for_id(swimlane_id)
+                title_display = swimlane_title or f"ID {swimlane_id}"
+                QMessageBox.warning(
+                    self, "Cannot Remove",
+                    f"Cannot delete the last task in '{title_display}'. "
+                    f"Add another task to this swimlane first."
+                )
+                return
+
+        remove_row(self.tasks_table, "tasks", self.app_config.tables, self)
+
     def _add_task(self):
-        """Add a new task below the selected task, inheriting Swimlane Row, Start Date, and Finish Date."""
+        """Add a new task below the selected task, inheriting Swimlane Row, Swimlane ID, Start Date, and Finish Date."""
         if self._selected_row is None:
             return  # Button should be disabled, but guard defensively
 
         task = self._task_from_table_row(self._selected_row)
         default_row_number = task.swimlane_row if task else 1
+        default_swimlane_id = task.swimlane_id if task else 0
         default_start_date = task.start_date if task else None
         default_finish_date = task.finish_date if task else None
+
+        # Compute the ID that add_row() will assign (min unused positive integer).
+        id_col = self._get_column_index("ID")
+        used_ids: set = set()
+        if id_col is not None:
+            for r in range(self.tasks_table.rowCount()):
+                item = self.tasks_table.item(r, id_col)
+                if item and item.text():
+                    try:
+                        used_ids.add(int(item.text()))
+                    except (ValueError, TypeError):
+                        pass
+        next_id = 1
+        while next_id in used_ids:
+            next_id += 1
 
         add_row(self.tasks_table, "tasks", self.app_config.tables, self, "ID",
                 default_row_number=default_row_number,
                 default_start_date=default_start_date,
                 default_finish_date=default_finish_date,
                 date_config=self.app_config.general.ui_date_config)
+
+        # add_row() calls _sync_data() before returning, so the new task is already
+        # in project_data.tasks with swimlane_id=0.  Patch it to inherit from the
+        # selected task — no instance state required.
+        if default_swimlane_id:
+            new_task = next((t for t in self.project_data.tasks if t.task_id == next_id), None)
+            if new_task:
+                new_task.swimlane_id = default_swimlane_id
+
+        # Re-sync so validation sees the correct swimlane_id, then re-sort so the
+        # new task appears in its swimlane group immediately (matches _duplicate_tasks pattern).
+        self._sync_data()
+        self._sort_tasks_by_swimlane_and_row()
 
     def _duplicate_tasks(self):
         """Duplicate selected tasks with new IDs."""

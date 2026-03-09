@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.1] - 2026-03-09
+
+### Fixed
+
+- **Tasks tab — Add Task now inherits Swimlane ID** from the selected task. Previously `swimlane_id` remained 0 on the new task regardless of which task was selected, so the new task was treated as orphaned until the next chart update.
+- **Tasks tab — Deleting the last task in a swimlane is now blocked.** If the selected tasks would leave any swimlane with zero tasks, the operation is cancelled and a message names the first affected swimlane: *"Cannot delete the last task in '[Swimlane Title]'. Add another task to this swimlane first."*
+- **Tasks tab — New task now sorts into its swimlane group immediately** after Add Task, with a correct Valid status, without requiring a manual "Update Chart" click.
+
+---
+
 ## [1.5.0] - 2026-03-05
 
 ### Changed
@@ -287,7 +297,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/richardhaymanjoyce/compactgantt/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/richardhaymanjoyce/compactgantt/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/richardhaymanjoyce/compactgantt/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/richardhaymanjoyce/compactgantt/compare/v1.4.2...v1.5.0
 [1.4.2]: https://github.com/richardhaymanjoyce/compactgantt/releases/tag/v1.4.2
 [1.4.1]: https://github.com/richardhaymanjoyce/compactgantt/releases/tag/v1.4.1

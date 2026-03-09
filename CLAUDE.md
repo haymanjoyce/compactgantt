@@ -58,6 +58,8 @@ Task rows are **swimlane-relative**, not absolute:
 - **Orphaned tasks** (`swimlane_id` not in any swimlane) are excluded from chart rendering entirely
 - **Out-of-range tasks** (`swimlane_row > swimlane.row_count`) are clamped to row 1 of their swimlane at render time
 - `DataValidator.validate_task()` accepts an optional `swimlanes` list for swimlane-aware validation (orphaned → error, out-of-range → error)
+- **Add Task inherits `swimlane_id`** from the selected task (`_add_task()` in `ui/tabs/tasks_tab.py`). The new task's ID is predicted before calling `add_row()`, and `swimlane_id` is patched directly onto the object in `project_data.tasks` after `add_row()` returns (which already called `_sync_data()` internally).
+- **Deleting the last task in a swimlane is blocked** by `_remove_tasks()` in `ui/tabs/tasks_tab.py`. It counts tasks per `swimlane_id` before delegating to `remove_row()`, and shows a blocking message naming the affected swimlane if any would be left empty.
 
 ## Project Structure
 
