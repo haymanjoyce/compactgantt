@@ -5,7 +5,7 @@
 ### 1. Syntax and Import Tests
 Run validation tests (no PyQt5 required):
 ```bash
-python tests/test_refactor_syntax.py
+python tests/test_smoke.py
 ```
 
 This will test:
@@ -231,7 +231,7 @@ Tasks:
 
 1. **Start with automated tests:**
    ```bash
-   python tests/test_refactor_syntax.py
+   python tests/test_smoke.py
    python tests/test_project_save_load.py
    ```
 

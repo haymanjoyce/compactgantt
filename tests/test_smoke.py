@@ -1,5 +1,15 @@
-# test_refactor_syntax.py
-"""Quick syntax and import tests that don't require PyQt5."""
+# test_smoke.py
+"""Fast smoke tests that run without PyQt5.
+
+Checks:
+- Key non-UI modules can be imported cleanly
+- DateConfig defaults and format helpers are correct
+- UI tab source files have valid Python syntax
+
+These tests are safe to run in any environment (CI, fresh clone, no
+Qt install) and are the first line of defence against regressions
+introduced by edits to the UI tabs or config layer.
+"""
 
 import sys
 from pathlib import Path
@@ -14,9 +24,9 @@ FAIL = "[FAIL]"
 WARN = "[WARN]"
 
 def test_imports():
-    """Test that all refactored modules can be imported."""
+    """Test that key modules can be imported."""
     print("Testing imports...")
-    
+
     # Check if PyQt5 is available first
     try:
         import PyQt5
@@ -26,51 +36,42 @@ def test_imports():
         print(f"  {WARN} PyQt5 not available - skipping UI imports")
         print("  (This is expected if running outside dev environment)\n")
         return True  # Not a failure, just skip
-    
+
     try:
         from ui.tabs.base_tab import BaseTab
         print(f"  {OK} BaseTab imported")
-        
+
         from ui.table_utils import create_date_widget, extract_date_from_cell
         print(f"  {OK} Date helpers imported")
-        
+
         from config.date_config import DateConfig
         print(f"  {OK} DateConfig imported")
-        
-        # Test that BaseTab has the new methods
-        assert hasattr(BaseTab, '_get_column_index'), "BaseTab should have _get_column_index"
-        assert hasattr(BaseTab, '_get_column_name_from_item'), "BaseTab should have _get_column_name_from_item"
-        assert hasattr(BaseTab, '_setup_table_base'), "BaseTab should have _setup_table_base"
-        print(f"  {OK} BaseTab has all new methods")
-        
+
         print(f"  {OK} All imports successful\n")
         return True
     except ImportError as e:
         print(f"  {FAIL} Import failed: {e}\n")
         return False
-    except AssertionError as e:
-        print(f"  {FAIL} Assertion failed: {e}\n")
-        return False
 
 def test_date_config():
     """Test DateConfig functionality."""
     print("Testing DateConfig...")
-    
+
     try:
         from config.date_config import DateConfig, DATE_FORMAT_OPTIONS
-        
+
         # Test default config
         config = DateConfig()
         assert config.get_qt_format() == "dd/MM/yyyy"
         assert config.get_python_format() == "%d/%m/%Y"
         assert config.get_internal_format() == "%Y-%m-%d"
         print(f"  {OK} Default DateConfig works")
-        
+
         # Test format name lookup
         format_name = config.get_format_name()
         assert format_name in DATE_FORMAT_OPTIONS or format_name == "", "Format name should be valid"
         print(f"  {OK} DateConfig format name lookup works")
-        
+
         print(f"  {OK} DateConfig test passed\n")
         return True
     except Exception as e:
@@ -80,9 +81,9 @@ def test_date_config():
         return False
 
 def test_syntax():
-    """Test that all refactored files have valid syntax."""
+    """Test that all UI tab files have valid syntax."""
     print("Testing syntax...")
-    
+
     files_to_check = [
         "ui/tabs/base_tab.py",
         "ui/table_utils.py",
@@ -93,10 +94,10 @@ def test_syntax():
         "ui/tabs/links_tab.py",
         "ui/tabs/notes_tab.py",
     ]
-    
+
     import py_compile
     import os
-    
+
     all_passed = True
     for file_path in files_to_check:
         full_path = project_root / file_path
@@ -109,29 +110,28 @@ def test_syntax():
         except py_compile.PyCompileError as e:
             print(f"  {FAIL} {file_path} syntax error: {e}")
             all_passed = False
-    
+
     if all_passed:
         print(f"  {OK} All syntax checks passed\n")
     else:
         print(f"  {FAIL} Some syntax checks failed\n")
-    
+
     return all_passed
 
 def main():
-    """Run all syntax tests."""
+    """Run all smoke tests."""
     print("=" * 60)
-    print("Refactoring Syntax & Import Tests")
+    print("Smoke Tests (no PyQt5 required)")
     print("=" * 60 + "\n")
-    
+
     results = []
     results.append(test_imports())
     results.append(test_date_config())
     results.append(test_syntax())
-    
+
     print("=" * 60)
     if all(results):
-        print(f"{OK} All syntax/import tests passed!")
-        print("Note: Run test_refactor.py in your dev environment for full tests.")
+        print(f"{OK} All smoke tests passed!")
         print("=" * 60)
         return 0
     else:

@@ -130,8 +130,8 @@ Tabs are organized in a content-first logical grouping:
 # Install dependencies
 pip install -r requirements.txt
 
-# Run tests (no PyQt5 required)
-python tests/test_refactor_syntax.py
+# Run smoke tests (no PyQt5 required)
+python tests/test_smoke.py
 
 # Run integration tests
 python tests/test_project_save_load.py

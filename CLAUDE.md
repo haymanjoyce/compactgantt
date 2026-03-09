@@ -21,8 +21,8 @@ python main.py
 ## Running Tests
 
 ```bash
-# Syntax and import validation (no PyQt5 required)
-python tests/test_refactor_syntax.py
+# Fast smoke tests — syntax and import validation (no PyQt5 required)
+python tests/test_smoke.py
 
 # Project save/load integration tests
 python tests/test_project_save_load.py
