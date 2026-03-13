@@ -15,6 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.2] - 2026-03-13
+
+### Changed
+
+- **Chart Display Window — Save PNG replaced with Save SVG.** The left export button now opens a Save As dialog (SVG format only) and saves the SVG source file directly. Confirmation dialog updated to reflect SVG output.
+- **Chart Display Window — Save JPEG replaced with Save Image.** The right export button now opens a Save As dialog with JPEG as the default filter and PNG as an alternative; the output format is determined by the chosen filter. Confirmation dialog reflects the chosen format.
+- **Keyboard shortcuts Ctrl+Shift+S and Ctrl+Shift+J removed.** Export actions are now accessible only via the Save SVG and Save Image buttons.
+- **Swimlanes tab — Row Count now uses a spin box.** The Row Count cell is replaced with a QSpinBox (integer only, minimum 1, maximum 99), preventing non-integer and out-of-range input. Spin box values are correctly preserved when rows are reordered with Move Up / Move Down.
+
+---
+
 ## [1.5.1] - 2026-03-09
 
 ### Fixed
