@@ -29,6 +29,7 @@ class ExcelRepository:
         self._create_titles_sheet(wb, project_data.frame_config)
         self._create_timeline_sheet(wb, project_data.frame_config)
         self._create_typography_sheet(wb, project_data.chart_config)
+        self._create_style_sheet(wb, project_data.chart_config)
         # Grid sheet deprecated - horizontal gridlines now in Layout sheet as "Row Dividers"
         self._create_tasks_sheet(wb, project_data.tasks)
         self._create_links_sheet(wb, project_data.links)
@@ -111,7 +112,14 @@ class ExcelRepository:
             for key, value in typography_data.items():
                 if hasattr(project.chart_config, key):
                     setattr(project.chart_config, key, value)
-        
+
+        # Load Style sheet
+        if "Style" in wb.sheetnames:
+            style_data = self._read_style_sheet(wb["Style"])
+            for key, value in style_data.items():
+                if hasattr(project.chart_config, key):
+                    setattr(project.chart_config, key, value)
+
         return project
     
     def _create_layout_sheet(self, wb: Workbook, frame_config: FrameConfig) -> None:
@@ -931,9 +939,66 @@ class ExcelRepository:
             old_factor = data["swimlane_vertical_alignment_factor"]
             data["swimlane_top_vertical_alignment_factor"] = old_factor
             data["swimlane_bottom_vertical_alignment_factor"] = old_factor
-        
+
         return data
-    
+
+    def _create_style_sheet(self, wb: Workbook, chart_config) -> None:
+        """Create Style worksheet with user-editable colour settings."""
+        ws = wb.create_sheet("Style")
+
+        # Header
+        ws.append(["Field", "Value"])
+        self._format_header_row(ws, 1)
+
+        # Colour fields (British spelling in Excel labels)
+        ws.append(["Chart Background Colour", chart_config.chart_background_color])
+        ws.append(["Header Footer Background Colour", chart_config.header_footer_background_color])
+        ws.append(["Swimlane Label Colour", chart_config.swimlane_label_color])
+        ws.append(["Swimlane Divider Colour", chart_config.swimlane_divider_color])
+        ws.append(["Scale Background Colour", chart_config.scale_background_color])
+        ws.append(["Scale Tick Colour", chart_config.scale_tick_color])
+        ws.append(["Gridline Horizontal Colour", chart_config.gridline_horizontal_color])
+        ws.append(["Gridline Vertical Colour", chart_config.gridline_vertical_color])
+        ws.append(["Task Stroke Colour", chart_config.task_stroke_color])
+        ws.append(["Milestone Stroke Colour", chart_config.milestone_stroke_color])
+        ws.append(["Outside Label Text Colour", chart_config.outside_label_text_color])
+        ws.append(["Outside Label Line Colour", chart_config.outside_label_line_color])
+
+        # Auto-adjust column widths
+        ws.column_dimensions['A'].width = 35
+        ws.column_dimensions['B'].width = 20
+
+    def _read_style_sheet(self, ws) -> Dict[str, Any]:
+        """Read Style worksheet and return dict of chart_config colour fields."""
+        data = {}
+        for row in ws.iter_rows(min_row=2, values_only=True):  # Skip header row
+            if row[0] and row[1] is not None:
+                key = str(row[0]).strip()
+                value = row[1]
+
+                # Map Excel field labels (British spelling) to chart_config field names
+                field_map = {
+                    "Chart Background Colour": "chart_background_color",
+                    "Header Footer Background Colour": "header_footer_background_color",
+                    "Swimlane Label Colour": "swimlane_label_color",
+                    "Swimlane Divider Colour": "swimlane_divider_color",
+                    "Scale Background Colour": "scale_background_color",
+                    "Scale Tick Colour": "scale_tick_color",
+                    "Gridline Horizontal Colour": "gridline_horizontal_color",
+                    "Gridline Vertical Colour": "gridline_vertical_color",
+                    "Task Stroke Colour": "task_stroke_color",
+                    "Milestone Stroke Colour": "milestone_stroke_color",
+                    "Outside Label Text Colour": "outside_label_text_color",
+                    "Outside Label Line Colour": "outside_label_line_color",
+                }
+
+                field_name = field_map.get(key)
+                if field_name:
+                    data[field_name] = str(value) if value is not None else ""
+
+        return data
+
+
     def _read_table_sheet(self, ws) -> List[List[str]]:
         """Read a table worksheet (legacy format for backward compatibility)."""
         data = []

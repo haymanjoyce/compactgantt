@@ -227,7 +227,85 @@ class GeneralConfig:
     @property
     def frame_border_color(self) -> str:
         return self.chart.frame_border_color
-    
+
+    # User-editable style colour properties
+    @property
+    def chart_background_color(self) -> str:
+        return self.chart.chart_background_color
+
+    @property
+    def header_footer_background_color(self) -> str:
+        return self.chart.header_footer_background_color
+
+    @property
+    def swimlane_label_color(self) -> str:
+        return self.chart.swimlane_label_color
+
+    @property
+    def swimlane_divider_color(self) -> str:
+        return self.chart.swimlane_divider_color
+
+    @property
+    def scale_background_color(self) -> str:
+        return self.chart.scale_background_color
+
+    @property
+    def scale_tick_color(self) -> str:
+        return self.chart.scale_tick_color
+
+    @property
+    def gridline_horizontal_color(self) -> str:
+        return self.chart.gridline_horizontal_color
+
+    @property
+    def gridline_vertical_color(self) -> str:
+        return self.chart.gridline_vertical_color
+
+    @property
+    def task_stroke_color(self) -> str:
+        return self.chart.task_stroke_color
+
+    @property
+    def milestone_stroke_color(self) -> str:
+        return self.chart.milestone_stroke_color
+
+    @property
+    def outside_label_text_color(self) -> str:
+        return self.chart.outside_label_text_color
+
+    @property
+    def outside_label_line_color(self) -> str:
+        return self.chart.outside_label_line_color
+
+    # Named colour constant properties
+    @property
+    def row_number_text_color(self) -> str:
+        return self.chart.row_number_text_color
+
+    @property
+    def id_badge_background_color(self) -> str:
+        return self.chart.id_badge_background_color
+
+    @property
+    def id_badge_border_color(self) -> str:
+        return self.chart.id_badge_border_color
+
+    @property
+    def id_badge_text_color(self) -> str:
+        return self.chart.id_badge_text_color
+
+    @property
+    def note_background_color(self) -> str:
+        return self.chart.note_background_color
+
+    @property
+    def note_border_color(self) -> str:
+        return self.chart.note_border_color
+
+    @property
+    def note_text_color(self) -> str:
+        return self.chart.note_text_color
+
     @property
     def read_only_bg_color(self) -> QColor:
         return self.ui.read_only_bg_color

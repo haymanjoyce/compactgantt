@@ -1,6 +1,6 @@
-from PyQt5.QtWidgets import (QWidget, QTableWidget, QVBoxLayout, QPushButton, 
-                             QHBoxLayout, QHeaderView, QTableWidgetItem, 
-                             QMessageBox, QGroupBox, QSizePolicy)
+from PyQt5.QtWidgets import (QWidget, QTableWidget, QVBoxLayout, QPushButton,
+                             QHBoxLayout, QHeaderView, QTableWidgetItem,
+                             QMessageBox, QGroupBox, QSizePolicy, QSpinBox)
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor
 from typing import List, Dict, Any, Optional
@@ -406,26 +406,51 @@ class SwimlanesTab(BaseTab):
     def _swap_table_rows(self, row1: int, row2: int):
         """Swap two table rows by exchanging all cell contents and widgets."""
         num_cols = self.swimlanes_table.columnCount()
-        
+
+        # Save spin box values keyed by column index before removing widgets
+        spinbox_values1 = {}
+        spinbox_values2 = {}
+        for col in range(num_cols):
+            w1 = self.swimlanes_table.cellWidget(row1, col)
+            w2 = self.swimlanes_table.cellWidget(row2, col)
+            if isinstance(w1, QSpinBox):
+                spinbox_values1[col] = w1.value()
+            if isinstance(w2, QSpinBox):
+                spinbox_values2[col] = w2.value()
+
         # Collect all items from both rows
         items1 = [self.swimlanes_table.takeItem(row1, col) for col in range(num_cols)]
         items2 = [self.swimlanes_table.takeItem(row2, col) for col in range(num_cols)]
-        
+
         # Remove all widgets from both rows
         for col in range(num_cols):
-            widget1 = self.swimlanes_table.cellWidget(row1, col)
-            widget2 = self.swimlanes_table.cellWidget(row2, col)
-            if widget1:
+            if self.swimlanes_table.cellWidget(row1, col):
                 self.swimlanes_table.removeCellWidget(row1, col)
-            if widget2:
+            if self.swimlanes_table.cellWidget(row2, col):
                 self.swimlanes_table.removeCellWidget(row2, col)
-        
+
         # Set items in swapped positions
         for col in range(num_cols):
             if items2[col]:
                 self.swimlanes_table.setItem(row1, col, items2[col])
             if items1[col]:
                 self.swimlanes_table.setItem(row2, col, items1[col])
+
+        # Recreate spin boxes in swapped positions
+        for col, value in spinbox_values2.items():
+            spinbox = QSpinBox()
+            spinbox.setMinimum(1)
+            spinbox.setMaximum(99)
+            spinbox.setValue(value)
+            spinbox.valueChanged.connect(self._sync_data_if_not_initializing)
+            self.swimlanes_table.setCellWidget(row1, col, spinbox)
+        for col, value in spinbox_values1.items():
+            spinbox = QSpinBox()
+            spinbox.setMinimum(1)
+            spinbox.setMaximum(99)
+            spinbox.setValue(value)
+            spinbox.valueChanged.connect(self._sync_data_if_not_initializing)
+            self.swimlanes_table.setCellWidget(row2, col, spinbox)
 
     def _add_swimlane(self):
         """Add a new swimlane at the end and create one default task within it."""
@@ -605,8 +630,8 @@ class SwimlanesTab(BaseTab):
             if col_name == "ID":
                 return
             
-            # Update UserRole for numeric columns (ID, Row Count)
-            if col_name in ["ID", "Row Count"]:
+            # Update UserRole for numeric columns (ID only; Row Count is now a QSpinBox)
+            if col_name in ["ID"]:
                 try:
                     val_str = item.text().strip()
                     item.setData(Qt.UserRole, int(val_str) if val_str else 0)
@@ -687,16 +712,14 @@ class SwimlanesTab(BaseTab):
                 item.setData(Qt.UserRole, swimlane.swimlane_id)
                 self.swimlanes_table.setItem(row_idx, id_col, item)
         
-        # Update Row Count column
+        # Update Row Count column — QSpinBox widget
         if row_count_col is not None:
-            item = self.swimlanes_table.item(row_idx, row_count_col)
-            if item:
-                item.setText(str(swimlane.row_count))
-                item.setData(Qt.UserRole, swimlane.row_count)
-            else:
-                item = NumericTableWidgetItem(str(swimlane.row_count))
-                item.setData(Qt.UserRole, swimlane.row_count)
-                self.swimlanes_table.setItem(row_idx, row_count_col, item)
+            spinbox = QSpinBox()
+            spinbox.setMinimum(1)
+            spinbox.setMaximum(99)
+            spinbox.setValue(max(1, swimlane.row_count))
+            spinbox.valueChanged.connect(self._sync_data_if_not_initializing)
+            self.swimlanes_table.setCellWidget(row_idx, row_count_col, spinbox)
         
         # Update Title column (changed from Name)
         title_col = self._get_column_index("Title")
@@ -727,11 +750,16 @@ class SwimlanesTab(BaseTab):
             if swimlane_id <= 0:
                 return None
             
-            # Extract Row Count
-            row_count_item = self.swimlanes_table.item(row_idx, row_count_col)
-            if not row_count_item or not row_count_item.text().strip():
-                return None
-            row_count = safe_int(row_count_item.text())
+            # Extract Row Count from QSpinBox widget
+            row_count_widget = self.swimlanes_table.cellWidget(row_idx, row_count_col)
+            if isinstance(row_count_widget, QSpinBox):
+                row_count = row_count_widget.value()
+            else:
+                # Fallback for any plain-text item (e.g. during testing)
+                row_count_item = self.swimlanes_table.item(row_idx, row_count_col)
+                if not row_count_item or not row_count_item.text().strip():
+                    return None
+                row_count = safe_int(row_count_item.text())
             if row_count <= 0:
                 return None
             

@@ -1,7 +1,7 @@
 """Application version information."""
 
-__version__ = "1.5.2"
-__version_info__ = (1, 5, 2)
+__version__ = "1.6.0"
+__version_info__ = (1, 6, 0)
 
 # Application metadata
 APP_NAME = "Compact Gantt"

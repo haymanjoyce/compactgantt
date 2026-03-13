@@ -35,7 +35,20 @@ class ProjectData:
             row_number_vertical_alignment_factor=app_config.general.chart.row_number_vertical_alignment_factor,
             header_footer_vertical_alignment_factor=app_config.general.chart.header_footer_vertical_alignment_factor,
             swimlane_top_vertical_alignment_factor=app_config.general.chart.swimlane_top_vertical_alignment_factor,
-            swimlane_bottom_vertical_alignment_factor=app_config.general.chart.swimlane_bottom_vertical_alignment_factor
+            swimlane_bottom_vertical_alignment_factor=app_config.general.chart.swimlane_bottom_vertical_alignment_factor,
+            # User-editable style colours
+            chart_background_color=app_config.general.chart.chart_background_color,
+            header_footer_background_color=app_config.general.chart.header_footer_background_color,
+            swimlane_label_color=app_config.general.chart.swimlane_label_color,
+            swimlane_divider_color=app_config.general.chart.swimlane_divider_color,
+            scale_background_color=app_config.general.chart.scale_background_color,
+            scale_tick_color=app_config.general.chart.scale_tick_color,
+            gridline_horizontal_color=app_config.general.chart.gridline_horizontal_color,
+            gridline_vertical_color=app_config.general.chart.gridline_vertical_color,
+            task_stroke_color=app_config.general.chart.task_stroke_color,
+            milestone_stroke_color=app_config.general.chart.milestone_stroke_color,
+            outside_label_text_color=app_config.general.chart.outside_label_text_color,
+            outside_label_line_color=app_config.general.chart.outside_label_line_color,
         )
         self.tasks: List[Task] = []
         self.links: List[Link] = []
@@ -56,7 +69,7 @@ class ProjectData:
         swimlanes_data = [swimlane.to_dict() for swimlane in self.swimlanes]
         notes_data = [note.to_dict() for note in self.notes]
         
-        # Serialize chart_config (only typography-related fields to keep JSON size manageable)
+        # Serialize chart_config (typography fields + user-editable style colours)
         chart_config_data = {
             "font_family": self.chart_config.font_family,
             "task_font_size": self.chart_config.task_font_size,
@@ -70,7 +83,20 @@ class ProjectData:
             "row_number_vertical_alignment_factor": self.chart_config.row_number_vertical_alignment_factor,
             "header_footer_vertical_alignment_factor": self.chart_config.header_footer_vertical_alignment_factor,
             "swimlane_top_vertical_alignment_factor": self.chart_config.swimlane_top_vertical_alignment_factor,
-            "swimlane_bottom_vertical_alignment_factor": self.chart_config.swimlane_bottom_vertical_alignment_factor
+            "swimlane_bottom_vertical_alignment_factor": self.chart_config.swimlane_bottom_vertical_alignment_factor,
+            # User-editable style colours
+            "chart_background_color": self.chart_config.chart_background_color,
+            "header_footer_background_color": self.chart_config.header_footer_background_color,
+            "swimlane_label_color": self.chart_config.swimlane_label_color,
+            "swimlane_divider_color": self.chart_config.swimlane_divider_color,
+            "scale_background_color": self.chart_config.scale_background_color,
+            "scale_tick_color": self.chart_config.scale_tick_color,
+            "gridline_horizontal_color": self.chart_config.gridline_horizontal_color,
+            "gridline_vertical_color": self.chart_config.gridline_vertical_color,
+            "task_stroke_color": self.chart_config.task_stroke_color,
+            "milestone_stroke_color": self.chart_config.milestone_stroke_color,
+            "outside_label_text_color": self.chart_config.outside_label_text_color,
+            "outside_label_line_color": self.chart_config.outside_label_line_color,
         }
         
         return {
@@ -97,12 +123,19 @@ class ProjectData:
         # Load chart_config (backward compatibility: use defaults if not present)
         chart_config_data = data.get("chart_config", {})
         if chart_config_data:
-            # Update project's chart_config with loaded values (only typography fields)
+            # Update project's chart_config with loaded values (typography + style colours)
             for key in ["font_family", "task_font_size", "scale_font_size", "header_footer_font_size",
                        "row_number_font_size", "note_font_size", "swimlane_font_size",
                        "scale_vertical_alignment_factor", "task_vertical_alignment_factor",
                        "row_number_vertical_alignment_factor", "header_footer_vertical_alignment_factor",
-                       "swimlane_top_vertical_alignment_factor", "swimlane_bottom_vertical_alignment_factor"]:
+                       "swimlane_top_vertical_alignment_factor", "swimlane_bottom_vertical_alignment_factor",
+                       # User-editable style colours
+                       "chart_background_color", "header_footer_background_color",
+                       "swimlane_label_color", "swimlane_divider_color",
+                       "scale_background_color", "scale_tick_color",
+                       "gridline_horizontal_color", "gridline_vertical_color",
+                       "task_stroke_color", "milestone_stroke_color",
+                       "outside_label_text_color", "outside_label_line_color"]:
                 if key in chart_config_data:
                     setattr(project.chart_config, key, chart_config_data[key])
             

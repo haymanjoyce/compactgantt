@@ -45,7 +45,30 @@ class ChartConfig:
     frame_border_width_heavy: float = 1.0  # Outer frame border width
     frame_border_width_light: float = 0.5  # Header, footer, scale, and row frame border width
     frame_border_color: str = "grey"  # Border color for all frames
-    
+
+    # User-editable style colours (persisted to Excel Style sheet)
+    chart_background_color: str = "white"
+    header_footer_background_color: str = "lightgrey"
+    swimlane_label_color: str = "grey"
+    swimlane_divider_color: str = "grey"
+    scale_background_color: str = "lightgrey"
+    scale_tick_color: str = "grey"
+    gridline_horizontal_color: str = "lightgrey"
+    gridline_vertical_color: str = "lightgrey"
+    task_stroke_color: str = "black"
+    milestone_stroke_color: str = "black"
+    outside_label_text_color: str = "black"
+    outside_label_line_color: str = "black"
+
+    # Named colour constants (ChartConfig only — not user-editable, not persisted)
+    row_number_text_color: str = "grey"
+    id_badge_background_color: str = "#f8f8f8"
+    id_badge_border_color: str = "#555"
+    id_badge_text_color: str = "#111"
+    note_background_color: str = "white"
+    note_border_color: str = "grey"
+    note_text_color: str = "black"
+
     # Font settings
     font_family: str = "Arial"  # Font family for all text elements
     

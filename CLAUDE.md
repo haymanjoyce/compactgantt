@@ -97,7 +97,7 @@ tests/                      # Automated tests
 
 ## Tab Order
 
-Swimlanes → Tasks → Links → Pipes → Curtains → Notes → Layout → Timeline → Titles → Typography → Preferences
+Swimlanes → Tasks → Links → Pipes → Curtains → Notes → Layout → Timeline → Titles → Typography → Style → Preferences
 
 ## Keyboard Shortcuts
 

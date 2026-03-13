@@ -19,6 +19,7 @@ from .tabs.timeline_tab import TimelineTab
 from .tabs.swimlanes_tab import SwimlanesTab
 from .tabs.notes_tab import NotesTab
 from .tabs.typography_tab import TypographyTab
+from .tabs.style_tab import StyleTab
 
 class MainWindow(QMainWindow):
     data_updated = pyqtSignal(dict)
@@ -129,6 +130,7 @@ class MainWindow(QMainWindow):
         self.curtains_tab = CurtainsTab(self.project_data, self.app_config)
         self.notes_tab = NotesTab(self.project_data, self.app_config)
         self.typography_tab = TypographyTab(self.project_data, self.app_config)
+        self.style_tab = StyleTab(self.project_data, self.app_config)
 
     def _add_all_tabs(self):
         """Add all tabs to the tab widget in saved order (or default if no saved order)."""
@@ -145,6 +147,7 @@ class MainWindow(QMainWindow):
             "Curtains": self.curtains_tab,
             "Notes": self.notes_tab,
             "Typography": self.typography_tab,
+            "Style": self.style_tab,
         }
         
         # Get saved order if available and valid
@@ -303,7 +306,9 @@ class MainWindow(QMainWindow):
                 self.notes_tab._sync_data()
             if hasattr(self.typography_tab, '_sync_data'):
                 self.typography_tab._sync_data()
-            # After syncing typography tab, sync chart_config to project_data
+            if hasattr(self.style_tab, '_sync_data'):
+                self.style_tab._sync_data()
+            # After syncing typography and style tabs, sync chart_config to project_data
             self._sync_chart_config_to_project_data()
         except Exception as e:
             logging.error(f"Error syncing tab data: {e}", exc_info=True)
@@ -325,7 +330,20 @@ class MainWindow(QMainWindow):
         self.project_data.chart_config.header_footer_vertical_alignment_factor = chart_config.header_footer_vertical_alignment_factor
         self.project_data.chart_config.swimlane_top_vertical_alignment_factor = chart_config.swimlane_top_vertical_alignment_factor
         self.project_data.chart_config.swimlane_bottom_vertical_alignment_factor = chart_config.swimlane_bottom_vertical_alignment_factor
-    
+        # Style colours
+        self.project_data.chart_config.chart_background_color = chart_config.chart_background_color
+        self.project_data.chart_config.header_footer_background_color = chart_config.header_footer_background_color
+        self.project_data.chart_config.swimlane_label_color = chart_config.swimlane_label_color
+        self.project_data.chart_config.swimlane_divider_color = chart_config.swimlane_divider_color
+        self.project_data.chart_config.scale_background_color = chart_config.scale_background_color
+        self.project_data.chart_config.scale_tick_color = chart_config.scale_tick_color
+        self.project_data.chart_config.gridline_horizontal_color = chart_config.gridline_horizontal_color
+        self.project_data.chart_config.gridline_vertical_color = chart_config.gridline_vertical_color
+        self.project_data.chart_config.task_stroke_color = chart_config.task_stroke_color
+        self.project_data.chart_config.milestone_stroke_color = chart_config.milestone_stroke_color
+        self.project_data.chart_config.outside_label_text_color = chart_config.outside_label_text_color
+        self.project_data.chart_config.outside_label_line_color = chart_config.outside_label_line_color
+
     def _sync_chart_config_from_project_data(self):
         """Sync chart_config from project_data to app_config (after loading)."""
         chart_config = self.app_config.general.chart
@@ -342,6 +360,19 @@ class MainWindow(QMainWindow):
         chart_config.header_footer_vertical_alignment_factor = self.project_data.chart_config.header_footer_vertical_alignment_factor
         chart_config.swimlane_top_vertical_alignment_factor = self.project_data.chart_config.swimlane_top_vertical_alignment_factor
         chart_config.swimlane_bottom_vertical_alignment_factor = self.project_data.chart_config.swimlane_bottom_vertical_alignment_factor
+        # Style colours
+        chart_config.chart_background_color = self.project_data.chart_config.chart_background_color
+        chart_config.header_footer_background_color = self.project_data.chart_config.header_footer_background_color
+        chart_config.swimlane_label_color = self.project_data.chart_config.swimlane_label_color
+        chart_config.swimlane_divider_color = self.project_data.chart_config.swimlane_divider_color
+        chart_config.scale_background_color = self.project_data.chart_config.scale_background_color
+        chart_config.scale_tick_color = self.project_data.chart_config.scale_tick_color
+        chart_config.gridline_horizontal_color = self.project_data.chart_config.gridline_horizontal_color
+        chart_config.gridline_vertical_color = self.project_data.chart_config.gridline_vertical_color
+        chart_config.task_stroke_color = self.project_data.chart_config.task_stroke_color
+        chart_config.milestone_stroke_color = self.project_data.chart_config.milestone_stroke_color
+        chart_config.outside_label_text_color = self.project_data.chart_config.outside_label_text_color
+        chart_config.outside_label_line_color = self.project_data.chart_config.outside_label_line_color
 
     def _emit_data_updated(self):
         """Only called when Update Image button is clicked"""

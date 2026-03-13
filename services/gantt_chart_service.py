@@ -96,7 +96,7 @@ class GanttChartService(QObject):
         width = self._get_frame_config("outer_width", self.config.general.outer_width)
         height = self._get_frame_config("outer_height", self.config.general.outer_height)
         # Render background first
-        self.dwg.add(self.dwg.rect(insert=(0, 0), size=(width, height), fill="white", stroke="none"))
+        self.dwg.add(self.dwg.rect(insert=(0, 0), size=(width, height), fill=self.config.general.chart_background_color, stroke="none"))
 
     def render_outer_frame_border(self):
         """Render outer frame border last so it appears on top of all other elements."""
@@ -116,8 +116,8 @@ class GanttChartService(QObject):
             return
         
         self.dwg.add(self.dwg.rect(insert=(margins[3], margins[0]), size=(width, height),
-                                   fill="lightgrey", 
-                                   stroke=self.config.general.frame_border_color, 
+                                   fill=self.config.general.header_footer_background_color,
+                                   stroke=self.config.general.frame_border_color,
                                    stroke_width=self.config.general.frame_border_width_light))
         header_text = self._get_frame_config("header_text", "")
         if header_text:
@@ -137,8 +137,8 @@ class GanttChartService(QObject):
         
         y = self._get_frame_config("outer_height", self.config.general.outer_height) - margins[2] - height
         self.dwg.add(self.dwg.rect(insert=(margins[3], y), size=(width, height),
-                                   fill="lightgrey", 
-                                   stroke=self.config.general.frame_border_color, 
+                                   fill=self.config.general.header_footer_background_color,
+                                   stroke=self.config.general.frame_border_color,
                                    stroke_width=self.config.general.frame_border_width_light))
         footer_text = self._get_frame_config("footer_text", "")
         if footer_text:
@@ -344,8 +344,8 @@ class GanttChartService(QObject):
             insert=(rect_x, rect_y),
             size=(badge_w, badge_h),
             rx=2, ry=2,
-            fill="#f8f8f8",
-            stroke="#555",
+            fill=self.config.general.id_badge_background_color,
+            stroke=self.config.general.id_badge_border_color,
             stroke_width=0.6
         ))
         
@@ -358,7 +358,7 @@ class GanttChartService(QObject):
             insert=(text_x, text_y),
             font_size=str(font_size),
             font_family=self.config.general.font_family,
-            fill="#111",
+            fill=self.config.general.id_badge_text_color,
             dominant_baseline="middle",
             text_anchor="start"
         ))
@@ -406,13 +406,13 @@ class GanttChartService(QObject):
         
         # Render label text
         self.dwg.add(self.dwg.text(task_name, insert=(label_x, label_y_base), 
-                                   font_size=str(self.config.general.task_font_size), font_family=self.config.general.font_family, fill="black",
+                                   font_size=str(self.config.general.task_font_size), font_family=self.config.general.font_family, fill=self.config.general.outside_label_text_color,
                                    text_anchor="start", dominant_baseline="middle"))
         
         # Render leader line only if user offset > 0
         if label_horizontal_offset > 0:
             self.dwg.add(self.dwg.line((label_x, attachment_y), (attachment_x, attachment_y),
-                                       stroke="black", stroke_width=0.5))
+                                       stroke=self.config.general.outside_label_line_color, stroke_width=0.5))
 
     def _extract_task_info(self, task: dict) -> dict:
         """Extract task information using key-based lookups.
@@ -571,8 +571,8 @@ class GanttChartService(QObject):
             row_height: Height of task row
         """
         # Render as a circle - use fill_color from task
-        self.dwg.add(self.dwg.circle(center=(center_x, center_y), r=half_size, 
-                                     fill=fill_color, stroke="black", stroke_width=0.5))
+        self.dwg.add(self.dwg.circle(center=(center_x, center_y), r=half_size,
+                                     fill=fill_color, stroke=self.config.general.milestone_stroke_color, stroke_width=0.5))
         
         # Always render ID badge if enabled
         if show_ids:
@@ -609,8 +609,8 @@ class GanttChartService(QObject):
             y_offset = (row_height - task_height) / 2
             rect_y = y_task + y_offset
             corner_radius = 3
-            self.dwg.add(self.dwg.rect(insert=(x_start, rect_y), size=(width_task, task_height), 
-                                      fill=fill_color, stroke="black", stroke_width=0.5,
+            self.dwg.add(self.dwg.rect(insert=(x_start, rect_y), size=(width_task, task_height),
+                                      fill=fill_color, stroke=self.config.general.task_stroke_color, stroke_width=0.5,
                                       rx=corner_radius, ry=corner_radius))
             
             # Render ID badge if enabled
@@ -932,7 +932,7 @@ class GanttChartService(QObject):
         self.dwg.add(self.dwg.line(
             (x, divider_y),
             (x + width, divider_y),
-            stroke="grey",
+            stroke=self.config.general.swimlane_divider_color,
             stroke_width=0.5
         ))
     
@@ -1007,7 +1007,7 @@ class GanttChartService(QObject):
         text_element = self.dwg.text(
             title,
             insert=(label_x, label_y),
-            fill="grey",
+            fill=self.config.general.swimlane_label_color,
             font_size=str(self.config.general.swimlane_font_size) + "px",
             font_family=f"{self.config.general.font_family}, sans-serif",
             text_anchor=text_anchor,
@@ -1898,8 +1898,8 @@ class GanttChartService(QObject):
         current_y = start_y
         for interval, scale_height in scale_heights:
             self.dwg.add(self.dwg.rect(insert=(x, current_y), size=(width, scale_height),
-                                       fill="lightgrey", 
-                                       stroke=self.config.general.frame_border_color, 
+                                       fill=self.config.general.scale_background_color,
+                                       stroke=self.config.general.frame_border_color,
                                        stroke_width=self.config.general.frame_border_width_light))
             self.render_scale_interval(x, current_y, width, scale_height, start_date, end_date, interval, time_scale)
             current_y += scale_height
@@ -1954,7 +1954,7 @@ class GanttChartService(QObject):
         
         for i in range(1, num_rows):  # Exclude first and last to avoid overlapping row frame border
             y_pos = row_y + i * (row_frame_height / num_rows)
-            self.dwg.add(self.dwg.line((x, y_pos), (x + width, y_pos), stroke="lightgrey", stroke_width=0.5))
+            self.dwg.add(self.dwg.line((x, y_pos), (x + width, y_pos), stroke=self.config.general.gridline_horizontal_color, stroke_width=0.5))
     
     def _render_row_numbers(self, x: float, row_y: float, row_frame_height: float, num_rows: int):
         """Render row numbers if enabled.
@@ -1979,7 +1979,7 @@ class GanttChartService(QObject):
             text_element = self.dwg.text(
                 str(i + 1),  # 1-based row number
                 insert=(text_x, row_center_y),
-                fill="grey",
+                fill=self.config.general.row_number_text_color,
                 font_size=str(self.config.general.row_number_font_size) + "px",
                 font_family=f"{self.config.general.font_family}, sans-serif",
                 text_anchor="start",
@@ -2037,7 +2037,7 @@ class GanttChartService(QObject):
                 x_pos = x + (current_date - start_date).days * time_scale
                 if x <= x_pos <= x + width:
                     self.dwg.add(self.dwg.line((x_pos, row_y), (x_pos, row_y + row_frame_height),
-                                               stroke="lightgrey", stroke_width=line_weight))
+                                               stroke=self.config.general.gridline_vertical_color, stroke_width=line_weight))
                 prev_x = x_pos
                 current_date = self.next_period(current_date, interval)
 
@@ -2127,7 +2127,7 @@ class GanttChartService(QObject):
             # Draw increment border only if it doesn't align with scale border edges
             if x < x_pos < x + width:
                 self.dwg.add(self.dwg.line((x_pos, y), (x_pos, y + height),
-                                           stroke="grey", stroke_width=0.5))
+                                           stroke=self.config.general.scale_tick_color, stroke_width=0.5))
             if prev_x < x + width and x_pos > x:
                 label_x = (max(x, prev_x) + min(x + width, x_pos)) / 2
                 label_y = y + height * self.config.general.scale_vertical_alignment_factor
@@ -2256,8 +2256,8 @@ class GanttChartService(QObject):
             self.dwg.add(self.dwg.rect(
                 insert=(note.x, note.y),
                 size=(note.width, note.height),
-                fill="white",
-                stroke="grey",
+                fill=self.config.general.note_background_color,
+                stroke=self.config.general.note_border_color,
                 stroke_width=0.5
             ))
             
@@ -2307,7 +2307,7 @@ class GanttChartService(QObject):
                     insert=(text_x, line_y),
                     font_size=str(self.config.general.note_font_size) + "px",
                     font_family=self.config.general.font_family,
-                    fill="black",
+                    fill=self.config.general.note_text_color,
                     text_anchor=text_anchor,
                     dominant_baseline="auto"
                 ))

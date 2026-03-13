@@ -175,3 +175,6 @@ tiff/
 build/
 dist/
 *.spec.bak
+
+# Local scratch / working files
+tmp/

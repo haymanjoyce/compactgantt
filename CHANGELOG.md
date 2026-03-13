@@ -15,6 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.6.0] - 2026-03-13
+
+### Added
+
+- **Style tab.** New tab (after Typography, before Preferences) exposes 12 user-editable colour fields across six groups: Chart (background), Header & Footer (background), Swimlane (label text, row divider), Scale (band background, tick/divider), Gridlines (horizontal, vertical), and Tasks (bar stroke, milestone stroke, outside label text, outside label line). Colour changes take effect on Update Chart and persist through save/reload.
+- **Style worksheet in Excel project file.** The 12 user-editable colours are persisted to a new Style worksheet (key-value format, British "Colour" spelling). Existing files without the worksheet load with default values.
+- **Named colour constants in ChartConfig.** Seven non-user-editable colours (row number text, ID badge background/border/text, note background/border/text) are promoted to named fields in `ChartConfig` rather than being hardcoded at the point of use.
+
+### Changed
+
+- **Zero hardcoded colour literals in `gantt_chart_service.py`.** All 19 previously hardcoded colour values have been replaced with `self.config.general.<field_name>` references. No hardcoded style values remain anywhere in the rendering layer.
+
+---
+
 ## [1.5.2] - 2026-03-13
 
 ### Changed
