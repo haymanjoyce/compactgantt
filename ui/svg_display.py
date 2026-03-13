@@ -77,16 +77,14 @@ class SvgDisplay(QMainWindow):
         self._button_style = button_style
 
         # Top export buttons
-        self.save_png_btn = QPushButton("Save PNG")
-        self.save_jpeg_btn = QPushButton("Save JPEG")
-        self.save_png_btn.setShortcut("Ctrl+Shift+S")
-        self.save_jpeg_btn.setShortcut("Ctrl+Shift+J")
-        self.save_png_btn.setToolTip("Save as PNG with transparent background (Ctrl+Shift+S)")
-        self.save_jpeg_btn.setToolTip("Save as JPEG with white opaque background (Ctrl+Shift+J)")
-        self.save_png_btn.clicked.connect(lambda: self.save_as_raster("PNG"))
-        self.save_jpeg_btn.clicked.connect(lambda: self.save_as_raster("JPEG"))
-        self.save_png_btn.setStyleSheet(button_style)
-        self.save_jpeg_btn.setStyleSheet(button_style)
+        self.save_svg_btn = QPushButton("Save SVG")
+        self.save_image_btn = QPushButton("Save Image")
+        self.save_svg_btn.setToolTip("Save as SVG")
+        self.save_image_btn.setToolTip("Save as JPEG or PNG")
+        self.save_svg_btn.clicked.connect(self.save_as_svg)
+        self.save_image_btn.clicked.connect(self.save_as_raster)
+        self.save_svg_btn.setStyleSheet(button_style)
+        self.save_image_btn.setStyleSheet(button_style)
 
         divider = QFrame()
         divider.setFrameShape(QFrame.VLine)
@@ -100,8 +98,8 @@ class SvgDisplay(QMainWindow):
         btn_layout.addWidget(self.zoom_out_btn)
         btn_layout.addWidget(self.fit_btn)
         btn_layout.addWidget(divider)
-        btn_layout.addWidget(self.save_png_btn)
-        btn_layout.addWidget(self.save_jpeg_btn)
+        btn_layout.addWidget(self.save_svg_btn)
+        btn_layout.addWidget(self.save_image_btn)
 
         # Create central widget
         central_widget = QWidget()
@@ -287,76 +285,89 @@ class SvgDisplay(QMainWindow):
         h_bar.setValue(widget_center_x - viewport_width // 2)
         v_bar.setValue(widget_center_y - viewport_height // 2)
 
-    def save_as_raster(self, format_type="PNG"):
-        """Save the SVG as a raster image (PNG or JPEG)."""
+    def save_as_svg(self):
+        """Save the current SVG file to a user-chosen location."""
         if not self._svg_path or not self.svg_renderer.isValid():
             QMessageBox.warning(self, "No Image", "No SVG image loaded to save.")
             return
-        
-        # Determine file extension and filter based on format
-        if format_type == "JPEG":
-            default_ext = ".jpg"
-            file_filter = "JPEG Images (*.jpg *.jpeg)"
-        else:  # PNG
-            default_ext = ".png"
-            file_filter = "PNG Images (*.png)"
-        
-        # Show file dialog for saving
+
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            f"Save Image As {format_type}",
+            "Save SVG",
             "",
-            file_filter
+            "SVG Files (*.svg)"
         )
-        
+
         if not file_path:
             return
-        
-        # Ensure correct extension
-        if not file_path.endswith(default_ext):
-            file_path += default_ext
-        
+
+        if not file_path.lower().endswith(".svg"):
+            file_path += ".svg"
+
         try:
-            # Render SVG at native size for high quality
+            with open(self._svg_path, 'r', encoding='utf-8') as f:
+                svg_content = f.read()
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(svg_content)
+            QMessageBox.information(
+                self,
+                "SVG Saved",
+                f"SVG successfully saved:\n{file_path}"
+            )
+            self.status_bar.showMessage("SVG saved")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error saving SVG: {str(e)}")
+
+    def save_as_raster(self):
+        """Save the SVG as a raster image (JPEG default, PNG alternative)."""
+        if not self._svg_path or not self.svg_renderer.isValid():
+            QMessageBox.warning(self, "No Image", "No SVG image loaded to save.")
+            return
+
+        # Show file dialog — JPEG is first (default), PNG is alternative
+        file_path, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Save Image",
+            "",
+            "JPEG Images (*.jpg *.jpeg);;PNG Images (*.png)"
+        )
+
+        if not file_path:
+            return
+
+        # Determine format from chosen filter
+        if "PNG" in selected_filter:
+            format_type = "PNG"
+            if not file_path.lower().endswith(".png"):
+                file_path += ".png"
+        else:
+            format_type = "JPEG"
+            if not (file_path.lower().endswith(".jpg") or file_path.lower().endswith(".jpeg")):
+                file_path += ".jpg"
+
+        try:
             native_size = self._svg_size
-            
+
             if format_type == "PNG":
-                # For PNG, we need to remove the white background rectangle from SVG
-                # to achieve transparency. Modify SVG temporarily.
+                # Remove white background rect for transparency
                 try:
-                    # Read SVG as text and remove white background rectangle using regex
                     with open(self._svg_path, 'r', encoding='utf-8') as f:
                         svg_content = f.read()
-                    
-                    # Remove white background rectangle: <rect fill="white" ... x="0" y="0" ... />
-                    # The background rect has: fill="white", x="0", y="0", and stroke="none"
-                    # Use lookaheads to ensure all required attributes are present in any order
-                    # Pattern matches rect with fill="white", x="0", y="0" (any order)
                     pattern = r'<rect(?=[^>]*fill="white")(?=[^>]*x="0")(?=[^>]*y="0")[^>]*?/>'
-                    modified_content = re.sub(pattern, '', svg_content, count=1)  # Only replace first match
-                    
-                    # Write modified SVG to temporary file
+                    modified_content = re.sub(pattern, '', svg_content, count=1)
                     temp_svg = tempfile.NamedTemporaryFile(mode='w', suffix='.svg', delete=False, encoding='utf-8')
                     temp_svg.write(modified_content)
                     temp_svg.close()
-                    
-                    # Create new renderer for modified SVG
                     temp_renderer = QSvgRenderer(temp_svg.name)
-                    
-                    # Use QImage with ARGB32 format for transparency support
                     image = QImage(native_size, QImage.Format_ARGB32)
                     image.fill(Qt.transparent)
                     painter = QPainter(image)
                     painter.setRenderHint(QPainter.Antialiasing)
                     temp_renderer.render(painter)
                     painter.end()
-                    
-                    # Clean up temporary file
                     os.unlink(temp_svg.name)
-                    
                     success = image.save(file_path, format_type)
                 except Exception as e:
-                    # Fallback: render original SVG if modification fails
                     logging.warning(f"Failed to modify SVG for transparency: {e}")
                     image = QImage(native_size, QImage.Format_ARGB32)
                     image.fill(Qt.transparent)
@@ -366,7 +377,6 @@ class SvgDisplay(QMainWindow):
                     painter.end()
                     success = image.save(file_path, format_type)
             else:  # JPEG
-                # Use QPixmap for JPEG (no transparency needed)
                 pixmap = QPixmap(native_size)
                 pixmap.fill(Qt.white)
                 painter = QPainter(pixmap)
@@ -374,13 +384,11 @@ class SvgDisplay(QMainWindow):
                 self.svg_renderer.render(painter)
                 painter.end()
                 success = pixmap.save(file_path, format_type)
-            
-            # Save and show confirmation
+
             if success:
-                # Show confirmation dialog with file path
                 QMessageBox.information(
-                    self, 
-                    "Image Saved", 
+                    self,
+                    "Image Saved",
                     f"Image successfully saved as {format_type}:\n{file_path}"
                 )
                 self.status_bar.showMessage(f"Image saved as {format_type}")

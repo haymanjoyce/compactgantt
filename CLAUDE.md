@@ -107,8 +107,6 @@ Swimlanes → Tasks → Links → Pipes → Curtains → Notes → Layout → Ti
 | Open Project | Ctrl+O |
 | Add Task | Ctrl+N |
 | Delete Task(s) | Delete |
-| Save PNG (transparent) | Ctrl+Shift+S |
-| Save JPEG (opaque) | Ctrl+Shift+J |
 | Zoom In | Ctrl++ |
 | Zoom Out | Ctrl+- |
 | Fit to Window | Ctrl+0 |

@@ -118,8 +118,6 @@ Tabs are organized in a content-first logical grouping:
 - **Delete**: Remove selected task(s) (in Tasks tab)
 
 ### Chart Display Window
-- **Ctrl+Shift+S**: Save image as PNG (transparent)
-- **Ctrl+Shift+J**: Save image as JPEG (opaque)
 - **Ctrl++**: Zoom in
 - **Ctrl+-**: Zoom out
 - **Ctrl+0**: Fit to window
