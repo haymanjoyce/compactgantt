@@ -439,6 +439,8 @@ class GanttChartService(QObject):
         label_hide = label_content == "None"  # For rendering logic compatibility
         task_name = task.get("task_name", "Unnamed")
         fill_color = task.get("fill_color") or "blue"  # Fallback for missing or blank fill color
+        fill_pattern = (task.get("fill_pattern") or "solid").lower()
+        pattern_color = task.get("pattern_color") or "white"
         label_horizontal_offset = task.get("label_horizontal_offset", 0.0)  # Get label offset, default to 0.0
         task_row = task.get("swimlane_row", 1)
         task_id = task.get("task_id")
@@ -456,6 +458,8 @@ class GanttChartService(QObject):
             "label_hide": label_hide,
             "task_name": task_name,
             "fill_color": fill_color,
+            "fill_pattern": fill_pattern,
+            "pattern_color": pattern_color,
             "label_horizontal_offset": label_horizontal_offset,
             "label_text": label_text,
             "task_row": task_row,
@@ -589,9 +593,10 @@ class GanttChartService(QObject):
                            task_height: float, row_height: float, fill_color: str,
                            label_text: str, label_hide: bool, label_placement: str,
                            label_horizontal_offset: float, x: float, width: float,
-                           task_id=None, show_ids: bool = False):
+                           task_id=None, show_ids: bool = False, fill_pattern: str = "solid",
+                           pattern_color: str = "white"):
         """Render a single task bar.
-        
+
         Args:
             x_start, x_end: Task start and end x positions
             width_task: Width of task bar
@@ -604,13 +609,19 @@ class GanttChartService(QObject):
             label_placement: Label placement ("Inside" or "Outside")
             label_horizontal_offset: Horizontal offset for label
             x, width: Timeline boundaries
+            fill_pattern: Fill pattern type (solid, hatch, cross-hatch, horizontal, vertical, dots)
+            pattern_color: Colour of pattern lines/dots drawn over the fill colour background
         """
         if x_start < x + width:
             y_offset = (row_height - task_height) / 2
             rect_y = y_task + y_offset
             corner_radius = 3
+            if fill_pattern and fill_pattern != "solid":
+                bar_fill = f"url(#{self._make_pattern_id(fill_pattern, fill_color, pattern_color)})"
+            else:
+                bar_fill = fill_color
             self.dwg.add(self.dwg.rect(insert=(x_start, rect_y), size=(width_task, task_height),
-                                      fill=fill_color, stroke=self.config.general.task_stroke_color, stroke_width=0.5,
+                                      fill=bar_fill, stroke=self.config.general.task_stroke_color, stroke_width=0.5,
                                       rx=corner_radius, ry=corner_radius))
             
             # Render ID badge if enabled
@@ -627,6 +638,75 @@ class GanttChartService(QObject):
                 elif label_placement == "Outside":
                     self._render_outside_label(label_text, x_end, rect_y + task_height / 2, 
                                               label_y_base, label_horizontal_offset)
+
+    def _make_pattern_id(self, pattern_type: str, fill_color: str, pattern_color: str) -> str:
+        """Return a deterministic SVG id for a (pattern_type, fill_color, pattern_color) triple."""
+        fill_id = fill_color.lstrip('#').lower().replace(' ', '')
+        pat_id = pattern_color.lstrip('#').lower().replace(' ', '')
+        return f"pattern-{pattern_type}-{fill_id}-{pat_id}"
+
+    def _add_pattern_defs(self) -> None:
+        """Write one SVG <pattern> def per unique (pattern_type, fill_color, pattern_color) triple.
+
+        Each tile is a background rect in fill_color with lines/dots drawn in pattern_color.
+        Patterns are written into self.dwg.defs so every subsequent url(#id) reference
+        resolves. Solid fill tasks are skipped — they need no def.
+        """
+        cfg = self.config.general.chart
+        spacing = cfg.fill_pattern_line_spacing
+        sw = cfg.fill_pattern_stroke_width
+        dot_r = cfg.fill_pattern_dot_radius
+        seen: set = set()
+
+        for task in self.data.get("tasks", []):
+            fill_pattern = (task.get("fill_pattern") or "solid").lower()
+            fill_color = task.get("fill_color") or "blue"
+            pattern_color = task.get("pattern_color") or "white"
+            if fill_pattern == "solid":
+                continue
+            key = (fill_pattern, fill_color, pattern_color)
+            if key in seen:
+                continue
+            seen.add(key)
+
+            pat_id = self._make_pattern_id(fill_pattern, fill_color, pattern_color)
+            pattern = self.dwg.pattern(
+                id=pat_id, patternUnits="userSpaceOnUse",
+                x=0, y=0, width=spacing, height=spacing
+            )
+
+            # Background rect filled with the task's fill colour
+            pattern.add(self.dwg.rect(
+                insert=(0, 0), size=(spacing, spacing),
+                fill=fill_color))
+
+            if fill_pattern == "hatch":
+                pattern.add(self.dwg.line(
+                    start=(0, spacing), end=(spacing, 0),
+                    stroke=pattern_color, stroke_width=sw))
+            elif fill_pattern == "cross-hatch":
+                pattern.add(self.dwg.line(
+                    start=(0, spacing), end=(spacing, 0),
+                    stroke=pattern_color, stroke_width=sw))
+                pattern.add(self.dwg.line(
+                    start=(0, 0), end=(spacing, spacing),
+                    stroke=pattern_color, stroke_width=sw))
+            elif fill_pattern == "horizontal":
+                pattern.add(self.dwg.line(
+                    start=(0, spacing / 2), end=(spacing, spacing / 2),
+                    stroke=pattern_color, stroke_width=sw))
+            elif fill_pattern == "vertical":
+                pattern.add(self.dwg.line(
+                    start=(spacing / 2, 0), end=(spacing / 2, spacing),
+                    stroke=pattern_color, stroke_width=sw))
+            elif fill_pattern == "dots":
+                pattern.add(self.dwg.circle(
+                    center=(spacing / 2, spacing / 2), r=dot_r,
+                    fill=pattern_color))
+            else:
+                continue  # Unknown pattern type — skip
+
+            self.dwg.defs.add(pattern)
 
     def render_tasks(self, x, y, width, height, start_date, end_date, num_rows):
         """Render all tasks that overlap with the timeline date range.
@@ -702,7 +782,9 @@ class GanttChartService(QObject):
                     geometry["y_task"], task_height, row_height, task_info["fill_color"],
                     task_info["label_text"], task_info["label_hide"], task_info["label_placement"],
                     task_info["label_horizontal_offset"], x, width,
-                    task_id=task_id, show_ids=show_ids
+                    task_id=task_id, show_ids=show_ids,
+                    fill_pattern=task_info.get("fill_pattern", "solid"),
+                    pattern_color=task_info.get("pattern_color", "white")
                 )
 
     def _get_task_position(self, task_id: int, x, y, width, height, start_date, end_date, num_rows):
@@ -2314,6 +2396,8 @@ class GanttChartService(QObject):
 
     def render(self):
         os.makedirs(self.output_folder, exist_ok=True)
+        # Write SVG <defs> for any fill patterns used by tasks
+        self._add_pattern_defs()
         # Create overlay group for ID badges (rendered last to appear on top)
         self.id_badge_overlay = self.dwg.g()
         self.render_outer_frame()  # Background only

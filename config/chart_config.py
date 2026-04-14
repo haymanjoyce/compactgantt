@@ -60,6 +60,11 @@ class ChartConfig:
     outside_label_text_color: str = "black"
     outside_label_line_color: str = "black"
 
+    # Fill pattern rendering constants (fixed density — not user-editable)
+    fill_pattern_line_spacing: float = 4.0   # Spacing between pattern lines/dots in pixels
+    fill_pattern_stroke_width: float = 1.0   # Stroke width for pattern lines
+    fill_pattern_dot_radius: float = 1.5     # Dot radius for the dots pattern
+
     # Named colour constants (ChartConfig only — not user-editable, not persisted)
     row_number_text_color: str = "grey"
     id_badge_background_color: str = "#f8f8f8"
@@ -102,7 +107,9 @@ class ChartConfig:
                           "header_footer_vertical_alignment_factor", "swimlane_top_vertical_alignment_factor",
                           "swimlane_bottom_vertical_alignment_factor", "id_badge_vertical_alignment_factor",
                           "id_badge_text_vertical_alignment_factor",
-                          "frame_border_width_heavy", "frame_border_width_light"]:
+                          "frame_border_width_heavy", "frame_border_width_light",
+                          "fill_pattern_line_spacing", "fill_pattern_stroke_width",
+                          "fill_pattern_dot_radius"]:
             value = getattr(self, field_name)
             if not isinstance(value, float) or value < 0:
                 raise ValueError(f"{field_name} must be a non-negative float")

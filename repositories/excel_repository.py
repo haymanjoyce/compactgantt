@@ -249,7 +249,7 @@ class ExcelRepository:
         date_config = DateConfig()
         
         # Headers - only include fields that are visible/editable in UI
-        headers = ["ID", "Swimlane ID", "Swimlane Row", "Name", "Start Date", "Finish Date", "Label Content", "Label Placement", "Label Offset", "Fill Color", "Date Format"]
+        headers = ["ID", "Swimlane ID", "Swimlane Row", "Name", "Start Date", "Finish Date", "Label Content", "Label Placement", "Label Offset", "Fill Color", "Fill Pattern", "Pattern Color", "Date Format"]
         ws.append(headers)
         self._format_header_row(ws, 1)
 
@@ -268,6 +268,8 @@ class ExcelRepository:
                 task.label_placement,
                 int(task.label_horizontal_offset) if task.label_horizontal_offset else 0,
                 task.fill_color,
+                task.fill_pattern if hasattr(task, "fill_pattern") else "solid",
+                task.pattern_color if hasattr(task, "pattern_color") else "white",
                 task.date_format if hasattr(task, "date_format") and task.date_format else ""
             ]
             ws.append(row)
@@ -730,6 +732,10 @@ class ExcelRepository:
                         task_data["label_horizontal_offset"] = float(value) if value is not None else 0.0
                     elif header == "Fill Color":
                         task_data["fill_color"] = str(value) if value is not None else "blue"
+                    elif header == "Fill Pattern":
+                        task_data["fill_pattern"] = str(value).strip() if value is not None and str(value).strip() else "solid"
+                    elif header == "Pattern Color":
+                        task_data["pattern_color"] = str(value).strip() if value is not None and str(value).strip() else "white"
                     elif header == "Date Format":
                         # Only set date_format if value is provided (not empty)
                         if value is not None and str(value).strip():

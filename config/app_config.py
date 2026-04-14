@@ -445,11 +445,26 @@ class AppConfig:
                         window_data = data['window'].copy()
                         # Remove obsolete field no longer in WindowConfig
                         window_data.pop('last_json_directory', None)
-                        # Handle tab_order separately if it exists
-                        if 'tab_order' in window_data:
-                            # tab_order is already a list, no conversion needed
-                            pass
                         self.general.window = WindowConfig(**window_data)
+                        # Splice in any tabs that exist in the canonical default order
+                        # but are absent from the saved order (e.g. "Style" added in v1.6.0).
+                        # Each missing tab is inserted at its canonical position by finding
+                        # the nearest preceding default tab that is already in the saved order.
+                        default_order = WindowConfig().tab_order
+                        loaded_order = list(self.general.window.tab_order)
+                        missing = [t for t in default_order if t not in loaded_order]
+                        for tab in missing:
+                            canonical_idx = default_order.index(tab)
+                            insert_after = None
+                            for j in range(canonical_idx - 1, -1, -1):
+                                if default_order[j] in loaded_order:
+                                    insert_after = default_order[j]
+                                    break
+                            if insert_after is None:
+                                loaded_order.insert(0, tab)
+                            else:
+                                loaded_order.insert(loaded_order.index(insert_after) + 1, tab)
+                        self.general.window.tab_order = loaded_order
                     # Load general settings
                     if 'general' in data:
                         general_data = data['general']

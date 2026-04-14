@@ -33,6 +33,8 @@ class Task:
     label_horizontal_offset: float = 0.0
     label_text_colour: str = "black"
     fill_color: str = "blue"  # Fill color for task bar or milestone circle
+    fill_pattern: str = "solid"  # Fill pattern: solid, hatch, cross-hatch, horizontal, vertical, dots
+    pattern_color: str = "white"  # Colour of pattern lines/dots drawn over the fill colour background
     date_format: Optional[str] = None  # Optional task-specific date format (e.g., "dd/MM/yyyy", "MM/dd/yyyy", etc.), None uses global format
 
     @classmethod
@@ -69,6 +71,8 @@ class Task:
             label_horizontal_offset=safe_float(data.get("label_horizontal_offset"), default=0.0),
             label_text_colour=data.get("label_text_colour", "black"),
             fill_color=data.get("fill_color", "blue"),
+            fill_pattern=data.get("fill_pattern", "solid"),
+            pattern_color=data.get("pattern_color", "white"),
             date_format=data.get("date_format")  # Optional task-specific date format
         )
 
@@ -96,6 +100,10 @@ class Task:
             result["label_text_colour"] = self.label_text_colour
         if self.fill_color != "blue":
             result["fill_color"] = self.fill_color
+        if self.fill_pattern != "solid":
+            result["fill_pattern"] = self.fill_pattern
+        if self.pattern_color != "white":
+            result["pattern_color"] = self.pattern_color
         if self.date_format:
             result["date_format"] = self.date_format
         return result

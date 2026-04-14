@@ -25,7 +25,7 @@ class WindowConfig:
     # Content-first logical grouping: structure/data → configuration → styling → system
     tab_order: List[str] = field(default_factory=lambda: [
         "Swimlanes", "Tasks", "Links", "Pipes", "Curtains", "Notes",
-        "Layout", "Timeline", "Titles", "Typography", "Preferences"
+        "Layout", "Timeline", "Titles", "Typography", "Style", "Preferences"
     ])
 
     def __post_init__(self):

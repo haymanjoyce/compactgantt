@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any
 from PyQt5.QtWidgets import QMessageBox, QApplication, QPushButton
-from PyQt5.QtCore import Qt, QUrl
+from PyQt5.QtCore import Qt, QUrl, QtCriticalMsg
 from PyQt5.QtGui import QDesktopServices, QClipboard
 
 
@@ -96,7 +96,7 @@ class CrashReporter:
             message: Message text
         """
         # Only handle critical Qt errors
-        if msg_type == Qt.CriticalMsg:
+        if msg_type == QtCriticalMsg:
             if not self._qt_exception_occurred:
                 self._qt_exception_occurred = True
                 logger.critical(f"Qt Critical Error: {message} (Context: {context})")

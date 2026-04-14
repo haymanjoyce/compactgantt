@@ -118,6 +118,58 @@ Swimlanes → Tasks → Links → Pipes → Curtains → Notes → Layout → Ti
 | Zoom Out | Ctrl+- |
 | Fit to Window | Ctrl+0 |
 
+## SVG Fill Patterns
+
+Task bars support six fill patterns (`solid`, `hatch`, `cross-hatch`, `horizontal`, `vertical`, `dots`) controlled by two Task fields: `fill_pattern` (pattern type) and `pattern_color` (colour of lines/dots). The solid fill colour becomes the tile background.
+
+Key implementation rules in `gantt_chart_service.py`:
+
+- **`patternUnits` must be `"userSpaceOnUse"`**, not `"objectBoundingBox"`. With `objectBoundingBox` the tile dimensions are fractions of the bounding box but `patternContentUnits` defaults to `userSpaceOnUse`, creating a coordinate mismatch where content shapes no longer fill their tile. Confirmed broken by experiment.
+- **One `<pattern>` def per unique `(fill_pattern, fill_color, pattern_color)` triple.** ID format: `pattern-TYPE-FILLCOLOR-PATCOLOR` (e.g. `pattern-hatch-blue-white`). Built by `_make_pattern_id()`.
+- **`_add_pattern_defs()` is called first in `render()`**, before any visible elements, so all `url(#...)` references resolve.
+- **Pattern density constants** live in `ChartConfig` (not hardcoded): `fill_pattern_line_spacing`, `fill_pattern_stroke_width`, `fill_pattern_dot_radius`.
+- **Milestones are always solid fill** — pattern fields are ignored for milestone shapes.
+
+## Settings Persistence
+
+User settings are stored in a JSON file outside the project directory:
+
+- **Windows**: `%APPDATA%\compactgantt\settings.json`
+- **Linux/Mac**: `~/.config/compactgantt/settings.json`
+
+Managed by `AppConfig._load_settings` / `AppConfig.save_settings` in `config/app_config.py`. The file holds window geometry, screen positions, `show_ids_on_chart`, and `tab_order`.
+
+### tab_order migration pattern
+
+`tab_order` is a `List[str]` on `WindowConfig` (default defined in `config/window_config.py`). It is written to `settings.json` verbatim on every save. Because users may have a settings file that predates a newly added tab, **`_load_settings` must splice missing tabs in after constructing `WindowConfig`**:
+
+```python
+default_order = WindowConfig().tab_order          # canonical list incl. new tab
+loaded_order  = list(self.general.window.tab_order)
+missing = [t for t in default_order if t not in loaded_order]
+for tab in missing:
+    canonical_idx = default_order.index(tab)
+    insert_after = None
+    for j in range(canonical_idx - 1, -1, -1):   # find nearest preceding anchor
+        if default_order[j] in loaded_order:
+            insert_after = default_order[j]
+            break
+    if insert_after is None:
+        loaded_order.insert(0, tab)
+    else:
+        loaded_order.insert(loaded_order.index(insert_after) + 1, tab)
+self.general.window.tab_order = loaded_order
+```
+
+The corrected order is persisted automatically on the next `save_settings` call. **Every time a new tab is added**, two places must be updated together:
+
+1. `config/window_config.py` — add the tab name at its canonical position in the `tab_order` default list.
+2. `config/app_config.py` `_load_settings` — the splice loop above handles it automatically; no per-tab change needed here as long as the default list is correct.
+
+## PyQt5 Pitfalls
+
+- **`Qt.CriticalMsg` does not exist** in PyQt5. Qt message-type constants live at the `QtCore` module level, not on the `Qt` namespace class. Use `from PyQt5.QtCore import QtCriticalMsg` (and likewise `QtWarningMsg`, `QtDebugMsg`, etc.). See `utils/crash_reporter.py`.
+
 ## Coding Conventions
 
 - Python 3.8+ compatible
