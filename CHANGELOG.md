@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.6.1] - 2026-04-14
+
+### Fixed
+
+- **All tabs — row ID generation now uses max + 1.** New row IDs are always `max(existing IDs) + 1`, defaulting to 1 for an empty table. Gap-filling (smallest unused integer) logic has been removed across all tabs.
+- **Links tab — Add Link ID assignment corrected.** `_add_link()` now scans all existing rows to compute the correct next ID, preventing duplicate or out-of-sequence IDs when rows have been deleted.
+- **Links tab — sync write-back is now ID-based.** `_sync_data_impl` builds a `{link_id: visual_row}` lookup to write computed fields (task names, valid status) back to the correct table row, fixing incorrect write-back under any non-default sort order.
+
+---
+
 ## [1.6.0] - 2026-03-13
 
 ### Added
@@ -322,7 +332,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/richardhaymanjoyce/compactgantt/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/richardhaymanjoyce/compactgantt/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/richardhaymanjoyce/compactgantt/compare/v1.6.0...v1.6.1
+[1.6.0]: https://github.com/richardhaymanjoyce/compactgantt/compare/v1.5.2...v1.6.0
+[1.5.2]: https://github.com/richardhaymanjoyce/compactgantt/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/richardhaymanjoyce/compactgantt/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/richardhaymanjoyce/compactgantt/compare/v1.4.2...v1.5.0
 [1.4.2]: https://github.com/richardhaymanjoyce/compactgantt/releases/tag/v1.4.2

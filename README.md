@@ -1,6 +1,6 @@
 # Compact Gantt
 
-![Version](https://img.shields.io/badge/version-1.5.1-blue.svg)
+![Version](https://img.shields.io/badge/version-1.6.1-blue.svg)
 
 A PyQt5-based tool for creating compact Gantt charts with SVG output, Excel import/export, transparent PNG export, and comprehensive customization options.
 
@@ -107,6 +107,7 @@ Tabs are organized in a content-first logical grouping:
 - **Timeline**: Timeframe settings, scale visibility, and vertical gridlines
 - **Titles**: Header and footer text and height settings
 - **Typography**: Font family, sizes, and vertical alignment
+- **Style**: User-editable colour fields for chart elements
 - **Preferences**: Window positioning, screen preferences, and date format settings
 
 ## Keyboard Shortcuts

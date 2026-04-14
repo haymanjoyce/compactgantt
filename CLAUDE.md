@@ -121,7 +121,7 @@ Swimlanes → Tasks → Links → Pipes → Curtains → Notes → Layout → Ti
 ## Coding Conventions
 
 - Python 3.8+ compatible
-- Use `@dataclass` for all new data entities
+- Use `@dataclass` for all new data entities; UI boundary code should work directly with dataclass objects, not positional lists
 - Tab-based UI: each tab is a separate class in `ui/tabs/`
 - Logging via centralized config; logs go to `logs/app.log`
 - Application uses file-based single-instance locking
