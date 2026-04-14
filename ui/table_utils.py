@@ -285,10 +285,8 @@ def add_row(table, table_key, table_configs, parent, id_field_name, row_index=No
             except (ValueError, TypeError):
                 continue
 
-        # Find the next available ID
-        next_id = 1
-        while next_id in used_ids:
-            next_id += 1
+        # Assign the next ID as max(existing IDs) + 1, defaulting to 1 if the table is empty
+        next_id = max(used_ids) + 1 if used_ids else 1
 
         # Insert the row at specified index or append
         if row_index is None:

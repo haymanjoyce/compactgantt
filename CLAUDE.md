@@ -46,6 +46,7 @@ Output: `dist/CompactGantt.exe`
 - **Excel is the sole project file format** — `.xlsx` via `repositories/excel_repository.py`. JSON serialization exists internally for the rendering pipeline only, not as a user-facing format.
 - **Single source of truth for version**: `version.py`. Run `python update_readme_version.py` after bumping the version.
 - **Column lookups are key-based**, not positional index based. Use `_get_column_index` / `_get_column_name_from_item` from `ui/tabs/base_tab.py`.
+- **New row IDs are always `max(existing IDs) + 1`**, defaulting to 1 for an empty table. Never use gap-filling (smallest unused integer) logic. This rule applies to `add_row()` in `ui/table_utils.py` and to any tab method that predicts the next ID ahead of calling `add_row()`.
 
 ## Swimlane Row Model (v1.5.0+)
 
@@ -58,8 +59,14 @@ Task rows are **swimlane-relative**, not absolute:
 - **Orphaned tasks** (`swimlane_id` not in any swimlane) are excluded from chart rendering entirely
 - **Out-of-range tasks** (`swimlane_row > swimlane.row_count`) are clamped to row 1 of their swimlane at render time
 - `DataValidator.validate_task()` accepts an optional `swimlanes` list for swimlane-aware validation (orphaned → error, out-of-range → error)
-- **Add Task inherits `swimlane_id`** from the selected task (`_add_task()` in `ui/tabs/tasks_tab.py`). The new task's ID is predicted before calling `add_row()`, and `swimlane_id` is patched directly onto the object in `project_data.tasks` after `add_row()` returns (which already called `_sync_data()` internally).
+- **Add Task inherits `swimlane_id`** from the selected task (`_add_task()` in `ui/tabs/tasks_tab.py`). The new task's ID is predicted as `max(t.task_id for t in project_data.tasks) + 1` before calling `add_row()`, and `swimlane_id` is patched directly onto the object in `project_data.tasks` after `add_row()` returns (which already called `_sync_data()` internally).
 - **Deleting the last task in a swimlane is blocked** by `_remove_tasks()` in `ui/tabs/tasks_tab.py`. It counts tasks per `swimlane_id` before delegating to `remove_row()`, and shows a blocking message naming the affected swimlane if any would be left empty.
+
+## Links Tab Patterns
+
+- **`_add_link()` bypasses `add_row()`** (`ui/tabs/links_tab.py`). It inserts a blank row directly so it can (a) assign `max(existing IDs) + 1` by scanning all rows via `used_ids` set, and (b) restore the exact pre-insert sort column and direction. Sort restore order: `setSortingEnabled` → `sortByColumn` → `blockSignals(False)` — the unblock must come last so no signals fire during the sort.
+- **`_sync_data_impl` write-back is ID-based, not positional.** After extracting links from the table and updating `project_data`, computed fields (task names, valid status) are written back by building a `{link_id: visual_row}` lookup from the current table state, then calling `_update_table_row_from_link(visual_row, link, …)`. Never use `enumerate(links)` as row indices — list position and visual row diverge under any non-default sort.
+- **`_sync_data_impl` does not impose a sort.** It must not call `sortItems` or `sortByColumn`. Sort state is managed by `_add_link` and `_load_initial_data_impl` only.
 
 ## Project Structure
 

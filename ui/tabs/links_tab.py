@@ -36,7 +36,7 @@ class LinksTab(BaseTab):
         add_btn = QPushButton("Add Link")
         add_btn.setToolTip("Add a new link")
         add_btn.setMinimumWidth(120)
-        add_btn.clicked.connect(lambda: add_row(self.links_table, "links", self.app_config.tables, self, "ID"))
+        add_btn.clicked.connect(self._add_link)
         
         remove_btn = QPushButton("Remove Link")
         remove_btn.setToolTip("Remove selected link(s)")
@@ -262,6 +262,67 @@ class LinksTab(BaseTab):
         # Trigger sync to update the data
         self._sync_data_if_not_initializing()
 
+    def _add_link(self):
+        """Add a new link row with ID = max(existing IDs) + 1, scanning all rows regardless of sort order."""
+        id_col = self._get_column_index("ID")
+        if id_col is None:
+            return
+
+        # Scan every row for its ID to find the true maximum (sort-order independent)
+        used_ids = set()
+        for row in range(self.links_table.rowCount()):
+            item = self.links_table.item(row, id_col)
+            if item and item.text():
+                try:
+                    used_ids.add(int(item.text()))
+                except (ValueError, TypeError):
+                    pass
+        new_id = max(used_ids) + 1 if used_ids else 1
+
+        # Save sort state and disable sorting during insertion
+        was_sorting = self.links_table.isSortingEnabled()
+        sort_col = self.links_table.horizontalHeader().sortIndicatorSection()
+        sort_order = self.links_table.horizontalHeader().sortIndicatorOrder()
+        self.links_table.setSortingEnabled(False)
+        self.links_table.blockSignals(True)
+
+        row_index = self.links_table.rowCount()
+        self.links_table.insertRow(row_index)
+
+        read_only_bg = QBrush(self.app_config.general.read_only_bg_color)
+
+        for col_idx in range(self.links_table.columnCount()):
+            header_text = self.links_table.horizontalHeaderItem(col_idx).text()
+            if header_text == "ID":
+                id_item = NumericTableWidgetItem(str(new_id))
+                id_item.setFlags(id_item.flags() & ~Qt.ItemIsEditable)
+                id_item.setBackground(read_only_bg)
+                id_item.setData(Qt.UserRole, new_id)
+                self.links_table.setItem(row_index, col_idx, id_item)
+            elif header_text in ["From Task ID", "To Task ID"]:
+                task_id_item = NumericTableWidgetItem("")
+                task_id_item.setData(Qt.UserRole, 0)
+                self.links_table.setItem(row_index, col_idx, task_id_item)
+            elif header_text in ["From Task Name", "To Task Name"]:
+                name_item = QTableWidgetItem("")
+                name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
+                name_item.setBackground(read_only_bg)
+                self.links_table.setItem(row_index, col_idx, name_item)
+            elif header_text == "Valid":
+                valid_item = QTableWidgetItem("No")
+                valid_item.setFlags(valid_item.flags() & ~Qt.ItemIsEditable)
+                valid_item.setBackground(read_only_bg)
+                self.links_table.setItem(row_index, col_idx, valid_item)
+            else:
+                self.links_table.setItem(row_index, col_idx, QTableWidgetItem(""))
+
+        self.links_table.setSortingEnabled(was_sorting)
+        if was_sorting and sort_col >= 0:
+            self.links_table.sortByColumn(sort_col, sort_order)
+        self.links_table.blockSignals(False)
+
+        self._sync_data()
+
     def _connect_signals(self):
         self.links_table.itemChanged.connect(self._on_item_changed)
         self.links_table.selectionModel().selectionChanged.connect(self._on_table_selection_changed)
@@ -424,22 +485,28 @@ class LinksTab(BaseTab):
         # Update project data with Link objects directly
         errors = self.project_data.update_links(links)
         
-        # Update table rows with computed fields (task names, valid status)
-        # Also update IDs in case they were reassigned
+        # Update table rows with computed fields (task names, valid status).
+        # Match each link to its visual row by ID, not list position, so this
+        # stays correct regardless of the current sort order.
         task_name_map = {task.task_id: task.task_name for task in self.project_data.tasks}
+        id_col = self._get_column_index("ID")
+        row_for_id = {}
+        if id_col is not None:
+            for row_idx in range(self.links_table.rowCount()):
+                item = self.links_table.item(row_idx, id_col)
+                if item and item.text():
+                    try:
+                        row_for_id[int(item.text())] = row_idx
+                    except (ValueError, TypeError):
+                        pass
         self.links_table.blockSignals(True)
         try:
-            for row_idx, link in enumerate(links):
-                if row_idx < self.links_table.rowCount():
-                    # Update computed fields in the table, including ID if it was reassigned
-                    self._update_table_row_from_link(row_idx, link, task_name_map)
+            for link in links:
+                visual_row = row_for_id.get(link.link_id)
+                if visual_row is not None:
+                    self._update_table_row_from_link(visual_row, link, task_name_map)
         finally:
             self.links_table.blockSignals(False)
-        
-        # Sort by ID in ascending order after sync (using key-based column lookup)
-        id_col = self._get_column_index("ID")
-        if id_col is not None:
-            self.links_table.sortItems(id_col, Qt.AscendingOrder)
         
         # Re-populate detail form if a row is currently selected
         # This ensures the detail form is enabled when a new link becomes valid

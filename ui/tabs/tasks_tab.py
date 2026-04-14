@@ -1401,20 +1401,8 @@ class TasksTab(BaseTab):
         default_start_date = task.start_date if task else None
         default_finish_date = task.finish_date if task else None
 
-        # Compute the ID that add_row() will assign (min unused positive integer).
-        id_col = self._get_column_index("ID")
-        used_ids: set = set()
-        if id_col is not None:
-            for r in range(self.tasks_table.rowCount()):
-                item = self.tasks_table.item(r, id_col)
-                if item and item.text():
-                    try:
-                        used_ids.add(int(item.text()))
-                    except (ValueError, TypeError):
-                        pass
-        next_id = 1
-        while next_id in used_ids:
-            next_id += 1
+        # Predict the ID that add_row() will assign (max existing + 1).
+        next_id = max((t.task_id for t in self.project_data.tasks), default=0) + 1
 
         add_row(self.tasks_table, "tasks", self.app_config.tables, self, "ID",
                 default_row_number=default_row_number,
