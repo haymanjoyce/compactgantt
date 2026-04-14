@@ -114,9 +114,6 @@ Swimlanes → Tasks → Links → Pipes → Curtains → Notes → Layout → Ti
 | Open Project | Ctrl+O |
 | Add Task | Ctrl+N |
 | Delete Task(s) | Delete |
-| Zoom In | Ctrl++ |
-| Zoom Out | Ctrl+- |
-| Fit to Window | Ctrl+0 |
 
 ## SVG Fill Patterns
 
@@ -165,6 +162,13 @@ The corrected order is persisted automatically on the next `save_settings` call.
 
 1. `config/window_config.py` — add the tab name at its canonical position in the `tab_order` default list.
 2. `config/app_config.py` `_load_settings` — the splice loop above handles it automatically; no per-tab change needed here as long as the default list is correct.
+
+## Chart Preview Window (`ui/svg_display.py`)
+
+The Chart Display Window uses `QWebEngineView` (from the `PyQtWebEngine` package) to render the SVG. On each update, `load_svg` reads the SVG file, wraps it in a minimal HTML page (`html, body { margin:0; padding:0; background:#ffffff }`), and calls `web_view.setHtml(html, base_url)` with a `file://` base URL pointing to the SVG's directory. The browser renderer handles zoom natively — there are no application-level zoom controls.
+
+- **`PyQtWebEngine==5.15.7` is a required dependency** (in `requirements.txt`). It is a separate package from `PyQt5` and must match the Qt5 minor version (`5.15.x`).
+- **Raster export** (`Save Image`) still uses `QSvgRenderer` from `PyQt5.QtSvg` — a local renderer instance is created on demand in `save_as_raster`; there is no persistent renderer instance on the class.
 
 ## PyQt5 Pitfalls
 
