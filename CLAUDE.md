@@ -94,7 +94,7 @@ ui/
     tasks_tab.py, swimlanes_tab.py, links_tab.py,
     pipes_tab.py, curtains_tab.py, notes_tab.py,
     layout_tab.py, timeline_tab.py, titles_tab.py,
-    typography_tab.py, preferences_tab.py
+    typography_tab.py, style_tab.py, preferences_tab.py
 
 config/app_config.py        # Application configuration
 validators/                 # Data validation
