@@ -17,11 +17,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.6.1] - 2026-04-14
 
+### Added
+
+- **Pattern Color for task fill patterns.** New `pattern_color` field on Task (default `"white"`) sets the colour of the lines or dots drawn over the `fill_color` background tile. A Pattern Color dropdown appears in the Tasks tab formatting panel directly below Fill Pattern, offering the same colour options as Fill Color. Persisted as a new `Pattern Color` column on the Excel Tasks sheet; absent or blank cells default to white.
+
+### Changed
+
+- **Chart Display Window now renders through `QWebEngineView`.** The `QSvgRenderer` + `QScrollArea` display stack is replaced by a web view: `load_svg` wraps the SVG file content in a minimal HTML page and calls `setHtml()`, so the browser's own SVG renderer handles zoom and panning natively. Adds `PyQtWebEngine==5.15.7` as a required dependency. Raster export continues to use `QSvgRenderer`, now created on demand rather than held as an instance variable.
+- **Fill pattern tiles now composite a background and a pattern colour.** Each generated `<pattern>` tile draws a background rect in `fill_color` with lines or dots in `pattern_color`. The def deduplication key and pattern ID are now based on the `(fill_pattern, fill_color, pattern_color)` triple, with ID format `pattern-TYPE-FILLCOLOR-PATCOLOR`.
+
+### Removed
+
+- **Application-level zoom controls in the Chart Display Window.** The Zoom In, Zoom Out, and Fit to Window buttons, their keyboard shortcuts, and all supporting state and methods are removed in favour of the web renderer's native zoom.
+
 ### Fixed
 
 - **All tabs — row ID generation now uses max + 1.** New row IDs are always `max(existing IDs) + 1`, defaulting to 1 for an empty table. Gap-filling (smallest unused integer) logic has been removed across all tabs.
 - **Links tab — Add Link ID assignment corrected.** `_add_link()` now scans all existing rows to compute the correct next ID, preventing duplicate or out-of-sequence IDs when rows have been deleted.
 - **Links tab — sync write-back is now ID-based.** `_sync_data_impl` builds a `{link_id: visual_row}` lookup to write computed fields (task names, valid status) back to the correct table row, fixing incorrect write-back under any non-default sort order.
+- **Settings files predating the Style tab now self-heal.** `tab_order` loaded from `settings.json` has any missing tabs spliced in at their canonical positions, so users upgrading from a version without the Style tab see it on next launch. The corrected order is persisted on the following save.
+- **Crash reporter referenced a non-existent PyQt5 constant.** `Qt.CriticalMsg` corrected to `QtCriticalMsg`; Qt message-type constants live at the `QtCore` module level, not on the `Qt` namespace class.
 
 ---
 
