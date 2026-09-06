@@ -4,7 +4,27 @@
 
 A PyQt5-based tool for creating compact Gantt charts with SVG output, Excel import/export, transparent PNG export, and comprehensive customization options.
 
-> **Note:** The version badge is automatically synced from `version.py` (single source of truth). Run `python update_readme_version.py` after updating the version.
+> **This project is no longer maintained.** The repository is archived and read-only. v1.6.1 is the final release. The source remains available under the GPL v3 — you are welcome to fork it and carry it forward.
+
+## Download
+
+**[Download CompactGantt.exe (v1.6.1)](https://github.com/haymanjoyce/compactgantt/releases/latest)** — Windows, 64-bit. No installer or Python required; download and run.
+
+The executable is not code-signed, so Windows SmartScreen will show an "unrecognized app" prompt — choose *More info* → *Run anyway*. Some antivirus products also flag PyInstaller-built executables; this is a known false positive affecting the packaging tool rather than this application. If you would rather not trust the binary, build it yourself with `build.bat`.
+
+## Screenshots
+
+**Chart data window** — tabbed data entry for tasks, swimlanes, links, and styling:
+
+![Chart data window](assets/screenshots/1_chart_data_window.png)
+
+**Chart display window** — live SVG preview with SVG and raster export:
+
+![Chart display window](assets/screenshots/2_chart_display_window.png)
+
+**Project file** — projects are saved as ordinary Excel workbooks, so data can be edited outside the app:
+
+![Spreadsheet project file](assets/screenshots/3_spreadsheet.png)
 
 ## Features
 
@@ -19,6 +39,7 @@ A PyQt5-based tool for creating compact Gantt charts with SVG output, Excel impo
   - Add, remove, duplicate, and reorder tasks
   - Task properties: ID, Swimlane Row, Name, Start Date, Finish Date, Lane (swimlane assignment)
   - Task formatting: Label visibility (Show/Hide) and placement (Inside/Outside)
+  - Six bar fill patterns (solid, hatch, cross-hatch, horizontal, vertical, dots) with a configurable pattern colour over the fill colour
   - Numeric sorting for ID, Row columns
   - Chronological sorting for Start Date and Finish Date columns
   - Default sort by Swimlane and Row
@@ -47,16 +68,14 @@ A PyQt5-based tool for creating compact Gantt charts with SVG output, Excel impo
   - Single-instance application (prevents multiple instances)
 
 - **Export Options**
-  - SVG output for scalable vector graphics
-  - PNG export with transparent background (ideal for overlays)
-  - JPEG export with white opaque background
+  - **Save SVG** writes the SVG source directly, for scalable vector output
+  - **Save Image** writes PNG with a transparent background (ideal for overlays) or JPEG with a white opaque background, selected via the file dialog filter
   - Export confirmation dialogs
 
 - **User Interface**
   - Tab-based interface for organized configuration
   - Customizable window positioning and screen preferences
-  - Real-time chart preview with SVG output
-  - Zoom controls (zoom in, zoom out, fit to window)
+  - Real-time chart preview, rendered by an embedded browser view with native zoom and panning
   - Keyboard shortcuts for common operations
 
 ## Quick Start
@@ -73,6 +92,7 @@ python main.py
 
 - Python 3.8+
 - PyQt5
+- PyQtWebEngine (for the chart preview window; a separate package from PyQt5, and must match its Qt5 minor version)
 - svgwrite
 - openpyxl (for Excel import/export)
 - python-dateutil (for date handling)
@@ -90,8 +110,8 @@ python main.py
    - Use "Move Up" and "Move Down" to reorder tasks
 4. **Click "Update Chart"** to generate the SVG chart
 5. **Export your chart**:
-   - Use File menu in the chart display window to save as PNG (transparent) or JPEG (opaque)
-   - Use File menu in the data entry window to save or open project as Excel
+   - In the chart display window, click **Save SVG** for vector output, or **Save Image** for PNG (transparent background) or JPEG (white background) — the format follows the filter you pick in the save dialog
+   - Use the File menu in the data entry window to save or open a project as Excel
 
 ## Tabs Overview
 
@@ -118,10 +138,7 @@ Tabs are organized in a content-first logical grouping:
 - **Ctrl+N**: Add new task (in Tasks tab)
 - **Delete**: Remove selected task(s) (in Tasks tab)
 
-### Chart Display Window
-- **Ctrl++**: Zoom in
-- **Ctrl+-**: Zoom out
-- **Ctrl+0**: Fit to window
+The chart display window has no keyboard shortcuts; zoom and panning are handled natively by the embedded browser view.
 
 ## Development
 
