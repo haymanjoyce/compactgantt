@@ -202,7 +202,7 @@ python tests/test_project_save_load.py
 
 ## Licenses
 
-This application is licensed under the GNU General Public License v3. See [LICENSE](LICENSE).
+This application is licensed under the GNU General Public License v3. [LICENSE](LICENSE) holds the verbatim GPL v3 text; [NOTICE](NOTICE) holds the project's own copyright and attribution statement.
 
 It uses [PyQt5](https://www.riverbankcomputing.com/software/pyqt/), which is also licensed under the GPL v3 by Riverbank Computing Limited.
 
